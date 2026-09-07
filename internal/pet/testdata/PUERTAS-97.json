@@ -1,0 +1,652 @@
+{
+  "_": "El árbol de 97 formas: puertas y umbrales. DATO, no implementación - el runtime sigue con sus 41. Lo verifica internal/pet/reach97_test.go. Las formas se nombran en español, como el lienzo y ATLAS-97.json; los ids del código son en inglés (names.go) y no se renombran, porque están escritos en los pet.json que ya existen. Ver docs/design/umbrales.md.",
+  "bases": [
+    "compacts",
+    "diffs",
+    "tests",
+    "plans",
+    "bypass_turns",
+    "p_lt40",
+    "p_40_60",
+    "p_85_95",
+    "p_95_100",
+    "p_100",
+    "d_lt15",
+    "d_90m_4h",
+    "d_4h"
+  ],
+  "contadores": {
+    "methodical": {
+      "suma": [
+        "diffs",
+        "compacts"
+      ],
+      "fuente": "internal/pet/feeding.go:58 — comidas commit y compact"
+    },
+    "inquisitive": {
+      "suma": [
+        "tests",
+        "plans"
+      ],
+      "fuente": "internal/pet/feeding.go:58 — comidas tests y task"
+    },
+    "ctx_low": {
+      "suma": [
+        "p_lt40",
+        "p_40_60"
+      ],
+      "fuente": "internal/hook/app.go:420 — pico < 60"
+    },
+    "sessions_under_40": {
+      "suma": [
+        "p_lt40"
+      ],
+      "fuente": "internal/hook/app.go:417 — pico < 40"
+    },
+    "impulsive": {
+      "suma": [
+        "p_85_95",
+        "p_95_100",
+        "p_100"
+      ],
+      "fuente": "internal/hook/app.go:433 — pico >= 85"
+    },
+    "ctx_maxed": {
+      "suma": [
+        "p_95_100",
+        "p_100"
+      ],
+      "fuente": "internal/hook/app.go:445 — pico >= 95"
+    },
+    "ctx100_sessions": {
+      "suma": [
+        "p_100"
+      ],
+      "fuente": "internal/hook/app.go:448 — pico >= 100"
+    },
+    "short_sessions": {
+      "suma": [
+        "d_lt15"
+      ],
+      "fuente": "internal/hook/app.go:452 — sesión < 15 min"
+    },
+    "sessions_15min": {
+      "suma": [
+        "d_lt15"
+      ],
+      "fuente": "internal/hook/app.go:453 — sesión < 15 min (idéntico a short_sessions)"
+    },
+    "long_sessions": {
+      "suma": [
+        "d_90m_4h",
+        "d_4h"
+      ],
+      "fuente": "internal/hook/app.go:456,459 — sesión >= 90 min"
+    },
+    "sessions_4h": {
+      "suma": [
+        "d_4h"
+      ],
+      "fuente": "internal/hook/app.go:457 — sesión >= 4 h"
+    },
+    "diffs": {
+      "suma": [
+        "diffs"
+      ]
+    },
+    "compacts": {
+      "suma": [
+        "compacts"
+      ]
+    },
+    "tests": {
+      "suma": [
+        "tests"
+      ]
+    },
+    "plans": {
+      "suma": [
+        "plans"
+      ]
+    },
+    "bypass_turns": {
+      "suma": [
+        "bypass_turns"
+      ]
+    }
+  },
+  "temperamentos": [
+    {
+      "forma": "pauta",
+      "contador": "methodical",
+      "oficios": [
+        "refactor",
+        "pulcro"
+      ]
+    },
+    {
+      "forma": "sonda",
+      "contador": "inquisitive",
+      "oficios": [
+        "cazabugs",
+        "arquitecto"
+      ]
+    },
+    {
+      "forma": "brasa",
+      "contador": "impulsive",
+      "oficios": [
+        "velocista",
+        "maratón",
+        "salvaje"
+      ]
+    }
+  ],
+  "oficios": [
+    {
+      "forma": "refactor",
+      "contador": "diffs",
+      "marcas": [
+        {
+          "marca": "cirujano",
+          "título": "bisturí",
+          "contador": "ctx_low",
+          "umbral": 80,
+          "lienzo": "ctx_low",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.0,
+          "factor_de": "sessions_under_40 es el mismo pico con otro corte; abbot pide x3"
+        },
+        {
+          "marca": "tejedor",
+          "título": "telar",
+          "contador": "plans",
+          "umbral": 29,
+          "lienzo": "plans",
+          "cambia": false,
+          "umbral_título": 115,
+          "factor_título": 4.0,
+          "factor_de": "mismo hábito que plans_before_code; sphinx pide x4"
+        },
+        {
+          "marca": "molde",
+          "título": "imprenta",
+          "contador": "impulsive",
+          "umbral": 10,
+          "lienzo": "methodical",
+          "cambia": true,
+          "umbral_título": 30,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "lima",
+          "título": "espejo",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        },
+        {
+          "marca": "injerto",
+          "título": "raíz",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "inquisitive",
+          "cambia": true,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "tijera",
+          "título": "guillotina",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "long_sessions",
+          "cambia": false,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        }
+      ]
+    },
+    {
+      "forma": "pulcro",
+      "contador": "ctx_low",
+      "marcas": [
+        {
+          "marca": "monje",
+          "título": "abad",
+          "contador": "impulsive",
+          "umbral": 10,
+          "lienzo": "methodical",
+          "cambia": true,
+          "umbral_título": 30,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "jardinero",
+          "título": "bosque",
+          "contador": "plans",
+          "umbral": 29,
+          "lienzo": "plans",
+          "cambia": false,
+          "umbral_título": 115,
+          "factor_título": 4.0,
+          "factor_de": "mismo hábito que plans_before_code; sphinx pide x4"
+        },
+        {
+          "marca": "fuente",
+          "título": "acueducto",
+          "contador": "diffs",
+          "umbral": 66,
+          "lienzo": "diffs",
+          "cambia": false,
+          "umbral_título": 165,
+          "factor_título": 2.5,
+          "factor_de": "mismo hábito que diff_streak; scalpel pide x2.5"
+        },
+        {
+          "marca": "cristal",
+          "título": "prisma",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        },
+        {
+          "marca": "nieve",
+          "título": "ventisca",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "short_sessions",
+          "cambia": false,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "lienzo",
+          "título": "mural",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "inquisitive",
+          "cambia": true,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        }
+      ]
+    },
+    {
+      "forma": "cazabugs",
+      "contador": "tests",
+      "marcas": [
+        {
+          "marca": "sabueso",
+          "título": "lobo",
+          "contador": "plans",
+          "umbral": 29,
+          "lienzo": "plans",
+          "cambia": false,
+          "umbral_título": 115,
+          "factor_título": 4.0,
+          "factor_de": "mismo hábito que plans_before_code; sphinx pide x4"
+        },
+        {
+          "marca": "exterminador",
+          "título": "avispa",
+          "contador": "impulsive",
+          "umbral": 10,
+          "lienzo": "inquisitive",
+          "cambia": true,
+          "umbral_título": 30,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "cepo",
+          "título": "red",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "diffs",
+          "cambia": true,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "linterna",
+          "título": "faro",
+          "contador": "methodical",
+          "umbral": 74,
+          "lienzo": "methodical",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "anzuelo",
+          "título": "arpón",
+          "contador": "ctx_low",
+          "umbral": 80,
+          "lienzo": "ctx_low",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.0,
+          "factor_de": "sessions_under_40 es el mismo pico con otro corte; abbot pide x3"
+        },
+        {
+          "marca": "lupa",
+          "título": "microscopio",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "long_sessions",
+          "cambia": false,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        }
+      ]
+    },
+    {
+      "forma": "arquitecto",
+      "contador": "plans",
+      "marcas": [
+        {
+          "marca": "cartógrafo",
+          "título": "atlas",
+          "contador": "impulsive",
+          "umbral": 10,
+          "lienzo": "inquisitive",
+          "cambia": true,
+          "umbral_título": 30,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "oráculo",
+          "título": "esfinge",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        },
+        {
+          "marca": "andamio",
+          "título": "catedral",
+          "contador": "methodical",
+          "umbral": 74,
+          "lienzo": "methodical",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "brújula",
+          "título": "sextante",
+          "contador": "ctx_low",
+          "umbral": 80,
+          "lienzo": "ctx_low",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.0,
+          "factor_de": "sessions_under_40 es el mismo pico con otro corte; abbot pide x3"
+        },
+        {
+          "marca": "cimiento",
+          "título": "muralla",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "diffs",
+          "cambia": true,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "maqueta",
+          "título": "ciudad",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "long_sessions",
+          "cambia": false,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        }
+      ]
+    },
+    {
+      "forma": "velocista",
+      "contador": "short_sessions",
+      "marcas": [
+        {
+          "marca": "relámpago",
+          "título": "tormenta",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "diffs",
+          "cambia": true,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        },
+        {
+          "marca": "francotirador",
+          "título": "halcón",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        },
+        {
+          "marca": "flecha",
+          "título": "saeta",
+          "contador": "methodical",
+          "umbral": 74,
+          "lienzo": "methodical",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "muelle",
+          "título": "resorte",
+          "contador": "plans",
+          "umbral": 29,
+          "lienzo": "plans",
+          "cambia": false,
+          "umbral_título": 115,
+          "factor_título": 4.0,
+          "factor_de": "mismo hábito que plans_before_code; sphinx pide x4"
+        },
+        {
+          "marca": "chispazo",
+          "título": "descarga",
+          "contador": "ctx_maxed",
+          "umbral": 4,
+          "lienzo": "impulsive",
+          "cambia": true,
+          "umbral_título": 13,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de picos que ctx100_sessions; leviathan pide x3.33"
+        },
+        {
+          "marca": "patín",
+          "título": "cohete",
+          "contador": "ctx_low",
+          "umbral": 80,
+          "lienzo": "ctx_low",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.0,
+          "factor_de": "sessions_under_40 es el mismo pico con otro corte; abbot pide x3"
+        }
+      ]
+    },
+    {
+      "forma": "maratón",
+      "contador": "long_sessions",
+      "marcas": [
+        {
+          "marca": "buey",
+          "título": "mamut",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "diffs",
+          "cambia": true,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "topo",
+          "título": "gusano",
+          "contador": "methodical",
+          "umbral": 74,
+          "lienzo": "methodical",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.23,
+          "factor_de": "SIN pariente en el lienzo: mediana de sus doce factores"
+        },
+        {
+          "marca": "ancla",
+          "título": "puerto",
+          "contador": "ctx_low",
+          "umbral": 80,
+          "lienzo": "ctx_low",
+          "cambia": false,
+          "umbral_título": 240,
+          "factor_título": 3.0,
+          "factor_de": "sessions_under_40 es el mismo pico con otro corte; abbot pide x3"
+        },
+        {
+          "marca": "caravana",
+          "título": "legión",
+          "contador": "plans",
+          "umbral": 29,
+          "lienzo": "plans",
+          "cambia": false,
+          "umbral_título": 115,
+          "factor_título": 4.0,
+          "factor_de": "mismo hábito que plans_before_code; sphinx pide x4"
+        },
+        {
+          "marca": "muro",
+          "título": "bastión",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        },
+        {
+          "marca": "reloj",
+          "título": "calendario",
+          "contador": "ctx_maxed",
+          "umbral": 4,
+          "lienzo": "inquisitive",
+          "cambia": true,
+          "umbral_título": 13,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de picos que ctx100_sessions; leviathan pide x3.33"
+        }
+      ]
+    },
+    {
+      "forma": "salvaje",
+      "contador": "ctx_maxed",
+      "marcas": [
+        {
+          "marca": "gremlin",
+          "título": "diablo",
+          "contador": "bypass_turns",
+          "umbral": 931,
+          "lienzo": "impulsive",
+          "cambia": true,
+          "umbral_título": 3100,
+          "factor_título": 3.33,
+          "factor_de": "mismo contador; el lienzo pedía 100 sobre los 30 de gremlin"
+        },
+        {
+          "marca": "kraken",
+          "título": "leviatán",
+          "contador": "long_sessions",
+          "umbral": 33,
+          "lienzo": "long_sessions",
+          "cambia": false,
+          "umbral_título": 110,
+          "factor_título": 3.33,
+          "factor_de": "misma familia de duración que sessions_4h; mammoth pide x3.33"
+        },
+        {
+          "marca": "avalancha",
+          "título": "glaciar",
+          "contador": "ctx100_sessions",
+          "umbral": 2,
+          "lienzo": "diffs",
+          "cambia": true,
+          "umbral_título": 7,
+          "factor_título": 3.33,
+          "factor_de": "mismo contador; leviathan pide x3.33"
+        },
+        {
+          "marca": "erizo",
+          "título": "espina",
+          "contador": "short_sessions",
+          "umbral": 7,
+          "lienzo": "short_sessions",
+          "cambia": false,
+          "umbral_título": 21,
+          "factor_título": 3.0,
+          "factor_de": "sessions_15min es el MISMO contador (app.go:452-453); storm pide x3"
+        },
+        {
+          "marca": "incendio",
+          "título": "volcán",
+          "contador": "sessions_4h",
+          "umbral": 12,
+          "lienzo": "methodical",
+          "cambia": true,
+          "umbral_título": 40,
+          "factor_título": 3.33,
+          "factor_de": "mismo contador; mammoth pide x3.33"
+        },
+        {
+          "marca": "grieta",
+          "título": "abismo",
+          "contador": "tests",
+          "umbral": 76,
+          "lienzo": "tests",
+          "cambia": false,
+          "umbral_título": 255,
+          "factor_título": 3.33,
+          "factor_de": "mismo hábito que test_streak; wasp pide x3.33"
+        }
+      ]
+    }
+  ],
+  "_titulos": "Umbral de cada título: su marca por un factor del CONTADOR. Diez de los doce factores son los que el lienzo ya fijó en TitleAsks para ese mismo contador o su gemelo verificado; methodical e impulsive no tienen pariente y llevan la mediana (x3.23). Decidido por Gabriel el 2026-09-07 sabiendo que el lienzo no traía los 42."
+}

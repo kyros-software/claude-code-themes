@@ -256,8 +256,9 @@ Lo único a mano son las variables de entorno, si las tenías puestas:
   candado del `pet.json` y por qué los binarios van en el repo
 - [audit-log.md](docs/audit-log.md) — histórico: la auditoría de la versión Python
 - [umbrales.md](docs/design/umbrales.md) — **sin implementar**: el árbol de 97 formas
-  del lienzo de diseño, por qué su regla deja la mitad fuera de alcance, y el arreglo
-  con sus ritmos medidos
+  del lienzo de diseño, por qué su regla deja 27 de las 42 marcas fuera de alcance, y
+  el arreglo que las devuelve. Las puertas viven en `testdata/PUERTAS-97.json` y las
+  comprueba `go test ./internal/pet/ -run NinetySeven`
 
 ## Licencia
 
