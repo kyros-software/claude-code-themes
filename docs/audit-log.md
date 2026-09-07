@@ -5,7 +5,7 @@
 > mediciones y el razonamiento siguen siendo ciertos sobre lo que medían, y
 > porque explican **por qué** se acabó cambiando de lenguaje: el código propio
 > costaba 1,5 ms y el resto era Python presentándose. Los nombres de fichero e
-> identificador son los de entonces (`bicho.py`, `statusline.sh`, `ESTADOS`).
+> identificador son los de entonces (`statusline.sh`, `ESTADOS`).
 
 # Auditoría de la statusline
 
@@ -190,12 +190,14 @@ dispararse por el máximo de los tres en vez de por la media.
 
 ### 6 · La animación va a tope por defecto
 
+El código leía una variable de entorno de calma y, solo si estaba puesta,
+limitaba el paso a cuatro refrescos de cada doce:
+
 ```python
-_calma = os.environ.get("STATUSLINE_BICHO_CALMA", "").lower() in ("1", "on", "yes")
 anda = bool(E.get("anda")) and (paso % 12 < 4 if _calma else True)
 ```
 
-Sin `STATUSLINE_BICHO_CALMA` las patas alternan en **cada** refresco, para
+Sin esa variable las patas alternan en **cada** refresco, para
 siempre, en visión periférica. El modo calmado —andar 4 segundos de cada 12— es
 mejor default; quien quiera el baile continuo que lo pida con una variable.
 
@@ -254,7 +256,7 @@ gratis**, no que el arreglo no sirviera.
 
 Dos decisiones de diseño salieron de esta auditoría:
 
-- **`bicho.py` es un módulo, no está incrustado en el `.sh`.** Un módulo
+- **El dibujo vive en su propio módulo, no incrustado en el `.sh`.** Un módulo
   importado usa caché de bytecode; un `python3 -c` recompila su fuente en cada
   refresco. Eso devuelve los 2 ms del `compile()` que medía la tabla de arriba.
 - **`tempfile` se importa dentro de `escribir_pet()`**, no arriba. Cuesta 2,0 ms
@@ -277,8 +279,8 @@ quince reales**. Reproduje los tres peores antes de tocar nada. Todos arreglados
 **Ejecución de código desde cualquier repo que abras.** `python3 -c` mete el
 directorio actual en `sys.path` como `""`, y la statusline corre con el cwd
 puesto en tu proyecto. `sys.path.insert(0, SL_DIR)` empujaba el cwd a la
-posición 1 en vez de quitarlo, así que **si faltaba `bicho.py` en `~/.claude` —el
-camino de degradación que el propio README anuncia— se importaba el `bicho.py`
+posición 1 en vez de quitarlo, así que **si faltaba ese módulo en `~/.claude` —el
+camino de degradación que el propio README anuncia— se importaba el del
 del repo abierto**, ejecutándolo una vez por refresco, con la excepción tragada
 por el `try` del import. Reproducido: `*** CODIGO DEL REPO EJECUTADO ***`, rc=0,
 sin rastro. Ahora el cwd se purga de `sys.path` antes de importar.
@@ -352,9 +354,9 @@ contexto es lo único que te para de verdad — y no toca ningún otro estado.
 
 ### 6 · La calma es el defecto
 
-`STATUSLINE_BICHO_CALMA` pasó de ser un apaño opcional a no existir (se perdió al
-mover el dibujo a `bicho.py`) y luego a existir otra vez. Ahora está resuelto al
-revés: **por defecto anda cuatro segundos de cada doce**, y `STATUSLINE_BICHO_ANDA=1`
+La variable de calma pasó de ser un apaño opcional a no existir (se perdió al
+mover el dibujo a su propio módulo) y luego a existir otra vez. Ahora está resuelto al
+revés: **por defecto anda cuatro segundos de cada doce**, y la variable de andar
 devuelve el baile continuo que pedía el diseño. Un movimiento perpetuo en la
 esquina del ojo a 1 fps es un coste de atención permanente a cambio de nada.
 

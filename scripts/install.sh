@@ -35,10 +35,13 @@ for arg in "$@"; do
   esac
 done
 
-# Files the pre-package layout dropped straight into ~/.claude, and the Python
-# runtime that came after it. Removed on both paths so an upgrade does not leave
-# a second, stale copy behind.
-LEGACY=("$CLAUDE/statusline.sh" "$CLAUDE/bicho.py" "$CLAUDE/pet" "$CLAUDE/pet-hook.sh")
+# Files the pre-package layout dropped straight into ~/.claude. Removed on both
+# paths so an upgrade does not leave a second, stale copy behind.
+#
+# The Python runtime's drawing module used to be listed here too and no longer
+# is. Anyone upgrading from a 1.x install keeps one inert .py file in ~/.claude
+# that nothing loads; naming it here was the only way to delete it.
+LEGACY=("$CLAUDE/statusline.sh" "$CLAUDE/pet" "$CLAUDE/pet-hook.sh")
 
 # The binary does the settings.json surgery: it is already here, and one atomic
 # writer beats two.

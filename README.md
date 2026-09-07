@@ -242,10 +242,9 @@ racha, contadores y forma secreta. Lo que se lee en pantalla está en castellano
 fichero guarda los ids en inglés, porque renombrarlos reescribiría todos los
 ficheros de vida que hay por ahí.
 
-Lo único a mano son las variables de entorno, si las tenías puestas:
-`STATUSLINE_BICHO` → `STATUSLINE_PET`, `STATUSLINE_BICHO_ANDA` →
-`STATUSLINE_PET_WALK`, `STATUSLINE_FONDO` → `STATUSLINE_BACKGROUND`,
-`STATUSLINE_REGLA` → `STATUSLINE_RULE`.
+Lo único a mano son las variables de entorno: las que estaban en español ya no
+se leen, y ahora son `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
+`STATUSLINE_BACKGROUND` y `STATUSLINE_RULE`.
 
 ## Más a fondo
 
