@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/hook"
-	"github.com/gabriel-diagram/claude-code-themes/internal/panel"
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/setup"
-	"github.com/gabriel-diagram/claude-code-themes/internal/statusline"
+	"github.com/kyros-software/claude-code-themes/internal/hook"
+	"github.com/kyros-software/claude-code-themes/internal/panel"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/setup"
+	"github.com/kyros-software/claude-code-themes/internal/statusline"
 )
 
 // version is stamped at build time with -ldflags "-X main.version=...".

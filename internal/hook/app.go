@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/lockfile"
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/session"
-	"github.com/gabriel-diagram/claude-code-themes/internal/setup"
+	"github.com/kyros-software/claude-code-themes/internal/lockfile"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/session"
+	"github.com/kyros-software/claude-code-themes/internal/setup"
 )
 
 // One entry point for every event; the event arrives in the stdin JSON.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // The atlas, as the source it claims to be.

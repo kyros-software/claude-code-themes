@@ -3,7 +3,7 @@ package pet
 import (
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // What counts as food, and what eating it does to the pet.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
 )
 
 // play runs the same day over and over - a few meals, then a session closed

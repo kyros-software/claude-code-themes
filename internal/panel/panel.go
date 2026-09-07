@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/hook"
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/hook"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // panelUsage draws the pet at half life: here progress is what matters, not the

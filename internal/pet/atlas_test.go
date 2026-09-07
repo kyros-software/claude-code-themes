@@ -3,7 +3,7 @@ package pet
 import (
 	"testing"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // The canvas "Atlas de Formas y Estados" ends its header with a promise:

@@ -20,7 +20,7 @@ cazabugs nivel 4 │ vibrante                                                   
 ## Instalación
 
 ```
-/plugin marketplace add gabriel-diagram/claude-code-themes
+/plugin marketplace add kyros-software/claude-code-themes
 /plugin install claude-code-themes
 /pet-statusline
 ```

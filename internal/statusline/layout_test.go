@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // Packing invariants. Wrapping knocks the prompt box out of square, so no line

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/session"
+	"github.com/kyros-software/claude-code-themes/internal/session"
 )
 
 // leftover is a scratch file from a session that died without a SessionEnd,

@@ -1,3 +1,3 @@
-module github.com/gabriel-diagram/claude-code-themes
+module github.com/kyros-software/claude-code-themes
 
 go 1.26.1

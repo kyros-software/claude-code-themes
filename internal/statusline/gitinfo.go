@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/session"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/session"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // What the band needs from git is two things with very different prices.

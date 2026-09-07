@@ -4,9 +4,9 @@
   "description": "Three colour themes for Claude Code, plus a four-band statusline with a pet on the right that reflects the real state of the session and evolves with how you work.",
   "author": {
     "name": "Gabriel Urs",
-    "url": "https://github.com/gabriel-diagram"
+    "url": "https://github.com/kyros-software"
   },
-  "homepage": "https://github.com/gabriel-diagram/claude-code-themes",
+  "homepage": "https://github.com/kyros-software/claude-code-themes",
   "keywords": [
     "theme",
     "statusline",

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/config"
+	"github.com/kyros-software/claude-code-themes/internal/config"
 )
 
 // Resolving the output style, which is the difference between the band saying

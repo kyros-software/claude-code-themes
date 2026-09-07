@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/config"
+	"github.com/kyros-software/claude-code-themes/internal/config"
 )
 
 // hookMark is how our hook entries are recognised in settings.json.

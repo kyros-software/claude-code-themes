@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // panelFor draws /pet for a given state and hands back the plain text.

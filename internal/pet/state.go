@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/config"
+	"github.com/kyros-software/claude-code-themes/internal/config"
 )
 
 // The life file - ~/.claude/pet.json.

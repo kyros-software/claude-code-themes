@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 func write(t *testing.T, s *pet.State) string {

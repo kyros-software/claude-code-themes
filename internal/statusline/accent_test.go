@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
-	"github.com/gabriel-diagram/claude-code-themes/internal/session"
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/session"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // Band 1 and the creature are one reading in one colour.

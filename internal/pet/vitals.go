@@ -1,6 +1,6 @@
 package pet
 
-import "github.com/gabriel-diagram/claude-code-themes/internal/theme"
+import "github.com/kyros-software/claude-code-themes/internal/theme"
 
 // Vital is one of the seven states of the here-and-now layer. One number from
 // 0 to 100 picks it: how full THIS session's context window is - see

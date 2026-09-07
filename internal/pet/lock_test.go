@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/lockfile"
+	"github.com/kyros-software/claude-code-themes/internal/lockfile"
 	"strings"
 	"sync"
 	"testing"

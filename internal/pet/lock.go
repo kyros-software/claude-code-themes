@@ -1,6 +1,6 @@
 package pet
 
-import "github.com/gabriel-diagram/claude-code-themes/internal/lockfile"
+import "github.com/kyros-software/claude-code-themes/internal/lockfile"
 
 // Locking the life file.
 //

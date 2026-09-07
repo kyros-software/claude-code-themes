@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
 )
 
 // The CLI surface. Run is what every hook and every `ccpet <something>` lands

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
 // Sprite x state. Not one silhouette written twice.

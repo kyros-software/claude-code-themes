@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gabriel-diagram/claude-code-themes/internal/pet"
+	"github.com/kyros-software/claude-code-themes/internal/pet"
 )
 
 // TestMain puts HOME somewhere disposable for EVERY test in this package.

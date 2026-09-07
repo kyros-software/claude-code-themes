@@ -1,6 +1,6 @@
 package pet
 
-import "github.com/gabriel-diagram/claude-code-themes/internal/theme"
+import "github.com/kyros-software/claude-code-themes/internal/theme"
 
 // The colour ramps, from the design canvas "Atlas de Formas y Estados".
 //
