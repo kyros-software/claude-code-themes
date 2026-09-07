@@ -1548,7 +1548,7 @@ func TestAMealsNoteIsFlattenedBeforeItIsStored(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pet.json")
 	now := time.Now()
 	Update(path, func(s *State) bool {
-		return Feed(s, "task", "arreglar\nel\nbicho", now)
+		return Feed(s, "task", "arreglar\nla\nmascota", now)
 	})
 
 	log := Load(path).Log
@@ -1557,7 +1557,7 @@ func TestAMealsNoteIsFlattenedBeforeItIsStored(t *testing.T) {
 	}
 	if got := log[0].Note; strings.ContainsAny(got, "\n\r\t") {
 		t.Errorf("the note kept its control characters: %q", got)
-	} else if got != "arreglar el bicho" {
-		t.Errorf("note %q, want %q", got, "arreglar el bicho")
+	} else if got != "arreglar la mascota" {
+		t.Errorf("note %q, want %q", got, "arreglar la mascota")
 	}
 }

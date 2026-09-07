@@ -208,7 +208,7 @@ Comprobado y **no** es problema. Documentado para no repetir el trabajo.
 - **Inyección de shell.** No hay. El JSON nunca pasa por el shell y `git -C` se
   invoca con lista de argumentos, sin `shell=True`. Probado con
   `display_name: "'; rm -rf /"` → se pinta literal.
-- **Caracteres de doble ancho descuadrando el bicho.** No hay ninguno. Todos los
+- **Caracteres de doble ancho descuadrando la mascota.** No hay ninguno. Todos los
   glifos no-ASCII del script son East Asian *Ambiguous*, que se pintan a una
   columna; cero `W`, cero `F`, cero Nerd Font. `vis()` cuenta bien.
 - **Contención de `index.lock` por lanzar `git status` en bucle.** No ocurre: el
@@ -232,7 +232,7 @@ Comprobado y **no** es problema. Documentado para no repetir el trabajo.
 ---
 
 Ver también el [README](../README.md) para las bandas y la paleta, y
-[VIDA.md](design/vitals.md) para la fórmula del estado del bicho.
+[VIDA.md](design/vitals.md) para la fórmula del estado de la mascota.
 
 ---
 
@@ -346,7 +346,7 @@ contexto es lo único que te para de verdad — y no toca ningún otro estado.
 >
 > **Y una tercera.** El cuello tampoco se quedó. Las cuotas de 5h y 7d son de la
 > **cuenta**, no de la sesión, así que todas las ventanas abiertas leían el mismo
-> número y el bicho dejaba de describir la suya. El uso es ahora el contexto de
+> número y la mascota dejaba de describir la suya. El uso es ahora el contexto de
 > la sesión y nada más; el k.o. sigue sin necesitar puerta, porque el contexto
 > llega al 100 él solo igual que el cuello.
 

@@ -248,8 +248,9 @@ func work(p *Payload) []segment {
 	return out
 }
 
-// petBand is band 4, the pet's own line. The canvas: "Banda 4 - el bicho.
-// Oficio, nivel, XP y estado, y detrás lo que tenga que decir." It sits under
+// petBand is band 4, the pet's own line. The canvas gives it the trade, the
+// level, the XP and the state, with whatever the pet has to say behind them.
+// It sits under
 // the three data bands and alongside the card, so the four rows on the left
 // line up with the four on the right.
 //

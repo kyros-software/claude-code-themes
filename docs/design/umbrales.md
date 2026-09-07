@@ -109,9 +109,9 @@ este mismo defecto en el árbol de 41 —su comentario cuenta cómo ocho de las 
 una formas habían dejado de existir— y lo que falta es rellenar `Unlocks` con 42
 entradas, no inventar mecánica.
 
-El lienzo rechaza los umbrales porque «un bicho que no cumpliera ninguno se quedaría
-sin oficio». Es cierto de una puerta dura y falso de una carrera de ratios: el máximo
-de un ratio existe siempre, igual que el de una cuenta.
+El lienzo rechaza los umbrales con el argumento de que una mascota que no cumpliera
+ninguno se quedaría sin oficio. Es cierto de una puerta dura y falso de una carrera
+de ratios: el máximo de un ratio existe siempre, igual que el de una cuenta.
 
 ## Los ritmos, medidos
 
