@@ -652,6 +652,54 @@ func TestChangingTemperamentDoesNotUndoAMarkUntilTheNewBranchEarnsOne(t *testing
 	}
 }
 
+// A title used to be the end of the sideways movement: rung 6 beats rung 5, so
+// a pet that had earned one stopped following its own branch until the new
+// branch grew a title too - a different habit, three times over. Now the floor
+// asks why the walk came out lower, and a change of branch is not a fall.
+func TestATitleMovesToAnEarnedMarkOnAnotherBranch(t *testing.T) {
+	s := &State{XP: xpFor(6), Counters: map[string]int{
+		"inquisitive": 20, "tests": 20,
+		"test_streak": TitleAsks["wasp"], // exterminator, and the title behind it
+	}}
+	form, _ := CurrentForm(s)
+	if form != "wasp" {
+		t.Fatalf("el punto de partida es %s, se esperaba wasp", form)
+	}
+	RememberForm(s, form)
+
+	// The temperament flips and the new trade already has a mark paid for.
+	s.Counters["methodical"], s.Counters["diffs"] = 99, 99
+	s.Counters["diff_streak"] = Unlocks["surgeon"].Threshold
+	got, _ := CurrentForm(s)
+	if got != "surgeon" {
+		t.Errorf("con surgeon ganado en la rama nueva sale %s", got)
+	}
+	if tradeOf(got) == tradeOf(form) {
+		t.Errorf("%s y %s cuelgan del mismo oficio: el caso no prueba nada", got, form)
+	}
+}
+
+// The other half of the same rule, and the one the floor was built for: inside
+// ONE trade a title still does not fall to its own sibling mark. `wasp` losing
+// the streak is a habit falling, not a pet moving.
+func TestATitleDoesNotFallToTheOtherMarkOfItsOwnTrade(t *testing.T) {
+	s := &State{XP: xpFor(6), Counters: map[string]int{
+		"inquisitive": 20, "tests": 20,
+		"test_streak":      TitleAsks["wasp"],
+		"repro_before_fix": Unlocks["bloodhound"].Threshold,
+	}}
+	form, _ := CurrentForm(s)
+	if form != "wasp" {
+		t.Fatalf("el punto de partida es %s, se esperaba wasp", form)
+	}
+	RememberForm(s, form)
+
+	s.Counters["test_streak"] = 0
+	if got, _ := CurrentForm(s); got != "wasp" {
+		t.Errorf("al romperse la racha cayo a %s; dentro del oficio el suelo aguanta", got)
+	}
+}
+
 // Clone shares nothing. `copy := *s` looks like this and is not: five fields
 // are maps and slices, and a write through one is a write through both.
 func TestACloneSharesNothingWithItsOriginal(t *testing.T) {

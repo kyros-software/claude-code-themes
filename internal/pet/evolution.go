@@ -415,11 +415,56 @@ func Tier(form string) int {
 // seen is State.FormSeen, and it is only ever written by RememberForm, which
 // is the same split speech.go uses: work it out here, write it down there,
 // when it has actually reached the screen.
+//
+// One thing the rung rule caught that it was never aimed at: a TITLE could not
+// move. A pet wearing `abbot` whose temperament flips still has `bloodhound`
+// earned and waiting on the other branch, but rung 6 beats rung 5, so it stayed
+// an abbot until the new branch grew a title of its own - which is a different
+// habit, three times over, and can be weeks away. The shape stopped saying
+// anything about the month the pet was actually having.
+//
+// So the floor now asks WHY the walk came out lower, which is the question it
+// meant all along. Two answers:
+//
+//   - The habit fell. `wasp` loses the test streak and the walk offers
+//     `bloodhound`, the same trade's other mark. That is the fall the floor
+//     exists to stop, and it still stops it.
+//   - The branch changed. `abbot` in `tidy` becomes `bloodhound` in
+//     `bughunter`. Nothing was lost: the pet is somewhere else, and the mark
+//     over there is earned. That one goes through.
+//
+// The trade tells them apart. Same trade means a fall; a different trade means
+// the pet moved, and a move down one rung to a mark it has genuinely earned is
+// a truer picture than a title from a branch it left. Below rung 5 nothing
+// passes either way: a walk that comes back a bare trade is XP falling or a
+// branch with nothing earned on it yet, and neither is a move.
 func floor(here, seen string) string {
-	if Tier(seen) > Tier(here) {
-		return seen
+	if Tier(seen) <= Tier(here) {
+		return here
 	}
-	return here
+	if Tier(here) >= 5 {
+		if from, to := tradeOf(seen), tradeOf(here); from != "" && to != "" && from != to {
+			return here
+		}
+	}
+	return seen
+}
+
+// tradeOf is the rung-3 trade a form hangs off. The root, the temperaments and
+// the two secrets hang off none and get "", which reads as "cannot tell" and
+// makes floor keep its old answer rather than guess.
+func tradeOf(form string) string {
+	for f := form; f != ""; {
+		if Tier(f) == 3 {
+			return f
+		}
+		parent, ok := Parent[f]
+		if !ok {
+			return ""
+		}
+		f = parent
+	}
+	return ""
 }
 
 // RememberForm records the rung a form has reached, so a later fall in the

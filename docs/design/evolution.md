@@ -228,19 +228,30 @@ rótulo «nivel 6» al lado. `pet.json` guarda ahora en `form_seen` el peldaño 
 alto pisado, y `pet.Save` lo anota **en cada escritura**, de modo que ningún
 camino puede persistir un bicho y olvidarse de dónde está.
 
-La regla es que una forma solo se mueve **en lateral o hacia arriba**:
+La regla es que una forma **no se cae**: se mueve en lateral, hacia arriba, o
+de rama.
 
 | desde | pasa a | por qué |
 | --- | --- | --- |
 | `exterminador` | `sabueso` | mismo peldaño, el otro hábito |
 | `exterminador` | `avispa` | hacia arriba, su título |
 | `exterminador` | `cazabugs` | **nunca**: sería bajar de peldaño |
+| `avispa` | `sabueso` | **nunca**: mismo oficio, es la racha cayéndose |
+| `avispa` | `cirujano` | sí: otro oficio, y la marca de allí está ganada |
+
+Las dos últimas filas parecen la misma bajada de 6 a 5 y no lo son, así que el
+suelo pregunta **por qué** salió más bajo. Si el oficio es el mismo, se ha caído
+un hábito y eso es justo lo que el suelo para. Si el oficio ha cambiado, el
+bicho se ha movido de rama y la marca de la rama nueva está pagada: enseñar un
+título de una rama que ya no pisa dice menos que enseñar lo que es hoy. Por
+debajo del peldaño 5 no pasa nada en ninguna dirección — un camino que devuelve
+un oficio pelado es xp cayendo o una rama sin nada ganado todavía.
 
 Dos consecuencias que conviene conocer:
 
-- **Cambiar de temperamento ya no cambia la forma** una vez llevas una marca.
-  El camino desde la raíz aterriza en un oficio, peldaño 3, y el suelo no baja
-  a buscarlo. Se mueve en cuanto ganas una marca en la rama nueva.
+- **Cambiar de temperamento sí cambia la forma**, en cuanto la rama nueva
+  tenga una marca ganada — y también si ya llevas título. Lo que no hace es
+  dejarte en el oficio pelado mientras no haya nada ganado allí.
 - **El nivel sí puede bajar**, y la forma no. Son dos hechos distintos: la
   forma es una marca de agua y el nivel es la xp de hoy, que cae al reventar el
   contexto (−15) y mientras el bicho pasa hambre. Así que `avispa nivel 5` es
