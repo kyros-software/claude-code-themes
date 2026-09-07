@@ -2,7 +2,7 @@
 
 Tres temas de color para [Claude Code](https://claude.com/claude-code) y una
 **statusline** que ocupa el pie de la ventana: cuatro bandas de datos a la
-izquierda y un bicho a la derecha que refleja el estado de la sesión y
+izquierda y una mascota a la derecha que refleja el estado de la sesión y
 **evoluciona según cómo trabajas** — 41 formas en un árbol de seis niveles, con
 xp, hambre y racha.
 
@@ -25,7 +25,7 @@ cazabugs nivel 4 │ vibrante                                                   
 /pet-statusline
 ```
 
-Lo primero trae los temas, los comandos y los hooks que alimentan al bicho. Lo
+Lo primero trae los temas, los comandos y los hooks que alimentan a la mascota. Lo
 tercero enciende la statusline — hace falta aparte porque `statusLine` no es un
 componente de plugin y la clave va en `~/.claude/settings.json`, con copia de
 seguridad y escritura atómica. Después, `/theme` → Terminal.
@@ -33,34 +33,34 @@ seguridad y escritura atómica. Después, `/theme` → Terminal.
 Sin plugin:
 
 ```bash
-scripts/install.sh            # temas + statusline + bicho + /pet y /feed
+scripts/install.sh            # temas + statusline + mascota + /pet y /feed
 scripts/install.sh --hooks    # además engancha los hooks que le dan de comer
 scripts/install.sh --uninstall
 ```
 
 Los **hooks van aparte a propósito**: viven en el `settings.json` global, así que
-corren en todos tus repos. Sin ellos el bicho existe y se ve, pero solo come con
+corren en todos tus repos. Sin ellos la mascota existe y se ve, pero solo come con
 `/feed`.
 
 ## Las cuatro bandas
 
 - **1 · el motor** — modelo, contexto, los dos límites, razonamiento y ritmo: lo
   que cambia cada turno. Las cuotas van pintadas con la misma escalera de color que
-  el bicho, así que un `5h` al 95% sale en índigo aunque la ventana esté vacía.
+  la mascota, así que un `5h` al 95% sale en índigo aunque la ventana esté vacía.
 - **2 · el trabajo** — repo, rama, diff, coste y el reloj de la sesión.
 - **3 · dónde y con qué criterio** — la carpeta (solo la carpeta; si estás en la
   raíz del repo, desaparece) y el estilo de salida activo, **comprobado contra el
   disco** antes de pintarlo: el payload manda el nombre configurado, no el cargado.
-- **4 · el bicho** — oficio, la marca entre corchetes, nivel, cómo está, la barra y
+- **4 · la mascota** — oficio, la marca entre corchetes, nivel, cómo está, la barra y
   el bocadillo. `cazabugs[sabueso]` se lee entero como un nombre: *un cazabugs, en
   su forma sabueso*.
 
 Por debajo de **100 columnas** la banda 4 se queda solo con el oficio; por debajo de
-**55**, el bicho desaparece.
+**55**, la mascota desaparece.
 
 El porqué de cada decisión está en [statusline.md](docs/design/statusline.md).
 
-## El bicho
+## La mascota
 
 Nueve columnas. La silueta **y el color** los elige la evolución; los ojos, las
 patas y el peldaño de la rampa los elige el estado. Cada rama tiene su tono y lo
@@ -86,7 +86,7 @@ distingue *cansada* de *ahogada* sin leer la etiqueta.
 
 Es **solo el contexto**, a propósito. Las cuotas de 5h y 7d son de la cuenta, no de
 la sesión: metiéndolas en la cuenta, todas las ventanas abiertas leían el mismo
-número y el bicho dejaba de hablar de la sesión en la que vive. Siguen en la banda
+número y la mascota dejaba de hablar de la sesión en la que vive. Siguen en la banda
 1, con número y color, pero sin cara. El razonamiento entero en
 [vitals.md](docs/design/vitals.md).
 
@@ -153,9 +153,11 @@ las dos cifras: 60 horas —**dos días y medio**— para perder el nivel de arr
 4560 horas, **unos seis meses**, para volver a larva. Nunca muere: por abajo se
 queda en `chispa`, que es una forma, no una tumba.
 
-**Una forma no baja de escalón.** Se mueve en lateral o hacia arriba: un
-`exterminador` pasa a `sabueso` o a `avispa`, pero nunca vuelve a `cazabugs`. El
-nivel sí puede bajar aunque la forma no, así que `avispa nivel 5` es legítimo.
+**Una forma no se cae.** Se mueve en lateral, hacia arriba o de rama: un
+`exterminador` pasa a `sabueso` o a `avispa`, pero nunca vuelve a `cazabugs`
+pelado. Baja un peldaño en un solo caso —cambias de rama y allí ya tienes una
+marca ganada—, porque eso no es caerse, es haberte movido. El nivel sí puede
+bajar aunque la forma no, así que `avispa nivel 5` es legítimo.
 
 El árbol entero y qué alimenta cada contador, en
 [evolution.md](docs/design/evolution.md).
@@ -213,13 +215,13 @@ ve de un vistazo.
 
 | Variable | Efecto |
 | --- | --- |
-| `STATUSLINE_PET=0` | apaga el bicho, deja las cuatro bandas |
+| `STATUSLINE_PET=0` | apaga la mascota, deja las cuatro bandas |
 | `STATUSLINE_PET_WALK=1` | anda en cada refresco en vez de a ratos |
 | `STATUSLINE_BACKGROUND=0` | quita el fondo del pie |
 | `STATUSLINE_RULE=0` | quita la raya de arriba y ahorra una fila |
 | `STATUSLINE_RIGHT_PAD` | margen derecho, por defecto `6` |
 | `PET_TEST_RUNNERS` | regex extra para reconocer tu runner de tests |
-| `CLAUDE_CONFIG_DIR` | mueve `~/.claude`; el bicho y la statusline lo respetan |
+| `CLAUDE_CONFIG_DIR` | mueve `~/.claude`; la mascota y la statusline lo respetan |
 
 **Truecolor.** Los temas usan color de 24 bits, y Windows Terminal, WSL y `docker
 run` no exportan `COLORTERM`. Sin él los tonos parecidos colapsan al mismo:
@@ -229,13 +231,13 @@ export COLORTERM=truecolor                                  # .zshrc / .bashrc
 docker run -e COLORTERM=truecolor -e TERM=xterm-256color ...
 ```
 
-El bicho sí tiene plan B: cuantiza al cubo de 256 de verdad, así que se ve igual,
+La mascota sí tiene plan B: cuantiza al cubo de 256 de verdad, así que se ve igual,
 con menos tonos.
 
 ## Migración desde la versión en Python
 
 **No hay que hacer nada.** `scripts/install.sh` borra los lanzadores viejos y el
-`pet.json` se traduce solo la primera vez que se escribe. El bicho conserva xp,
+`pet.json` se traduce solo la primera vez que se escribe. La mascota conserva xp,
 racha, contadores y forma secreta. Lo que se lee en pantalla está en castellano; el
 fichero guarda los ids en inglés, porque renombrarlos reescribiría todos los
 ficheros de vida que hay por ahí.

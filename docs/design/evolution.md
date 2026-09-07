@@ -1,6 +1,6 @@
-# Las evoluciones del bicho
+# Las evoluciones de la mascota
 
-El bicho tiene **dos capas que no se mezclan**:
+La mascota tiene **dos capas que no se mezclan**:
 
 | | qué mide | de dónde sale | sube y baja |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ las 41 evoluciones tienen sus siete estados sin dibujar 287 sprites.
 Los ojos siguen una regla: la evolución pone los suyos mientras está entera
 (*fresh* y *lively*), y de *easy* para abajo manda el estado
 (`o o` → `▬ ▬` → `_ _` → `x x`). Así el cansancio se lee de un vistazo aunque
-no sepas qué bicho es.
+no sepas qué mascota es.
 
 ## El árbol
 
@@ -173,7 +173,7 @@ La fila `marca` de `/pet` sí lleva la cuenta de los dos hábitos.
 
 ### La variante que llevas: `cazabugs[sabueso]`
 
-La banda 4 escribe entre corchetes **la marca que el bicho lleva puesta**, con
+La banda 4 escribe entre corchetes **la marca que la mascota lleva puesta**, con
 el oficio del que es variante fuera:
 
 ```
@@ -190,8 +190,8 @@ el corchete aparece ahí y en ningún otro sitio:
 | 5 | `cazabugs[sabueso]` | la bifurcación, y por cuál fue |
 | 6 | `lobo` | el título es el final de la rama y no compite con nada |
 
-**El corchete decía lo contrario y engañaba.** Escribía la marca a la que el
-bicho *apuntaba*, así que un nivel 4 leía `cazabugs[sabueso]` sin ser un sabueso
+**El corchete decía lo contrario y engañaba.** Escribía la marca a la que la
+mascota *apuntaba*, así que un nivel 4 leía `cazabugs[sabueso]` sin ser un sabueso
 y sin garantía de llegar a serlo. La intención era que los corchetes fuesen el
 tiempo verbal —un nombre dice *es*, un corchete dice *va hacia*— pero eso solo
 funciona si se ven: iban pintados en `Rule`, el color de la barra separadora,
@@ -218,7 +218,7 @@ saltaba el nivel 4 entero y ponía un «nivel 5» al lado de 412 XP.
 ## Una forma no baja de escalón
 
 La forma se recalcula desde los contadores en **cada refresco** y no está
-grabada, así que lo que el bicho *es* puede cambiar de una línea a la
+grabada, así que lo que la mascota *es* puede cambiar de una línea a la
 siguiente. Lo que no puede es bajar por el árbol.
 
 Dos hábitos se van a cero cuando revientas el contexto —`test_streak` y
@@ -226,7 +226,7 @@ Dos hábitos se van a cero cuando revientas el contexto —`test_streak` y
 `avispa` de nivel 6 volvía como `cazabugs`, una forma de nivel 3, con el
 rótulo «nivel 6» al lado. `pet.json` guarda ahora en `form_seen` el peldaño más
 alto pisado, y `pet.Save` lo anota **en cada escritura**, de modo que ningún
-camino puede persistir un bicho y olvidarse de dónde está.
+camino puede persistir una mascota y olvidarse de dónde está.
 
 La regla es que una forma **no se cae**: se mueve en lateral, hacia arriba, o
 de rama.
@@ -241,8 +241,8 @@ de rama.
 
 Las dos últimas filas parecen la misma bajada de 6 a 5 y no lo son, así que el
 suelo pregunta **por qué** salió más bajo. Si el oficio es el mismo, se ha caído
-un hábito y eso es justo lo que el suelo para. Si el oficio ha cambiado, el
-bicho se ha movido de rama y la marca de la rama nueva está pagada: enseñar un
+un hábito y eso es justo lo que el suelo para. Si el oficio ha cambiado, la
+mascota se ha movido de rama y la marca de la rama nueva está pagada: enseñar un
 título de una rama que ya no pisa dice menos que enseñar lo que es hoy. Por
 debajo del peldaño 5 no pasa nada en ninguna dirección — un camino que devuelve
 un oficio pelado es xp cayendo o una rama sin nada ganado todavía.
@@ -254,7 +254,7 @@ Dos consecuencias que conviene conocer:
   dejarte en el oficio pelado mientras no haya nada ganado allí.
 - **El nivel sí puede bajar**, y la forma no. Son dos hechos distintos: la
   forma es una marca de agua y el nivel es la xp de hoy, que cae al reventar el
-  contexto (−15) y mientras el bicho pasa hambre. Así que `avispa nivel 5` es
+  contexto (−15) y mientras la mascota pasa hambre. Así que `avispa nivel 5` es
   una pareja que se puede ver, y no es un fallo.
 
 ## La comida
@@ -296,16 +296,16 @@ solo, `fed_at`, que bastaba mientras `/feed` era la única con espera; dos
 comidas con freno se habrían amordazado la una a la otra.
 
 El **hambre** sube +1 por hora sin comer, hasta 10. A partir de 7 los ojos se
-apagan y el bicho pide comida en la statusline. Al llegar a 10 deja de ser un
-aviso y **empieza a costar 1 XP por hora**, que es la única forma que tiene el
-bicho de perder terreno solo. **Nunca muere**: por abajo se queda en larva, que
+apagan y la mascota pide comida en la statusline. Al llegar a 10 deja de ser un
+aviso y **empieza a costar 1 XP por hora**, que es la única forma que tiene la
+mascota de perder terreno solo. **Nunca muere**: por abajo se queda en larva, que
 es una forma, no una tumba.
 
 Reventar el contexto resta 15 XP y rompe las rachas limpias.
 
 ### Por qué el nivel sí baja
 
-El diseño original decía que el nivel nunca baja, y con esa regla un bicho que
+El diseño original decía que el nivel nunca baja, y con esa regla una mascota que
 llegaba al tope se quedaba ahí para siempre: no había nada que ganar ni nada
 que perder. La escalera terminaba y el tamagotchi dejaba de serlo.
 
@@ -335,7 +335,7 @@ Las cifras viven en `StarveXP` y `XPCeiling`, y hay un test
 El hook (`ccpet hook`) y la propia statusline traducen lo que haces en
 contadores. **Las 41 evoluciones son alcanzables**: la raíz, los tres
 temperamentos, los siete oficios, las catorce marcas, los catorce títulos y las
-dos secretas. Y siguen siéndolo con el bicho ya crecido, que es lo que
+dos secretas. Y siguen siéndolo con la mascota ya crecida, que es lo que
 `TestEveryFormIsReachableFromAVeteran` fija: en cada bifurcación gana el hábito
 que más lejos ha llegado *respecto a lo que pide*, no el primero que cruzó su
 umbral, así que ninguna puerta se cierra a tu espalda.

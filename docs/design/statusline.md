@@ -12,7 +12,7 @@ cazabugs nivel 4 │ vibrante                                                   
 ```
 
 Es un **pie**, no una línea más del hilo: fondo un tono por encima del negro y una
-raya fina arriba. Cinco filas — la raya y cuatro bandas —, con el bicho anclado a
+raya fina arriba. Cinco filas — la raya y cuatro bandas —, con la mascota anclada a
 la derecha ocupando las cuatro. Cada banda agrupa datos que se miran juntos, y
 suelta los elementos de menor prioridad antes que hacer *wrap*, que descuadra la
 caja del prompt.
@@ -20,9 +20,9 @@ caja del prompt.
 ## Banda 1 · el motor
 
 Las cuotas van como número pelado, sin barra, y **pintadas con la misma escalera**
-que la barra de contexto y el bicho: un `5h` al 95% sale en el índigo de *ahogada*,
-así que lo que está a punto de pararte es el color más fuerte de la línea aunque el
-bicho esté verde. Es la respuesta a «¿por qué está ahogado si la ventana está
+que la barra de contexto y la mascota: un `5h` al 95% sale en el índigo de *ahogada*,
+así que lo que está a punto de pararte es el color más fuerte de la línea aunque la
+mascota esté verde. Es la respuesta a «¿por qué está ahogado si la ventana está
 vacía?».
 
 **El `tok/s` es real, no una estimación**, y hay que mirar de dónde sale. Los dos
@@ -36,7 +36,7 @@ resultado sale inflado o negativo según cuál fuera más larga.
 Se apaga solo a los dos minutos sin moverse, y entonces el acierto de caché ocupa
 ese hueco. Nunca salen los dos.
 
-La barra mide el mismo número que decide el bicho, así que **barra y bicho no
+La barra mide el mismo número que decide la mascota, así que **barra y mascota no
 pueden contradecirse**. Las otras dos disposiciones se probaron y se leyeron como
 un fallo: con la barra midiendo el contexto y tomando prestado el color del cuello,
 una sesión al 48% con la cuota de 5h al 67 dibujaba una barra a media asta junto a
@@ -65,7 +65,7 @@ antes el estilo: la banda era de la carpeta primero.
 ### Por qué el estilo va en minúscula
 
 Es la voz del pie, no un dato del estilo. Todo lo demás que ocupa ese sitio ya
-llega en minúscula —`xhigh`, `plan`, `auto-edit`, el `cazabugs` del bicho—, así que
+llega en minúscula —`xhigh`, `plan`, `auto-edit`, el `cazabugs` de la mascota—, así que
 un nombre capitalizado sería la única palabra de la línea que grita.
 
 Se hace en la banda y no al leer el payload por dos razones: `Payload.Style`
@@ -116,22 +116,22 @@ y pintarla gastaría columnas en decir que no hay nada.
 
 En la raíz de un repo y sin estilo, que es la mayoría de las sesiones. Esa fila se
 ancla con un **braille en blanco** (`U+2800`), porque Claude Code recorta los
-espacios de la izquierda y sin él el trozo de bicho de esa fila se cae al borde.
+espacios de la izquierda y sin él el trozo de mascota de esa fila se cae al borde.
 
-## Banda 4 · el bicho
+## Banda 4 · la mascota
 
 ```
 cazabugs[sabueso] nivel 5 │ fresca ✦ │ ████░░░░ │ ◗ cinco días de racha
 ```
 
-El corchete escribe **la marca que el bicho lleva puesta**, con el oficio del que
+El corchete escribe **la marca que la mascota lleva puesta**, con el oficio del que
 es variante fuera: se lee entero como un nombre, *un cazabugs, en su forma
 sabueso*. El árbol se bifurca en los niveles 2, 3 y 5, y la marca es la del 5, así
 que el corchete sale ahí y en ningún otro sitio: `cazabugs` en el nivel 4,
 `cazabugs[sabueso]` en el 5, y `lobo` a secas en el 6, donde el título es el final
 de la rama y no necesita contexto.
 
-**Decía lo contrario.** Escribía la marca a la que el bicho *apuntaba*, de modo que
+**Decía lo contrario.** Escribía la marca a la que la mascota *apuntaba*, de modo que
 un nivel 4 leía `cazabugs[sabueso]` sin ser un sabueso. La idea era que el corchete
 fuese el tiempo verbal —un nombre dice *es*, un corchete dice *va hacia*—, y eso
 solo funciona si se ve: iba pintado en el color de la barra separadora, **1,54:1**
@@ -139,15 +139,15 @@ contra el fondo frente al **11,8:1** de las dos palabras que lo rodean. Dos
 palabras brillantes pegadas sin nada visible en medio se leen como un nombre
 compuesto, que es exactamente lo que era.
 
-**El estado vive aquí, no coronando al bicho.** El lienzo lo dibuja dos veces, pero
+**El estado vive aquí, no coronando a la mascota.** El lienzo lo dibuja dos veces, pero
 en una terminal de verdad la misma palabra acaba en el mismo pie a pocas columnas
-de sí misma y se lee como un fallo. Bajarlo a la banda le devolvió al bicho la fila
+de sí misma y se lee como un fallo. Bajarlo a la banda le devolvió a la mascota la fila
 que necesita la cresta.
 
 La barra mide **el tramo de este nivel**, no la xp total, así que amanece vacía el
 día después de subir. En el tope, donde ya no queda escalera, cambia de moneda:
 pasa a medir el **hábito** que abre la siguiente marca, en ámbar y con su nombre al
-lado. Un bicho que ya lleva la suya no tiene ninguna de las dos, y entonces la
+lado. Una mascota que ya lleva la suya no tiene ninguna de las dos, y entonces la
 banda se sostiene sobre el estado.
 
 ## Anchos
@@ -155,15 +155,15 @@ banda se sostiene sobre el estado.
 | Columnas | Qué pasa |
 | --- | --- |
 | < 100 (`BubbleMin`) | la banda 4 se queda **solo con el oficio** |
-| < 55 (`minWidthForPet`) | el bicho desaparece y quedan las cuatro bandas |
+| < 55 (`minWidthForPet`) | la mascota desaparece y quedan las cuatro bandas |
 
 **El margen derecho.** La statusline no recibe el ancho de la terminal —no hay
 campo para eso en el JSON—, así que sale de `COLUMNS`. Y Claude Code recorta la
-línea unas 5 columnas antes, de modo que alinear sobre `COLUMNS-1` trunca el bicho
+línea unas 5 columnas antes, de modo que alinear sobre `COLUMNS-1` trunca la mascota
 o lo hace *wrap*. De ahí el margen de 6 por defecto (`STATUSLINE_RIGHT_PAD`).
 
 **Los espacios de la izquierda.** Claude Code los recorta. Las filas cuya mitad
-izquierda va vacía son solo "espacios + bicho": al recortarlos, el bicho se cae al
+izquierda va vacía son solo "espacios + mascota": al recortarlos, la mascota se cae al
 borde y acabas con trozos sueltos por la pantalla. Por eso el braille en blanco.
 
 ## Lo que no está en su mano

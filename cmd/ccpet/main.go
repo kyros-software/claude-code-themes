@@ -118,9 +118,9 @@ func defaultRuntimeRoot() string {
 	return filepath.Join(setup.ConfigDir(), "ccpet")
 }
 
-const usage = `ccpet - la statusline del tema Terminal y su bicho.
+const usage = `ccpet - la statusline del tema Terminal y su mascota.
 
-  ccpet                       el panel del bicho
+  ccpet                       el panel de la mascota
   ccpet feed                  darle de comer (+3 xp, -2 hambre, uno cada 4 h)
   ccpet <evento>              una comida: tests | commit | compact | task | overflow
   ccpet count <contador> [n]  suma a un contador de comportamiento

@@ -251,7 +251,7 @@ func TestAFallenWalkNeverLowersTheStoredRung(t *testing.T) {
 		t.Errorf("la caida se grabo como verdad: form_seen = %q", got)
 	}
 	if got, _ := pet.CurrentForm(pet.Load(path)); got != "wasp" {
-		t.Errorf("tras la caida el bicho es %s", got)
+		t.Errorf("tras la caida la mascota es %s", got)
 	}
 }
 

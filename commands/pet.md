@@ -1,5 +1,5 @@
 ---
-description: El panel del bicho - nivel, evolución, xp, hambre y racha
+description: El panel de la mascota - nivel, evolución, xp, hambre y racha
 allowed-tools: ["Bash(~/.claude/ccpet/bin/ccpet)", "Bash(~/.claude/ccpet/bin/ccpet:*)"]
 ---
 Run `~/.claude/ccpet/bin/ccpet` with Bash and show its output exactly as it comes

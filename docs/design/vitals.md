@@ -1,6 +1,6 @@
-# El uso del bicho
+# El uso de la mascota
 
-Qué mide exactamente el bicho de la statusline, y qué hace que pase de *fresh* a
+Qué mide exactamente la mascota de la statusline, y qué hace que pase de *fresh* a
 *k.o.*
 
 Esta es **una de las dos capas**. La vida es del momento: sube y baja con el uso
@@ -36,7 +36,7 @@ importa. Con la ventana llena del todo y las cuotas ociosas:
 media:   0.5·100 + 0.3·20 + 0.2·10  =  58   →  "a gusto", turquesa
 ```
 
-El contexto agotado, sin sitio para trabajar, y el bicho diciendo que está
+El contexto agotado, sin sitio para trabajar, y la mascota diciendo que está
 cómodo. Eso no es una ponderación desafortunada: es el número mintiendo justo
 cuando hacía falta que no lo hiciera.
 
@@ -44,22 +44,22 @@ cuando hacía falta que no lo hiciera.
 la primera versión del proyecto (`statusline.sh`, commit `05bf5c7`) bajo una
 frase que sigue sonando bien: *«no finge emociones; refleja el cuello más
 apretado»*. Arregló la dilución de golpe y trajo un problema del que aquel
-documento ya avisaba —«si el límite de 7 días va por el 95%, el bicho está
+documento ya avisaba —«si el límite de 7 días va por el 95%, la mascota está
 `drowning` toda la semana aunque abras la sesión con la ventana vacía»— y que se
 juzgó el precio barato.
 
 No lo era, porque el problema es peor de lo que decía ese aviso. **Las cuotas son
-de la cuenta.** Todas las sesiones abiertas leen el mismo número, así que el
-bicho dejaba de describir la sesión en la que vive:
+de la cuenta.** Todas las sesiones abiertas leen el mismo número, así que la
+mascota dejaba de describir la sesión en la que vive:
 
 ```
 sesión A   ventana al  6%,  5h al 81%   →  cansada
 sesión B   ventana al 64%,  5h al 81%   →  cansada
 ```
 
-Dos ventanas que no se parecen en nada, dos bichos idénticos, y un `/clear` que
+Dos ventanas que no se parecen en nada, dos mascotas idénticos, y un `/clear` que
 no cambiaba nada porque lo que gobernaba no era el contexto. La lectura no
-mentía sobre la cuenta; mentía sobre **la sesión**, que es de lo que el bicho
+mentía sobre la cuenta; mentía sobre **la sesión**, que es de lo que la mascota
 habla.
 
 **Y el contexto sí es una experiencia.** Una ventana llena es un Claude más
@@ -77,11 +77,11 @@ Siguen en la banda 1, como números, **pintados con esta misma escalera**:
 ```
 
 Un `5h` al 95 sale en el índigo de `drowning`, así que lo que está a punto de
-pararte es el color más fuerte de la línea aunque el bicho esté verde. Eso es
+pararte es el color más fuerte de la línea aunque la mascota esté verde. Eso es
 todo lo que necesitan: dicen cuánto queda del día, y eso se lee en una cifra.
 
 Las cuentas por API no reciben `rate_limits`, así que ahí no hay nada que leer —y
-antes eso obligaba a que el bicho tuviera un caso especial. Ya no.
+antes eso obligaba a que la mascota tuviera un caso especial. Ya no.
 
 ## La curva viene de la primera versión
 
@@ -103,7 +103,7 @@ lo que se le metía. Hay un test que la fija
 
 ## La barra de la banda 1 mide lo mismo
 
-La barra y el bicho son **una sola medida**. Es la única disposición que no ha
+La barra y la mascota son **una sola medida**. Es la única disposición que no ha
 fallado, y las otras dos se probaron:
 
 - La barra medía el contexto y solo **tomaba prestado el color** del cuello: con
@@ -115,13 +115,13 @@ fallado, y las otras dos se probaron:
   el contexto —el único de los tres que es de esta sesión— se quedaba con un `7%`
   suelto y sin barra.
 
-Ahora el largo, el número y el color son el contexto, y el bicho es ese mismo
+Ahora el largo, el número y el color son el contexto, y la mascota es ese mismo
 contexto. No pueden discrepar porque no hay dos cosas.
 
-El color, además, es **el cuerpo del bicho**: la rampa de su rama en el peldaño
+El color, además, es **el cuerpo de la mascota**: la rampa de su rama en el peldaño
 que elige el estado. Antes era el color de la escalera de estados, que coincidía
-con el bicho en *cómo* va la sesión pero no en *quién* la está viviendo —una
-escalera única para todos los bichos, cuando desde el atlas el tono es de la
+con la mascota en *cómo* va la sesión pero no en *quién* la está viviendo —una
+escalera única para todos las mascotas, cuando desde el atlas el tono es de la
 rama. Un `cazabugs` azul junto a una barra verde que significaba lo mismo.
 
 ## Dónde cae cada estado
@@ -151,7 +151,7 @@ veía nunca. Un número que ya es el contexto llega al 100 él solo.
 
 ## Cuando falta el dato
 
-Un CLI viejo no manda `context_window`. Entonces el uso es 0, el bicho sale
+Un CLI viejo no manda `context_window`. Entonces el uso es 0, la mascota sale
 fresco y **la banda 1 no dibuja barra**: una barra al 0% sería una medida que no
 ha tomado nadie. No se inventa un estado y no se sustituye por una cuota.
 
@@ -159,9 +159,9 @@ ha tomado nadie. No se inventa un estado y no se sustituye por una cuota.
 
 Ni el **coste en dólares**, ni el **tiempo de sesión**, ni las **líneas tocadas**,
 ni el estado de git, ni la caché, ni —desde esta versión— las **cuotas de la
-cuenta**. Todo eso sale en las bandas, pero no le afecta al bicho.
+cuenta**. Todo eso sale en las bandas, pero no le afecta a la mascota.
 
-Tampoco mide el **progreso**. Que el bicho esté *k.o.* no lo devuelve a larva:
+Tampoco mide el **progreso**. Que la mascota esté *k.o.* no lo devuelve a larva:
 la silueta la elige la XP, y la XP no la toca el uso. Un `surgeon` reventado
 sigue siendo un surgeon, con cara de haber visto cosas.
 
@@ -173,7 +173,7 @@ sin haber llenado una sola ventana.
 
 ## Honestidad
 
-El bicho **no finge emociones**. No se pone contento porque el código compile ni
+La mascota **no finge emociones**. No se pone contento porque el código compile ni
 triste porque falle un test: refleja un número real y comprobable, y ahora
 además un número del que la sesión que lo enseña es responsable. Si está
 cansado, es que tu ventana va por el 85%.
