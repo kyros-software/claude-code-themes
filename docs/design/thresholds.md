@@ -11,11 +11,13 @@
 >
 > Original handover: <https://claude.ai/code/artifact/e15cd05f-cb01-4e68-a336-85c61100faee>
 
-> **On the names.** The forms in this document are named the way the canvas names
-> them, in Spanish, because that is what `PUERTAS-97.json` and `ATLAS-97.json`
-> hold. The 41 forms the code implements have English ids; the 56 new ones do not
-> have one yet, and choosing them is part of implementing this. See the last
-> section, and [language.md](language.md).
+> **On the names.** The forms are named here in English. For the 41 the code
+> already implements that is the id itself — `bloodhound`, `wasp`, `spark` — and
+> for the other 56 it is the name proposed by [the mapping](#the-97-names) at the
+> end of this document, which is the naming decision implementing this needs
+> anyway. **`PUERTAS-97.json` and `ATLAS-97.json` still key them in Spanish**, the
+> way the canvas does, so the mapping is what joins this page to the data. See
+> also [language.md](language.md).
 
 ## The rule, in full
 
@@ -84,13 +86,13 @@ root, and no reassignment of gates removes it entirely.
 | wins even on a tie (order-based tiebreak gifts it the mark) | 21 | 21 |
 | wins **without a tie** | 15 | 27 |
 
-The 21 dead under either yardstick: `andamio`, `avalancha`, `cepo`, `cimiento`,
-`cristal`, `erizo`, `flecha`, `francotirador`, `fuente`, `grieta`, `incendio`,
-`injerto`, `jardinero`, `kraken`, `lienzo`, `lima`, `linterna`, `muelle`,
-`oráculo`, `relámpago`, `sabueso`.
+The 21 dead under either yardstick: `scaffold`, `avalanche`, `snare`, `foundation`,
+`crystal`, `hedgehog`, `arrow`, `sniper`, `fountain`, `fissure`, `blaze`,
+`graft`, `gardener`, `kraken`, `canvas`, `rasp`, `lantern`, `spring`,
+`oracle`, `bolt`, `bloodhound`.
 
-The 6 that live only off an exact tie — `cirujano`, `tejedor`, `buey`, `caravana`,
-`muro`, `reloj` — need two counters to match to the integer (`compacts` at zero
+The 6 that live only off an exact tie — `surgeon`, `weaver`, `ox`, `caravan`,
+`wall`, `clock` — need two counters to match to the integer (`compacts` at zero
 and `plans` levelling with `methodical`, for instance). In real use that does not
 happen: the defect is 27, not 21.
 
@@ -158,48 +160,48 @@ checked one by one against `ATLAS-97.json`'s parents: all 42 line up.
 
 | trade | mark | gate | asks | title |
 | --- | --- | --- | ---: | --- |
-| refactor | `cirujano` | `ctx_low` | 80 | `bisturí` |
-| refactor | `tejedor` | `plans` | 29 | `telar` |
-| refactor | `molde` | ~~`methodical`~~ → **`impulsive`** | 10 | `imprenta` |
-| refactor | `lima` | `tests` | 76 | `espejo` |
-| refactor | `injerto` | ~~`inquisitive`~~ → **`short_sessions`** | 7 | `raíz` |
-| refactor | `tijera` | `long_sessions` | 33 | `guillotina` |
-| tidy | `monje` | ~~`methodical`~~ → **`impulsive`** | 10 | `abad` |
-| tidy | `jardinero` | `plans` | 29 | `bosque` |
-| tidy | `fuente` | `diffs` | 66 | `acueducto` |
-| tidy | `cristal` | `tests` | 76 | `prisma` |
-| tidy | `nieve` | `short_sessions` | 7 | `ventisca` |
-| tidy | `lienzo` | ~~`inquisitive`~~ → **`long_sessions`** | 33 | `mural` |
-| bughunter | `sabueso` | `plans` | 29 | `lobo` |
-| bughunter | `exterminador` | ~~`inquisitive`~~ → **`impulsive`** | 10 | `avispa` |
-| bughunter | `cepo` | ~~`diffs`~~ → **`short_sessions`** | 7 | `red` |
-| bughunter | `linterna` | `methodical` | 74 | `faro` |
-| bughunter | `anzuelo` | `ctx_low` | 80 | `arpón` |
-| bughunter | `lupa` | `long_sessions` | 33 | `microscopio` |
-| architect | `cartógrafo` | ~~`inquisitive`~~ → **`impulsive`** | 10 | `atlas` |
-| architect | `oráculo` | `tests` | 76 | `esfinge` |
-| architect | `andamio` | `methodical` | 74 | `catedral` |
-| architect | `brújula` | `ctx_low` | 80 | `sextante` |
-| architect | `cimiento` | ~~`diffs`~~ → **`short_sessions`** | 7 | `muralla` |
-| architect | `maqueta` | `long_sessions` | 33 | `ciudad` |
-| sprinter | `relámpago` | ~~`diffs`~~ → **`long_sessions`** | 33 | `tormenta` |
-| sprinter | `francotirador` | `tests` | 76 | `halcón` |
-| sprinter | `flecha` | `methodical` | 74 | `saeta` |
-| sprinter | `muelle` | `plans` | 29 | `resorte` |
-| sprinter | `chispazo` | ~~`impulsive`~~ → **`ctx_maxed`** | 4 | `descarga` |
-| sprinter | `patín` | `ctx_low` | 80 | `cohete` |
-| marathon | `buey` | ~~`diffs`~~ → **`short_sessions`** | 7 | `mamut` |
-| marathon | `topo` | `methodical` | 74 | `gusano` |
-| marathon | `ancla` | `ctx_low` | 80 | `puerto` |
-| marathon | `caravana` | `plans` | 29 | `legión` |
-| marathon | `muro` | `tests` | 76 | `bastión` |
-| marathon | `reloj` | ~~`inquisitive`~~ → **`ctx_maxed`** | 4 | `calendario` |
-| feral | `gremlin` | ~~`impulsive`~~ → **`bypass_turns`** | 931 | `diablo` |
-| feral | `kraken` | `long_sessions` | 33 | `leviatán` |
-| feral | `avalancha` | ~~`diffs`~~ → **`ctx100_sessions`** | 2 | `glaciar` |
-| feral | `erizo` | `short_sessions` | 7 | `espina` |
-| feral | `incendio` | ~~`methodical`~~ → **`sessions_4h`** | 12 | `volcán` |
-| feral | `grieta` | `tests` | 76 | `abismo` |
+| refactor | `surgeon` | `ctx_low` | 80 | `scalpel` |
+| refactor | `weaver` | `plans` | 29 | `loom` |
+| refactor | `mould` | ~~`methodical`~~ → **`impulsive`** | 10 | `press` |
+| refactor | `rasp` | `tests` | 76 | `mirror` |
+| refactor | `graft` | ~~`inquisitive`~~ → **`short_sessions`** | 7 | `root` |
+| refactor | `shears` | `long_sessions` | 33 | `guillotine` |
+| tidy | `monk` | ~~`methodical`~~ → **`impulsive`** | 10 | `abbot` |
+| tidy | `gardener` | `plans` | 29 | `forest` |
+| tidy | `fountain` | `diffs` | 66 | `aqueduct` |
+| tidy | `crystal` | `tests` | 76 | `prism` |
+| tidy | `snow` | `short_sessions` | 7 | `blizzard` |
+| tidy | `canvas` | ~~`inquisitive`~~ → **`long_sessions`** | 33 | `mural` |
+| bughunter | `bloodhound` | `plans` | 29 | `wolf` |
+| bughunter | `exterminator` | ~~`inquisitive`~~ → **`impulsive`** | 10 | `wasp` |
+| bughunter | `snare` | ~~`diffs`~~ → **`short_sessions`** | 7 | `net` |
+| bughunter | `lantern` | `methodical` | 74 | `lighthouse` |
+| bughunter | `fishhook` | `ctx_low` | 80 | `harpoon` |
+| bughunter | `loupe` | `long_sessions` | 33 | `microscope` |
+| architect | `cartographer` | ~~`inquisitive`~~ → **`impulsive`** | 10 | `atlas` |
+| architect | `oracle` | `tests` | 76 | `sphinx` |
+| architect | `scaffold` | `methodical` | 74 | `cathedral` |
+| architect | `compass` | `ctx_low` | 80 | `sextant` |
+| architect | `foundation` | ~~`diffs`~~ → **`short_sessions`** | 7 | `rampart` |
+| architect | `maquette` | `long_sessions` | 33 | `city` |
+| sprinter | `bolt` | ~~`diffs`~~ → **`long_sessions`** | 33 | `storm` |
+| sprinter | `sniper` | `tests` | 76 | `falcon` |
+| sprinter | `arrow` | `methodical` | 74 | `ballista` |
+| sprinter | `spring` | `plans` | 29 | `mainspring` |
+| sprinter | `arc` | ~~`impulsive`~~ → **`ctx_maxed`** | 4 | `discharge` |
+| sprinter | `skate` | `ctx_low` | 80 | `rocket` |
+| marathon | `ox` | ~~`diffs`~~ → **`short_sessions`** | 7 | `mammoth` |
+| marathon | `mole` | `methodical` | 74 | `worm` |
+| marathon | `anchor` | `ctx_low` | 80 | `harbour` |
+| marathon | `caravan` | `plans` | 29 | `legion` |
+| marathon | `wall` | `tests` | 76 | `bastion` |
+| marathon | `clock` | ~~`inquisitive`~~ → **`ctx_maxed`** | 4 | `calendar` |
+| feral | `gremlin` | ~~`impulsive`~~ → **`bypass_turns`** | 931 | `devil` |
+| feral | `kraken` | `long_sessions` | 33 | `leviathan` |
+| feral | `avalanche` | ~~`diffs`~~ → **`ctx100_sessions`** | 2 | `glacier` |
+| feral | `hedgehog` | `short_sessions` | 7 | `thorn` |
+| feral | `blaze` | ~~`methodical`~~ → **`sessions_4h`** | 12 | `volcano` |
+| feral | `fissure` | `tests` | 76 | `abyss` |
 
 ### Why `feral` cannot carry `impulsive`
 
@@ -209,7 +211,7 @@ In its own branch `impulsive` is the big counter by construction: it beats
 won the trade. Almost everything a `feral` mark could ask for sits underneath it.
 
 With `gremlin` asking for `impulsive` at 10 — the trade's lowest threshold — that
-kills `kraken` (`long_sessions/33`) and `grieta` (`tests/76`), and raising the
+kills `kraken` (`long_sessions/33`) and `fissure` (`tests/76`), and raising the
 threshold fixes nothing: raise it enough for those to win and `gremlin` never wins
 at all. There is no value that balances. It is the canvas's own defect,
 reintroduced inside the fix.
@@ -219,7 +221,7 @@ The runtime had already solved it in the equivalent branch: `Unlocks` opens
 `impulsive`. The same is done here, and `gremlin` gets back the gate the code
 already gives it.
 
-`incendio` is then left without `bypass_turns` and takes `sessions_4h`, which the
+`blaze` is then left without `bypass_turns` and takes `sessions_4h`, which the
 hook already feeds (`app.go:457`) and which burns nicely with the volcano's story.
 Its threshold is the only **derived** one rather than measured: 33 `long_sessions`
 through the 6/17 proportion this machine's `pet.json` shows.
@@ -241,7 +243,7 @@ through the 6/17 proportion this machine's `pet.json` shows.
 - **The distribution is a model, not a measurement.** That all 42 are reachable is
   verified; how often each comes up depends on the user profile assumed, and there
   is no data there. A uniform sampling gives very lopsided distributions
-  (`chispazo` 99% of `sprinter`); that does not describe real use, but it warns
+  (`arc` 99% of `sprinter`); that does not describe real use, but it warns
   that the balance is not proven.
 - **Two title factors are invention, not data**: `methodical`'s and `impulsive`'s,
   which have no relative among the fourteen the canvas calibrated. They carry the
@@ -255,12 +257,12 @@ through the 6/17 proportion this machine's `pet.json` shows.
 
 | forms | how many | state |
 | --- | ---: | --- |
-| the root `chispa` | 1 | trivial |
+| the root `spark` | 1 | trivial |
 | temperaments | 3 | verified |
 | trades | 7 | verified |
 | marks | 42 | **verified, 42/42 with no ties** |
 | titles | 42 | **verified, with the number set** |
-| secrets (`fénix`, `quimera`) | 2 | outside this tree — their own rule, already in the runtime |
+| secrets (`phoenix`, `chimera`) | 2 | outside this tree — their own rule, already in the runtime |
 
 ## The 42 title thresholds
 
@@ -268,7 +270,7 @@ A title competes with nobody: it sits behind its mark and asks for *more of the
 same counter* (`TitleUnlock`, `evolution.go:182`). The question is not who wins, it
 is whether that counter can go on climbing **without losing the mark along the
 way** — and that is not free, because every counter feeds something else. Reaching
-`volcán` is 40 `sessions_4h`, which is 40 `long_sessions`, which is the gate
+`volcano` is 40 `sessions_4h`, which is 40 `long_sessions`, which is the gate
 `kraken` is waiting at. Verified mark by mark: it can.
 
 The number is what was nowhere to be found. **Ten of the twelve factors are
@@ -310,7 +312,7 @@ its fourteen, so that a future edit cannot slip a ×10 in without anything firin
   the canvas's rule): exhaustive enumeration, a 4 M-state sampling and the
   constructive witness. The list comes out identical name by name.
 - **What caught a false negative** — the first search was random and declared two
-  reachable marks dead (`incendio`, `linterna`). That is why the repo's test is
+  reachable marks dead (`blaze`, `lantern`). That is why the repo's test is
   constructive: a blind search errs towards the side that looks prudent.
 - **The titles** — the table's 42 mark/title pairs were checked against
   `ATLAS-97.json`'s parents. All 42 line up.
@@ -339,7 +341,7 @@ The last three hold over separately extracted data. The variants one follows fro
 the structure and is not independent evidence about the parser; what it does say is
 that the canvas counted 97 forms.
 
-**The one discrepancy: `diablo` has been redrawn.** Same ramp and same base colour,
+**The one discrepancy: `devil` has been redrawn.** Same ramp and same base colour,
 but three of its five rows change — the horns go from `^ ╲ ╱ ^` to `^^ ╲ ^^`, the
 base from `▝▙▄█▄▟▘` to `▝▙▄▀▄▟▘` and the feet come together. It is a design change
 made after the code, not an extraction error.
@@ -353,10 +355,81 @@ the 56 new forms, the tests that today assert 41 forms and 287 variants become 9
 and 679, and the `pet.json`s that already carry a mark whose gate changes have to be
 migrated.
 
-**A warning about the names.** `PUERTAS-97.json` and `ATLAS-97.json` name the forms
-in Spanish, which is how the canvas names them. The code's **ids** are English
-(`monk`, `gremlin`, `feral`) and are written into the `pet.json`s people already
-have, so they are not renamed: `names.go` translates. Implementing this includes
-giving each of the 56 new forms an English id and deciding the mapping — the gates
-file does not carry it, and should not: it is the canvas's data, not the runtime's
-table.
+**A warning about the names.** `PUERTAS-97.json` and `ATLAS-97.json` name the
+forms in Spanish, which is how the canvas names them. The code's **ids** are
+English (`monk`, `gremlin`, `feral`) and are written into the `pet.json`s people
+already have, so they are not renamed: `names.go` reads them out in whichever
+language the theme is set to. The gates file does not carry the English side and
+should not: it is the canvas's data, not the runtime's table. The table below is
+that missing half.
+
+## The 97 names
+
+The first 41 rows are not a proposal: they are `names.go`, and they cannot move —
+they are written into every `pet.json` in the wild. The other 56 are the naming
+decision this needs, taken here so the rest of the page can be read.
+
+Four of them are not the obvious word, and for one reason each: `anzuelo` is
+`fishhook` and not `hook`, `maqueta` is `maquette` and not `model`, and `lupa` is
+`loupe` and not `magnifier`, because *hook*, *model* and *magnifier* already mean
+something else in this codebase and a form named after them would collide in every
+grep. `saeta` is `ballista` because English has no second word for an arrow, and a
+title that reads smaller than its own mark is not a title.
+
+| | canvas | id | | | canvas | id |
+| --- | --- | --- | --- | --- | --- | --- |
+| root | chispa | `spark` | | title | catedral | `cathedral` · |
+| temperament | pauta | `pattern` | | mark | brújula | `compass` · |
+| temperament | sonda | `probe` | | title | sextante | `sextant` · |
+| temperament | brasa | `ember` | | mark | cimiento | `foundation` · |
+| trade | refactor | `refactor` | | title | muralla | `rampart` · |
+| mark | cirujano | `surgeon` | | mark | maqueta | `maquette` · |
+| title | bisturí | `scalpel` | | title | ciudad | `city` · |
+| mark | tejedor | `weaver` | | trade | velocista | `sprinter` |
+| title | telar | `loom` | | mark | relámpago | `bolt` |
+| mark | molde | `mould` · | | title | tormenta | `storm` |
+| title | imprenta | `press` · | | mark | francotirador | `sniper` |
+| mark | lima | `rasp` · | | title | halcón | `falcon` |
+| title | espejo | `mirror` · | | mark | flecha | `arrow` · |
+| mark | injerto | `graft` · | | title | saeta | `ballista` · |
+| title | raíz | `root` · | | mark | muelle | `spring` · |
+| mark | tijera | `shears` · | | title | resorte | `mainspring` · |
+| title | guillotina | `guillotine` · | | mark | chispazo | `arc` · |
+| trade | pulcro | `tidy` | | title | descarga | `discharge` · |
+| mark | monje | `monk` | | mark | patín | `skate` · |
+| title | abad | `abbot` | | title | cohete | `rocket` · |
+| mark | jardinero | `gardener` | | trade | maratón | `marathon` |
+| title | bosque | `forest` | | mark | buey | `ox` |
+| mark | fuente | `fountain` · | | title | mamut | `mammoth` |
+| title | acueducto | `aqueduct` · | | mark | topo | `mole` |
+| mark | cristal | `crystal` · | | title | gusano | `worm` |
+| title | prisma | `prism` · | | mark | ancla | `anchor` · |
+| mark | nieve | `snow` · | | title | puerto | `harbour` · |
+| title | ventisca | `blizzard` · | | mark | caravana | `caravan` · |
+| mark | lienzo | `canvas` · | | title | legión | `legion` · |
+| title | mural | `mural` · | | mark | muro | `wall` · |
+| trade | cazabugs | `bughunter` | | title | bastión | `bastion` · |
+| mark | sabueso | `bloodhound` | | mark | reloj | `clock` · |
+| title | lobo | `wolf` | | title | calendario | `calendar` · |
+| mark | exterminador | `exterminator` | | trade | salvaje | `feral` |
+| title | avispa | `wasp` | | mark | gremlin | `gremlin` |
+| mark | cepo | `snare` · | | title | diablo | `devil` |
+| title | red | `net` · | | mark | kraken | `kraken` |
+| mark | linterna | `lantern` · | | title | leviatán | `leviathan` |
+| title | faro | `lighthouse` · | | mark | avalancha | `avalanche` · |
+| mark | anzuelo | `fishhook` · | | title | glaciar | `glacier` · |
+| title | arpón | `harpoon` · | | mark | erizo | `hedgehog` · |
+| mark | lupa | `loupe` · | | title | espina | `thorn` · |
+| title | microscopio | `microscope` · | | mark | incendio | `blaze` · |
+| trade | arquitecto | `architect` | | title | volcán | `volcano` · |
+| mark | cartógrafo | `cartographer` | | mark | grieta | `fissure` · |
+| title | atlas | `atlas` | | title | abismo | `abyss` · |
+| mark | oráculo | `oracle` | | secret | fénix | `phoenix` |
+| title | esfinge | `sphinx` | | secret | quimera | `chimera` |
+| mark | andamio | `scaffold` · | |  |  |  |
+
+`·` marks the 56 that do not exist in the code yet.
+
+`lienzo` is the one deliberate near-collision: the form is a painter's `canvas`
+and so is the design document this whole page argues with. The backticks are what
+tell them apart, here and in the code.

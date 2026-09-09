@@ -1,5 +1,5 @@
 {
-  "_": "El árbol de 97 formas: puertas y umbrales. DATO, no implementación - el runtime sigue con sus 41. Lo verifica internal/pet/reach97_test.go. Las formas se nombran en español, como el lienzo y ATLAS-97.json; los ids del código son en inglés (names.go) y no se renombran, porque están escritos en los pet.json que ya existen. Ver docs/design/thresholds.md.",
+  "_": "El árbol de 97 formas: puertas y umbrales. DATO, no implementación - el runtime sigue con sus 41. Lo verifica internal/pet/reach97_test.go. Las formas se nombran en español, como el lienzo y ATLAS-97.json; los ids del código son en inglés (names.go) y no se renombran, porque están escritos en los pet.json que ya existen. El id inglés de las 97, incluidas las 56 que aún no existen en el código, está en la tabla \"The 97 names\" de docs/design/thresholds.md.",
   "bases": [
     "compacts",
     "diffs",
