@@ -7,6 +7,7 @@
 //	ccpet               the pet's panel
 //	ccpet feed|tests|commit|compact|task|overflow      a meal
 //	ccpet count|day|record|session                     bookkeeping
+//	ccpet lang es|en|auto                              what language it speaks
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/hook"
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/panel"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/setup"
@@ -33,7 +35,7 @@ func main() { os.Exit(run(os.Args, os.Stdin, os.Stdout, os.Stderr, time.Now())) 
 // returns the exit code rather than calling os.Exit, which is the only reason
 // main is one line.
 func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time) int {
-	args := argv[1:]
+	args := takeLang(argv[1:])
 
 	// argv[0] can carry the command. ~/.claude/ccpet-statusline is a symlink to
 	// this binary, which lets settings.json hold a bare path with no arguments:
@@ -56,6 +58,8 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 			return hook.Run(stdin, pet.Path(), now)
 		case "setup":
 			return runSetup(args[1:], stdout, stderr)
+		case "lang":
+			return runLang(args[1:], stdout, stderr)
 		case "link":
 			root := ""
 			if len(args) > 1 {
@@ -67,7 +71,7 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 			fmt.Fprintln(stdout, version)
 			return 0
 		case "-h", "--help", "help":
-			fmt.Fprint(stdout, usage)
+			fmt.Fprint(stdout, i18n.S().Usage)
 			return 0
 		}
 	}
@@ -101,7 +105,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	case "uninstall":
 		err = setup.Uninstall(stdout)
 	default:
-		fmt.Fprintln(stderr, "uso: ccpet setup {on|off|status|install|install-hooks|uninstall} [raíz]")
+		fmt.Fprintln(stderr, i18n.S().SetupUsage)
 		return 2
 	}
 	if err != nil {
@@ -111,30 +115,70 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// takeLang pulls a leading `--lang xx` or `--lang=xx` off the arguments and
+// pins it for the rest of the process, so any command can be run in the other
+// language without changing the setting: `ccpet --lang en` reads the panel in
+// English and leaves the configured language alone. It has to happen before
+// the dispatch, because the dispatch itself prints in whatever is set.
+func takeLang(args []string) []string {
+	for len(args) > 0 {
+		arg := args[0]
+		switch {
+		case strings.HasPrefix(arg, "--lang="):
+			i18n.Use(i18n.Lang(strings.TrimPrefix(arg, "--lang=")))
+			args = args[1:]
+		case arg == "--lang" && len(args) > 1:
+			i18n.Use(i18n.Lang(args[1]))
+			args = args[2:]
+		default:
+			return args
+		}
+	}
+	return args
+}
+
+// runLang is the setting itself: with no argument it says what the theme
+// speaks and who decided that, and with one it writes it down.
+//
+// `auto` is stored as `auto` rather than resolved and stored: somebody who
+// asks for the locale to decide means every future session, not the language
+// their locale happened to name this afternoon.
+func runLang(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] == "" {
+		lang, source := i18n.Setting()
+		if lang == "" {
+			lang = i18n.Default
+		}
+		fmt.Fprintf(stdout, i18n.S().LangIs, lang, source)
+		return 0
+	}
+	want := i18n.Lang(strings.ToLower(args[0]))
+	switch want {
+	case i18n.ES, i18n.EN, i18n.Auto:
+	default:
+		fmt.Fprintln(stderr, i18n.S().LangUsage)
+		return 2
+	}
+	if err := i18n.Save(want); err != nil {
+		fmt.Fprintln(stderr, "ccpet:", err)
+		return 1
+	}
+	// Printed AFTER the write, and in the language just chosen: the
+	// confirmation is the first thing the new setting has to say.
+	i18n.Use("")
+	if want == i18n.Auto {
+		// "es (auto)" and not a bare "es": what was written down is the
+		// question, and the answer is only today's answer.
+		fmt.Fprintf(stdout, i18n.S().LangIs, i18n.Current(), i18n.Auto)
+		return 0
+	}
+	fmt.Fprintf(stdout, i18n.S().LangSaved, want)
+	return 0
+}
+
 // defaultRuntimeRoot is the stable path the statusline is pointed at. The
 // binary itself may live inside a version-stamped plugin directory, which is
 // exactly the path that must not end up in settings.json.
 func defaultRuntimeRoot() string {
 	return filepath.Join(setup.ConfigDir(), "ccpet")
 }
-
-const usage = `ccpet - la statusline del tema Terminal y su mascota.
-
-  ccpet                       el panel de la mascota
-  ccpet feed                  darle de comer (+3 xp, -2 hambre, uno cada 4 h)
-  ccpet <evento>              una comida: tests | commit | compact | task | overflow
-  ccpet count <contador> [n]  suma a un contador de comportamiento
-  ccpet day <nombre>          cuenta días SEGUIDOS, no veces
-  ccpet record <contador> <n> guarda el máximo de un contador
-  ccpet session <fichero>     cierra una sesión: sus datos pasan a contadores
-
-  ccpet statusline            pinta un refresco (payload por stdin)
-  ccpet hook                  atiende un evento de hook (payload por stdin)
-
-  ccpet link                  apunta ~/.claude/ccpet a este plugin
-  ccpet setup on|off|status   enciende o apaga la statusline en settings.json
-  ccpet setup install         instalación sin plugin (install-hooks incluye los hooks)
-  ccpet setup uninstall       deshacerlo
-  ccpet version               imprime la versión
-  ccpet help                  esta ayuda (también -h y --help)
-`

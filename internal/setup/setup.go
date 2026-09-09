@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/config"
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 )
 
 // hookMark is how our hook entries are recognised in settings.json.
@@ -151,7 +152,7 @@ func backupOrStop(out io.Writer, path string) error {
 		return fmt.Errorf("no he podido copiar %s (%w): no lo toco", tilde(path), err)
 	}
 	if copyPath != "" {
-		fmt.Fprintf(out, "copia de seguridad: %s\n", copyPath)
+		fmt.Fprintf(out, i18n.S().Backup, copyPath)
 	}
 	return nil
 }
@@ -256,8 +257,8 @@ func On(out io.Writer, root string) error {
 	if err := save(doc, path); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "statusline encendida -> %s\n", Command(root))
-	fmt.Fprintln(out, "elige también el tema, si no lo has hecho: /theme -> Terminal")
+	fmt.Fprintf(out, i18n.S().StatuslineOn, Command(root))
+	fmt.Fprintln(out, i18n.S().PickTheme)
 	return nil
 }
 
@@ -269,7 +270,7 @@ func Off(out io.Writer) error {
 		return fmt.Errorf("settings.json unreadable (%w): leaving it alone", err)
 	}
 	if _, present := doc["statusLine"]; !present {
-		fmt.Fprintln(out, "la statusline ya estaba apagada")
+		fmt.Fprintln(out, i18n.S().AlreadyOff)
 		return nil
 	}
 	if err := backupOrStop(out, path); err != nil {
@@ -279,7 +280,7 @@ func Off(out io.Writer) error {
 	if err := save(doc, path); err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "statusline apagada")
+	fmt.Fprintln(out, i18n.S().StatuslineOff)
 	return nil
 }
 
@@ -292,7 +293,7 @@ func Status(out io.Writer) error {
 	if entry, ok := doc["statusLine"].(map[string]any); ok {
 		fmt.Fprintf(out, "statusline: %v\n", entry["command"])
 	} else {
-		fmt.Fprintln(out, "statusline: apagada")
+		fmt.Fprintln(out, i18n.S().StatuslineIsOff)
 	}
 	// One name per EVENT. Appending inside the innermost loop named an event
 	// once per entry, so a file carrying two of our hooks under PostToolUse
@@ -308,11 +309,11 @@ func Status(out io.Writer) error {
 	}
 	sort.Strings(wired)
 	if len(wired) == 0 {
-		fmt.Fprintln(out, "hooks de comida en settings.json: ninguno")
+		fmt.Fprintln(out, i18n.S().FoodHooksNone)
 	} else {
-		fmt.Fprintf(out, "hooks de comida en settings.json: %s\n", strings.Join(wired, ", "))
+		fmt.Fprintf(out, i18n.S().FoodHooks, strings.Join(wired, ", "))
 	}
-	fmt.Fprintln(out, "(si lo instalas como plugin, sus hooks son suyos y no salen aquí)")
+	fmt.Fprintln(out, i18n.S().PluginHooksNote)
 	return nil
 }
 
@@ -328,7 +329,7 @@ func Install(out io.Writer, root string, withHooks bool) error {
 	}
 
 	doc["statusLine"] = statusLineEntry(root)
-	fmt.Fprintln(out, "  statusLine conectada")
+	fmt.Fprintln(out, i18n.S().StatuslineWired)
 
 	dropOurHooks(doc)
 	if withHooks {
@@ -354,9 +355,9 @@ func Install(out io.Writer, root string, withHooks bool) error {
 			})
 		}
 		doc["hooks"] = hooks
-		fmt.Fprintln(out, "  hooks conectados: PostToolUse (todas), PreCompact, SessionEnd")
+		fmt.Fprintln(out, i18n.S().HooksWired)
 	} else {
-		fmt.Fprintln(out, "  hooks NO instalados (pasa --hooks si los quieres)")
+		fmt.Fprintln(out, i18n.S().HooksNotInstalled)
 	}
 	return save(doc, path)
 }
@@ -380,6 +381,6 @@ func Uninstall(out io.Writer) error {
 	if err := save(doc, path); err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "  settings.json limpio (el tema no se toca: cámbialo con /theme)")
+	fmt.Fprintln(out, i18n.S().SettingsClean)
 	return nil
 }

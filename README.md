@@ -211,6 +211,35 @@ mismo color, así no hay que leer para saber qué estás mirando.
 Los tres cubren los **72 tokens** que reconoce Claude Code, no solo la docena que se
 ve de un vistazo.
 
+## Idioma
+
+El tema habla **español o inglés**: la mascota, el panel, la statusline, los
+mensajes de instalación y la ayuda. En español por defecto, que es lo que hablaba
+antes de hablar dos idiomas — actualizar no te cambia el pie de la ventana.
+
+```bash
+ccpet lang            # dice cuál habla y quién lo decidió
+ccpet lang en         # inglés, a partir de ahora
+ccpet lang es         # español
+ccpet lang auto       # el que diga tu locale (LC_ALL, LC_MESSAGES, LANG)
+```
+
+Se guarda en `~/.claude/ccpet.json`, junto al `pet.json`, y respeta
+`CLAUDE_CONFIG_DIR` como todo lo demás. Para una sola vez, sin tocar el ajuste:
+
+```bash
+ccpet --lang en                 # el panel en inglés
+CCPET_LANG=en ccpet             # lo mismo, por entorno
+```
+
+Los **identificadores no cambian nunca**: el `pet.json` guarda `bughunter`,
+`bloodhound` y `fresh` en los dos idiomas, así que cambiar de idioma no toca la
+vida de la mascota ni te hace perder una racha. Lo que cambia es solo lo que lees
+— y en inglés los nombres del árbol *son* los identificadores, porque el árbol ya
+estaba escrito en inglés: `cazabugs[sabueso]` se lee `bughunter[bloodhound]`.
+
+Los tres temas de color son los mismos en los dos idiomas: el color no habla.
+
 ## Ajustes
 
 | Variable | Efecto |
@@ -222,6 +251,7 @@ ve de un vistazo.
 | `STATUSLINE_RIGHT_PAD` | margen derecho, por defecto `6` |
 | `PET_TEST_RUNNERS` | regex extra para reconocer tu runner de tests |
 | `CLAUDE_CONFIG_DIR` | mueve `~/.claude`; la mascota y la statusline lo respetan |
+| `CCPET_LANG` | `es`, `en` o `auto` para un rato; manda sobre el ajuste guardado |
 
 **Truecolor.** Los temas usan color de 24 bits, y Windows Terminal, WSL y `docker
 run` no exportan `COLORTERM`. Sin él los tonos parecidos colapsan al mismo:
@@ -253,6 +283,8 @@ se leen, y ahora son `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
 - [vitals.md](docs/design/vitals.md) — la capa del momento: de fresca a k.o.
 - [evolution.md](docs/design/evolution.md) — la capa permanente: xp, comida y las 41
   formas
+- [idioma.md](docs/design/idioma.md) — español o inglés: qué se traduce, qué no, y
+  por qué el `pet.json` es el mismo fichero en los dos
 - [runtime.md](docs/design/runtime.md) — por qué Go, a dónde va el tiempo, el
   candado del `pet.json` y por qué los binarios van en el repo
 - [audit-log.md](docs/audit-log.md) — histórico: la auditoría de la versión Python

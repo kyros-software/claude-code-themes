@@ -3,6 +3,7 @@ package pet
 import (
 	"time"
 
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
@@ -46,27 +47,40 @@ const TestsCooldown = time.Hour
 
 // Food is one meal's effect. A Cooldown of 0 means you can eat it whenever the
 // thing that earns it happens.
+//
+// ES and EN are what the panel calls the meal in each language, and they are
+// fields rather than a lookup somewhere else because a meal added later cannot
+// then be added without its own name. Read them through Label.
 type Food struct {
 	XP       int
 	Hunger   int
 	Cooldown time.Duration
-	Label    string
+	ES       string
+	EN       string
 	Habits   []string
+}
+
+// Label is what a person reads for this meal.
+func (f Food) Label() string {
+	if i18n.Current() == i18n.EN {
+		return f.EN
+	}
+	return f.ES
 }
 
 // Foods, by event name.
 var Foods = map[string]Food{
-	"tests":   {15, -4, TestsCooldown, "tests en verde", []string{"inquisitive", "tests", "test_streak"}},
-	"commit":  {12, -3, 0, "commit", []string{"methodical", "diffs", "diff_streak"}},
-	"compact": {8, -3, 0, "compact", []string{"methodical"}},
-	"task":    {6, -1, 0, "tarea del plan", []string{"inquisitive", "plans"}},
-	"feed":    {3, -2, FeedCooldown, "/feed", nil},
+	"tests":   {15, -4, TestsCooldown, "tests en verde", "green suite", []string{"inquisitive", "tests", "test_streak"}},
+	"commit":  {12, -3, 0, "commit", "commit", []string{"methodical", "diffs", "diff_streak"}},
+	"compact": {8, -3, 0, "compact", "compact", []string{"methodical"}},
+	"task":    {6, -1, 0, "tarea del plan", "task off the plan", []string{"inquisitive", "plans"}},
+	"feed":    {3, -2, FeedCooldown, "/feed", "/feed", nil},
 	// The overflow feeds NO habit. It used to carry impulsive and ctx_maxed,
 	// which is what closed the arithmetic on the whole ember branch: the only
 	// way to earn those two counters was the only meal that takes XP away. Both
 	// are paid from the session's context peak now, in hook.CloseSession, so
 	// this is what it always should have been - a penalty, and a streak breaker.
-	"overflow": {-15, 0, 0, "contexto al 100%", nil},
+	"overflow": {-15, 0, 0, "contexto al 100%", "context at 100%", nil},
 }
 
 // BigMeal is what the pet considers worth talking about: a green suite or a

@@ -416,10 +416,15 @@ func TestNextThresholdRunsOutAtTheTop(t *testing.T) {
 
 // --- feeding ---------------------------------------------------------------
 
+// In both languages: a meal with only half its name prints a blank column in
+// the larder, which reads as a bug in the layout rather than a missing string.
 func TestEveryFoodHasALabel(t *testing.T) {
 	for name, food := range Foods {
-		if food.Label == "" {
-			t.Errorf("%s has no label", name)
+		if food.ES == "" {
+			t.Errorf("%s has no Spanish label", name)
+		}
+		if food.EN == "" {
+			t.Errorf("%s has no English label", name)
 		}
 	}
 }

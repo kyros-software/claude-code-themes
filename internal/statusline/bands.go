@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
@@ -291,9 +292,10 @@ func petBand(c Card, columns int) []segment {
 			truncatable(theme.Fg(theme.Dim), "["+c.Worn+"]").withSep(""))
 	}
 
-	level := "nivel " + strconv.Itoa(c.Level)
+	word := i18n.S().Level + " "
+	level := word + strconv.Itoa(c.Level)
 	out = append(out, seg(2,
-		theme.Fg(theme.Dim)+"nivel "+theme.Reset+
+		theme.Fg(theme.Dim)+word+theme.Reset+
 			theme.Fg(theme.Emph)+strconv.Itoa(c.Level)+theme.Reset).
 		truncatable(theme.Fg(theme.Dim), level).withSep(" "))
 

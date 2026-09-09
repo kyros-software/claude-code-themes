@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 )
 
@@ -26,6 +27,10 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("HOME", dir)
 	os.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(dir, ".claude"))
+	// And the language, for the same reason: these tests assert on wording,
+	// and a developer with CCPET_LANG=en in their shell would fail every one
+	// of them for a reason that has nothing to do with the code.
+	os.Setenv(i18n.Env, string(i18n.ES))
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)
@@ -152,26 +157,37 @@ func TestSetupDispatch(t *testing.T) {
 // only documentation there is. Checked in this direction rather than the other
 // because the usage is prose - it has a title line and descriptions in Spanish,
 // and scraping verbs out of it finds words, not commands.
+// In BOTH languages: a verb documented in one help and forgotten in the other
+// is a verb half the users cannot find.
 func TestEveryDispatchedVerbIsDocumented(t *testing.T) {
 	verbs := []string{
-		"statusline", "hook", "setup", "link", "version", "help",
+		"statusline", "hook", "setup", "link", "version", "help", "lang",
 		"feed", "count", "day", "record", "session",
 	}
-	for _, verb := range verbs {
-		if !strings.Contains(usage, "ccpet "+verb) {
-			t.Errorf("the dispatch answers %q and the usage never mentions it", verb)
+	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
+		i18n.Use(lang)
+		usage := i18n.S().Usage
+		for _, verb := range verbs {
+			if !strings.Contains(usage, "ccpet "+verb) {
+				t.Errorf("%s: the dispatch answers %q and the usage never mentions it", lang, verb)
+			}
 		}
 	}
+	i18n.Use("")
 }
 
 // And the meals the panel accepts are the ones the usage lists.
 func TestTheMealsInTheUsageAreTheMealsThatExist(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
-	for _, meal := range []string{"tests", "commit", "compact", "task", "overflow"} {
-		if !strings.Contains(usage, meal) {
-			t.Errorf("the meal %q is not in the usage", meal)
+	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
+		i18n.Use(lang)
+		for _, meal := range []string{"tests", "commit", "compact", "task", "overflow"} {
+			if !strings.Contains(i18n.S().Usage, meal) {
+				t.Errorf("%s: the meal %q is not in the usage", lang, meal)
+			}
 		}
 	}
+	i18n.Use("")
 }
 
 func TestLinkAndPanel(t *testing.T) {
@@ -207,4 +223,75 @@ func TestLinkAndPanel(t *testing.T) {
 			t.Errorf("exit %d: %s", code, e)
 		}
 	})
+}
+
+// --- the language setting ---------------------------------------------------
+
+// `ccpet lang <x>` writes it down, and the confirmation is already in the
+// language just chosen: the setting has to be believed by the process that
+// made it, or the first thing a person sees after switching contradicts it.
+func TestLangWritesTheSettingAndAnswersInIt(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	t.Setenv(i18n.Env, "")
+	defer i18n.Use("")
+
+	code, out, errOut := call(t, []string{"ccpet", "lang", "en"}, "")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "language: en") {
+		t.Errorf("the confirmation is %q, and it is not in English", strings.TrimSpace(out))
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "ccpet.json"))
+	if err != nil {
+		t.Fatalf("nothing was written: %v", err)
+	}
+	if !strings.Contains(string(raw), `"lang": "en"`) {
+		t.Errorf("ccpet.json holds %s", raw)
+	}
+
+	// And the help that follows is English too, from the same file.
+	i18n.Use("")
+	if _, out, _ := call(t, []string{"ccpet", "help"}, ""); !strings.Contains(out, "the pet's panel") {
+		t.Errorf("the help after switching is still Spanish:\n%s", out)
+	}
+}
+
+// A language the theme does not speak is refused rather than stored: a
+// silently ignored `ccpet lang fr` leaves a person believing it took.
+func TestLangRefusesALanguageItDoesNotSpeak(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	t.Setenv(i18n.Env, "")
+	defer i18n.Use("")
+	code, _, errOut := call(t, []string{"ccpet", "lang", "fr"}, "")
+	if code != 2 {
+		t.Errorf("exit %d, want 2", code)
+	}
+	if !strings.Contains(errOut, "ccpet lang") {
+		t.Errorf("it said %q", strings.TrimSpace(errOut))
+	}
+}
+
+// `--lang` is for one command and leaves the setting alone. It is also the
+// only way to read the panel in the other language without switching twice.
+func TestTheLangFlagDoesNotTouchTheSetting(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	t.Setenv(i18n.Env, "")
+	defer i18n.Use("")
+
+	for _, argv := range [][]string{
+		{"ccpet", "--lang", "en", "help"},
+		{"ccpet", "--lang=en", "help"},
+	} {
+		i18n.Use("")
+		code, out, _ := call(t, argv, "")
+		if code != 0 || !strings.Contains(out, "the pet's panel") {
+			t.Errorf("%v printed:\n%s", argv, out)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "ccpet.json")); err == nil {
+		t.Error("--lang wrote the setting down; it is meant to be for one command")
+	}
 }

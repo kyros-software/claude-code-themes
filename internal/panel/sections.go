@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
@@ -116,7 +117,7 @@ func theFork(b *strings.Builder, s *pet.State, form string) {
 			counterW = n
 		}
 	}
-	b.WriteString("\n  " + dim + "la marca del nivel 5" + reset + "\n")
+	b.WriteString("\n  " + dim + i18n.S().Level5Mark + reset + "\n")
 	for _, sib := range sibs {
 		tick, tint := " ", theme.Dim
 		if sib.Reached() {
@@ -175,16 +176,17 @@ func counters(b *strings.Builder, s *pet.State, form string) {
 	dim, reset := theme.Fg(theme.Dim), theme.Reset
 	// The key, once, so the colour does not have to be guessed. Cheap enough
 	// at one line, and without it the three tints are decoration.
+	t := i18n.S()
 	legend := "  " + dim + "· " + reset +
-		theme.Fg(theme.Ident) + "cumplido" + reset + dim + "  ·  " + reset +
-		theme.Fg(theme.Number) + "en camino" + reset + dim + "  ·  " + reset +
-		theme.Fg(theme.Emph) + "no lleva a nada desde aquí" + reset
+		theme.Fg(theme.Ident) + t.Met + reset + dim + "  ·  " + reset +
+		theme.Fg(theme.Number) + t.OnTheWay + reset + dim + "  ·  " + reset +
+		theme.Fg(theme.Emph) + t.LeadsNowhere + reset
 	if len(habits) > 0 {
-		b.WriteString("\n  " + dim + "hábitos" + reset + legend + "\n")
+		b.WriteString("\n  " + dim + t.Habits + reset + legend + "\n")
 		pairs(b, habits, "    ")
 	}
 	if len(sessions) > 0 {
-		b.WriteString("\n  " + dim + "sesiones" + reset + "\n")
+		b.WriteString("\n  " + dim + t.Sessions + reset + "\n")
 		pairs(b, sessions, "    ")
 	}
 }
@@ -234,30 +236,31 @@ func larder(b *strings.Builder, s *pet.State, now time.Time) {
 	labelW := 0
 	for name, food := range pet.Foods {
 		_ = name
-		if n := theme.Width(food.Label); n > labelW {
+		if n := theme.Width(food.Label()); n > labelW {
 			labelW = n
 		}
 	}
-	b.WriteString("\n  " + dim + "comida" + reset + "\n")
+	t := i18n.S()
+	b.WriteString("\n  " + dim + t.Food + reset + "\n")
 	for _, name := range names {
 		food := pet.Foods[name]
 		tint := theme.Ident
 		if food.XP <= 0 {
 			tint = theme.Bad
 		}
-		when := theme.Fg(theme.Ident) + "listo" + reset
+		when := theme.Fg(theme.Ident) + t.Ready + reset
 		if left := pet.Waiting(s, name, now); left > 0 {
-			when = dim + "en " + roughly(left) + reset
+			when = dim + t.In + " " + roughly(left) + reset
 		}
-		b.WriteString("    " + dim + theme.PadRight(food.Label, labelW) + reset +
+		b.WriteString("    " + dim + theme.PadRight(food.Label(), labelW) + reset +
 			"  " + theme.Fg(tint) + fmt.Sprintf("%+3d", food.XP) + reset +
 			dim + " xp" + reset + "   " + when + "\n")
 	}
 	// And the one that is not a meal, said as what it is.
 	if overflow, ok := pet.Foods["overflow"]; ok {
-		b.WriteString("    " + dim + theme.PadRight(overflow.Label, labelW) + reset +
+		b.WriteString("    " + dim + theme.PadRight(overflow.Label(), labelW) + reset +
 			"  " + theme.Fg(theme.Bad) + fmt.Sprintf("%+3d", overflow.XP) + reset +
-			dim + " xp" + reset + "   " + dim + "si revientas el contexto" + reset + "\n")
+			dim + " xp" + reset + "   " + dim + t.IfContextBlows + reset + "\n")
 	}
 	_ = emph
 }

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/hook"
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
@@ -91,7 +92,7 @@ func Run(args []string, stdout, stderr io.Writer, statePath string, now time.Tim
 			names = append(names, name)
 		}
 		sort.Strings(names)
-		fmt.Fprintf(stderr, "ccpet: %q no es comida. Prueba: %s\n", action, strings.Join(names, ", "))
+		fmt.Fprintf(stderr, i18n.S().NotFood, action, strings.Join(names, ", "))
 		return 2
 	}
 	return eat(stdout, statePath, action, first, now)
@@ -119,13 +120,14 @@ func eat(out io.Writer, statePath, event, note string, now time.Time) int {
 		pet.RememberForm(st, after)
 		return true
 	})
+	t := i18n.S()
 	if refused {
 		if left := pet.Waiting(s, event, now); left > 0 {
-			fmt.Fprintf(out, "%sya ha comido. le toca en %s%s\n",
-				theme.Fg(theme.Dim), roughly(left), theme.Reset)
+			fmt.Fprintf(out, "%s%s%s\n",
+				theme.Fg(theme.Dim), fmt.Sprintf(t.AteAlready, roughly(left)), theme.Reset)
 		} else {
-			fmt.Fprintf(out, "%sno le entra %s ahora mismo%s\n",
-				theme.Fg(theme.Dim), event, theme.Reset)
+			fmt.Fprintf(out, "%s%s%s\n",
+				theme.Fg(theme.Dim), fmt.Sprintf(t.WontEat, event), theme.Reset)
 		}
 		return 0
 	}
@@ -136,10 +138,11 @@ func eat(out io.Writer, statePath, event, note string, now time.Time) int {
 		tint = theme.Bad
 	}
 	fmt.Fprintf(out, "%s%+d xp%s %s· %s%s\n",
-		theme.Fg(tint), food.XP, theme.Reset, theme.Fg(theme.Dim), food.Label, theme.Reset)
+		theme.Fg(tint), food.XP, theme.Reset, theme.Fg(theme.Dim), food.Label(), theme.Reset)
 	if after != before {
-		fmt.Fprintf(out, "%s%sevoluciona: %s › %s%s\n",
-			theme.Fg(theme.Number), theme.Bold, pet.Name(before), pet.Name(after), theme.Reset)
+		fmt.Fprintf(out, "%s%s%s%s\n",
+			theme.Fg(theme.Number), theme.Bold,
+			fmt.Sprintf(t.Evolves, pet.Name(before), pet.Name(after)), theme.Reset)
 	}
 	return 0
 }
@@ -175,10 +178,25 @@ func nextMark(s *pet.State, form string) (pet.Mark, bool) {
 	return pet.NextMark(s, form)
 }
 
+// rowLabel pads a bar's label so the four bars start in the same column
+// whatever language they are written in. Hardcoding the two trailing spaces
+// was fine while "nivel", "marca", "hambre" and "racha" were the only four
+// words it would ever have to line up.
+func rowLabel(label string) string {
+	t := i18n.S()
+	width := 0
+	for _, l := range []string{t.LevelRow, t.MarkRow, t.HungerRow, t.StreakRow} {
+		if n := theme.Width(l); n > width {
+			width = n
+		}
+	}
+	return theme.PadRight(label, width) + " "
+}
+
 // roughly spells a duration the way you would say it out loud.
 func roughly(d time.Duration) string {
 	if d < time.Minute {
-		return "menos de un minuto"
+		return i18n.S().LessThanAMinute
 	}
 	if d < time.Hour {
 		return fmt.Sprintf("%d min", int(d.Minutes()))
@@ -216,6 +234,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	}
 
 	dim, reset, emph := theme.Fg(theme.Dim), theme.Reset, theme.Fg(theme.Emph)
+	t := i18n.S()
 	var b strings.Builder
 	nl := func(s string) { b.WriteString(s + "\n") }
 
@@ -239,7 +258,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	nl("")
 	joiner := " " + theme.Fg(theme.Rule) + "›" + reset + dim + " "
 	nl("  " + theme.Fg(theme.Number) + theme.Bold + pet.Name(form) + reset +
-		"   " + dim + "nivel " + reset + emph + strconv.Itoa(level) + reset)
+		"   " + dim + t.Level + " " + reset + emph + strconv.Itoa(level) + reset)
 	// The larva's lineage is the larva: printing "chispa" twice says nothing.
 	// It only earns its line once there is a path.
 	if len(trail) > 1 {
@@ -261,7 +280,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	// "518 xp" read as a third, unrelated number.
 	if done, span, climbing := pet.LevelProgress(s.XP); climbing {
 		if next, ok := pet.NextThreshold(s.XP); ok {
-			nl("  " + dim + "nivel  " + reset +
+			nl("  " + dim + rowLabel(t.LevelRow) + reset +
 				theme.Bar(float64(done), float64(span), 16, theme.Ident, theme.CtxEmpty) +
 				"  " + emph + strconv.Itoa(s.XP) + reset + dim + "/" +
 				strconv.Itoa(next) + " xp" + reset)
@@ -274,12 +293,12 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	// both runners in it, and this row said it once with the number capped:
 	// "10/10" beside the section's "33/10" is the same habit twice, disagreeing.
 	if mark, ok := nextMark(s, form); ok && len(pet.Siblings(s, form)) < 2 {
-		nl("  " + dim + "marca  " + reset +
+		nl("  " + dim + rowLabel(t.MarkRow) + reset +
 			theme.Bar(float64(mark.Done), float64(mark.Threshold), 16,
 				theme.Number, theme.CtxEmpty) +
 			"  " + emph + strconv.Itoa(mark.Done) + "/" +
 			strconv.Itoa(mark.Threshold) + reset +
-			dim + " para " + reset + theme.Fg(theme.Number) + pet.Name(mark.Form) + reset)
+			dim + " " + t.Toward + " " + reset + theme.Fg(theme.Number) + pet.Name(mark.Form) + reset)
 	}
 
 	tint := theme.Quota
@@ -294,10 +313,10 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	// row says it out loud.
 	starving := ""
 	if s.Hunger >= pet.HungerMax {
-		starving = dim + " · se está comiendo " + reset +
+		starving = dim + " · " + t.EatingItself + " " + reset +
 			theme.Fg(theme.Bad) + strconv.Itoa(pet.StarveXP) + " xp/h" + reset
 	}
-	nl("  " + dim + "hambre " + reset +
+	nl("  " + dim + rowLabel(t.HungerRow) + reset +
 		theme.Bar(float64(s.Hunger), pet.HungerMax, 10, tint, theme.Empty) +
 		"  " + emph + strconv.Itoa(s.Hunger) + reset + starving)
 
@@ -306,32 +325,32 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	if shown > 7 {
 		shown = 7
 	}
-	plural := "s"
+	unit := t.Days
 	if streak == 1 {
-		plural = ""
+		unit = t.Day
 	}
-	nl("  " + dim + "racha  " + reset +
+	nl("  " + dim + rowLabel(t.StreakRow) + reset +
 		theme.Bar(float64(shown), 7, 7, theme.Link, theme.Empty) +
-		"  " + emph + fmt.Sprintf("%d día%s", streak, plural) + reset +
-		dim + fmt.Sprintf(" · mejor %d", s.BestStreak) + reset)
+		"  " + emph + fmt.Sprintf("%d %s", streak, unit) + reset +
+		dim + fmt.Sprintf(" · %s %d", t.Best, s.BestStreak) + reset)
 	nl("")
 
 	var parts []string
 	if hasUpcoming {
 		target := pet.Name(upcoming)
 		if upcoming == "" {
-			target = fmt.Sprintf("nivel %d", level+1)
+			target = fmt.Sprintf("%s %d", t.Level, level+1)
 		}
 		parts = append(parts, emph+strconv.Itoa(upcomingXP-s.XP)+reset+
-			dim+" para "+reset+theme.Fg(theme.Number)+target+reset)
+			dim+" "+t.Toward+" "+reset+theme.Fg(theme.Number)+target+reset)
 	}
 	if s.AteAt != 0 {
 		minutes := (now.Unix() - s.AteAt) / 60
-		when := fmt.Sprintf("hace %dm", minutes)
+		when := fmt.Sprintf(t.AgoMinutes, minutes)
 		if minutes >= 60 {
-			when = fmt.Sprintf("hace %dh %02dm", minutes/60, minutes%60)
+			when = fmt.Sprintf(t.AgoHours, minutes/60, minutes%60)
 		}
-		parts = append(parts, dim+"comió "+when+reset)
+		parts = append(parts, dim+t.Ate+" "+when+reset)
 	}
 	if len(parts) > 0 {
 		nl("  " + strings.Join(parts, " "+theme.Fg(theme.Rule)+"│"+reset+" "))
@@ -346,7 +365,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 	// the eight-line window hid the morning by lunchtime.
 	if len(s.Log) > 0 && s.LogDay == pet.Today(now) {
 		nl("")
-		nl("  " + dim + "hoy" + reset)
+		nl("  " + dim + t.Today + reset)
 		entries := s.Log
 		// Both columns are measured against what the day actually holds
 		// instead of a fixed width. Most meals carry no note at all -
@@ -366,7 +385,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 				r.tint = theme.Bad
 			}
 			if food, ok := pet.Foods[e.Event]; ok {
-				r.label = food.Label
+				r.label = food.Label()
 			} else if r.label == "" {
 				r.label = "?"
 			}

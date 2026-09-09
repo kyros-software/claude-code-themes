@@ -1,5 +1,7 @@
 package pet
 
+import "github.com/kyros-software/claude-code-themes/internal/i18n"
+
 // The pet's names, from the design canvas "Tema Terminal Claude CLI".
 //
 // The English keys are the ids: they are what pet.json has stored since the
@@ -7,6 +9,12 @@ package pet
 // them would rewrite every life file in the wild. The Spanish is what a person
 // reads, and it is the canvas's own wording - artboard 06 for the tree and 07
 // for the lineage the panel prints as "metódico › pauta › refactor".
+//
+// Which is also why the English reading needs no table of its own: the id IS
+// the English name. `bughunter[bloodhound]` is what the canvas drew as
+// `cazabugs[sabueso]`, spelled with the words the tree is already written in.
+// Only the counters below need translating, because their ids are keys rather
+// than words.
 //
 // A form with no entry here falls back to its id, so the two never fight: a
 // missing name is a name that has not been chosen yet, not a crash.
@@ -51,8 +59,17 @@ var Names = map[string]string{
 	"k.o.": "k.o.",
 }
 
-// Name is what a person reads for a form or a counter.
-func Name(id string) string {
+// Name is what a person reads for a form or a counter, in the language the
+// theme is set to.
+func Name(id string) string { return NameIn(i18n.Current(), id) }
+
+// NameIn is Name in a language you name yourself. The atlas the sprites are
+// checked against is a Spanish document, so its test asks for Spanish however
+// the machine running it is configured.
+func NameIn(lang i18n.Lang, id string) string {
+	if lang == i18n.EN {
+		return id
+	}
 	if name, ok := Names[id]; ok {
 		return name
 	}
@@ -96,10 +113,42 @@ var CounterNames = map[string]string{
 	"ctx100_sessions":   "veces con el contexto al 100%",
 }
 
+// CounterNamesEN is the same list in English. The two are checked against each
+// other by a test: a counter added to one and forgotten in the other prints a
+// bare id, which is a key leaking into the panel.
+var CounterNamesEN = map[string]string{
+	"diffs":          "clean diffs",
+	"ctx_low":        "sessions on a low context",
+	"tests":          "green suites",
+	"plans":          "plans closed",
+	"short_sessions": "short sessions",
+	"long_sessions":  "long sessions",
+	"ctx_maxed":      "sessions at the limit",
+
+	"diff_streak":       "days running with a clean diff",
+	"widest_commit":     "widest commit",
+	"sessions_under_40": "sessions under 40%",
+	"docs_days":         "days running touching docs",
+	"repro_before_fix":  "reproduced before fixing",
+	"test_streak":       "days running in the green",
+	"longest_plan":      "longest plan closed",
+	"plans_before_code": "plans before touching code",
+	"sessions_15min":    "sessions under 15m",
+	"single_tool_tasks": "one-tool tasks",
+	"sessions_4h":       "sessions of 4h or more",
+	"same_repo_days":    "days running in the same repo",
+	"bypass_turns":      "turns on bypass",
+	"ctx100_sessions":   "times with the context at 100%",
+}
+
 // CounterName is CounterNames with the form names as a fallback, so the three
 // temperaments read the same whether they are a shape or a habit.
 func CounterName(counter string) string {
-	if name, ok := CounterNames[counter]; ok {
+	table := CounterNames
+	if i18n.Current() == i18n.EN {
+		table = CounterNamesEN
+	}
+	if name, ok := table[counter]; ok {
 		return name
 	}
 	return Name(counter)

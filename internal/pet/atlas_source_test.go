@@ -2,6 +2,7 @@ package pet
 
 import (
 	"encoding/json"
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
 	"os"
 	"strings"
 	"testing"
@@ -117,15 +118,15 @@ func TestEverySpriteIsTheOneTheAtlasDrew(t *testing.T) {
 			continue
 		}
 		for _, v := range Vitals {
-			want, ok := f.States[Name(v.Label)]
+			want, ok := f.States[NameIn(i18n.ES, v.Label)]
 			if !ok {
-				t.Errorf("%s: el atlas no trae el estado %q", f.Name, Name(v.Label))
+				t.Errorf("%s: el atlas no trae el estado %q", f.Name, NameIn(i18n.ES, v.Label))
 				continue
 			}
 			checked++
 			if !drawsAs(id, v, want) {
 				t.Errorf("%s/%s no coincide con el atlas:\n  atlas  %q\n  codigo %q",
-					f.Name, Name(v.Label), strings.Join(want, "|"),
+					f.Name, NameIn(i18n.ES, v.Label), strings.Join(want, "|"),
 					strings.Join(drawn(id, v, 0), "|"))
 			}
 		}
