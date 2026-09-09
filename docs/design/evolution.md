@@ -1,571 +1,568 @@
-# Las evoluciones de la mascota
+# The pet's evolutions
 
-La mascota tiene **dos capas que no se mezclan**:
+The pet has **two layers that do not mix**:
 
-| | qué mide | de dónde sale | sube y baja |
+| | what it measures | where it comes from | goes up and down |
 | --- | --- | --- | --- |
-| **vida** | cómo está *ahora* | uso de contexto y cuota | sí, todo el rato |
-| **progreso** | lo que llevas hecho | XP acumulada en `~/.claude/pet.json` | sube comiendo, baja de hambre |
+| **life** | how it is doing *now* | context usage and quota | yes, all the time |
+| **progress** | what you have done | XP banked in `~/.claude/pet.json` | up by eating, down from hunger |
 
-La **vida** elige los ojos, las patas y el color — está en [vitals.md](vitals.md).
-La **progreso** elige la silueta, que es de lo que va este documento.
+**Life** picks the eyes, the feet and the colour — it is in [vitals.md](vitals.md).
+**Progress** picks the silhouette, which is what this document is about.
 
-## Una plantilla, siete estados
+## One template, seven states
 
-Cada evolución es una **plantilla de 5 filas y 9 columnas** con dos huecos de
-ojos y una fila de patas:
+Every evolution is a **template of 5 rows and 9 columns** with two eye slots and a
+row of feet:
 
 ```
-  |   |     <- marca de la ramificación
- ▗█┼█┼█▖    <- cuerpo de la evolución
-▐█ o o █▌   <- los ojos los pone el estado
+  |   |     <- the branch's mark
+ ▗█┼█┼█▖    <- the evolution's body
+▐█ o o █▌   <- the eyes are put there by the state
  ▝█┼█┼█▘
- ▘▘   ▝▝    <- las patas las pone el estado
+ ▘▘   ▝▝    <- the feet are put there by the state
 ```
 
-El estado de vida **no cambia la silueta ni el tono**: rellena los huecos y baja
-por la rampa de la rama. El color pertenece a la evolución, no al estado. Por eso
-las 41 evoluciones tienen sus siete estados sin dibujar 287 sprites.
+The life state **changes neither the silhouette nor the hue**: it fills the slots
+in and walks down the branch's ramp. The colour belongs to the evolution, not to
+the state. That is how the 41 evolutions get their seven states without drawing
+287 sprites.
 
-Los ojos siguen una regla: la evolución pone los suyos mientras está entera
-(*fresh* y *lively*), y de *easy* para abajo manda el estado
-(`o o` → `▬ ▬` → `_ _` → `x x`). Así el cansancio se lee de un vistazo aunque
-no sepas qué mascota es.
+The eyes follow a rule: the evolution puts its own in while it is intact (*fresh*
+and *lively*), and from *easy* down the state is in charge
+(`o o` → `▬ ▬` → `_ _` → `x x`). That way tiredness reads at a glance even when
+you do not know which pet it is.
 
-## El árbol
+## The tree
 
 ```
 spark
-├─ pattern  compacta y commitea corto
-│  ├─ refactor  muchos diffs pequeños
-│  │  ├─ surgeon.......  20 diffs seguidos sin un rechazo
-│  │  └─ weaver........  un refactor que toca 10+ ficheros
-│  └─ tidy  jamás pasa del 60%
-│     ├─ monk..........  5 sesiones sin pasar del 40% de contexto
-│     └─ gardener......  docs y limpieza dos días seguidos
-├─ probe  lee, planifica, testea
-│  ├─ bughunter  tests y fixes en cadena
-│  │  ├─ bloodhound....  repro antes del fix, 10 veces
-│  │  └─ exterminator..  15 tests verdes sin uno rojo
-│  └─ architect  planes largos, docs
-│     ├─ cartographer..  un plan de 10 tareas cerrado entero
-│     └─ oracle........  5 planes escritos antes de tocar código
-└─ ember  tira al límite sin frenar
-   ├─ sprinter  sesiones cortas, rápidas
-   │  ├─ bolt..........  10 sesiones de menos de 15 minutos
-   │  └─ sniper........  8 tareas cerradas con una sola herramienta
-   ├─ marathon  sesiones de horas
-   │  ├─ ox............  3 sesiones de más de 4 horas
-   │  └─ mole..........  5 días seguidos en el mismo repo
-   └─ feral  al límite, sin compactar
-      ├─ gremlin.......  30 turnos con permisos en bypass
-      └─ kraken........  3 sesiones tocando el 100% de contexto
+├─ pattern  compacts and commits short
+│  ├─ refactor  many small diffs
+│  │  ├─ surgeon.......  20 diffs in a row without a rejection
+│  │  └─ weaver........  one refactor touching 10+ files
+│  └─ tidy  never goes past 60%
+│     ├─ monk..........  5 sessions never past 40% of context
+│     └─ gardener......  docs and cleanup two days running
+├─ probe  reads, plans, tests
+│  ├─ bughunter  tests and fixes in a chain
+│  │  ├─ bloodhound....  repro before the fix, 10 times
+│  │  └─ exterminator..  15 green suites without a red one
+│  └─ architect  long plans, docs
+│     ├─ cartographer..  a 10-task plan closed all the way
+│     └─ oracle........  5 plans written before touching code
+└─ ember  goes to the limit without braking
+   ├─ sprinter  short, fast sessions
+   │  ├─ bolt..........  10 sessions under 15 minutes
+   │  └─ sniper........  8 tasks closed with one single tool
+   ├─ marathon  sessions of hours
+   │  ├─ ox............  3 sessions of more than 4 hours
+   │  └─ mole..........  5 days running in the same repo
+   └─ feral  at the limit, never compacting
+      ├─ gremlin.......  30 turns with permissions on bypass
+      └─ kraken........  3 sessions touching 100% of context
 ```
 
-### Los títulos
+### The titles
 
-Detrás de cada marca hay un título, y pide **más del mismo hábito**. Los catorce
-números salen del lienzo [«Cómo llegar a cada forma»][canvas], que da un factor
-por título en vez de un multiplicador único: cada hábito se pesó por separado.
+Behind every mark there is a title, and it asks for **more of the same habit**.
+The fourteen numbers come out of the [«Cómo llegar a cada forma»][canvas] canvas,
+which gives a factor per title rather than one multiplier: each habit was weighed
+separately.
 
-| marca | título | pide | | marca | título | pide |
+| mark | title | asks for | | mark | title | asks for |
 | --- | --- | --- | --- | --- | --- | --- |
-| `surgeon` 20 | `scalpel` | **50** diffs seguidos | | `cartographer` 10 | `atlas` | **20** tareas en un plan |
-| `weaver` 10 | `loom` | **25** ficheros de un tirón | | `oracle` 5 | `sphinx` | **20** planes antes de código |
-| `monk` 5 | `abbot` | **15** sesiones bajo el 40% | | `bolt` 10 | `storm` | **30** sesiones de menos de 15 min |
-| `gardener` 2 | `forest` | **7** días de docs | | `sniper` 8 | `falcon` | **25** tareas de una herramienta |
-| `bloodhound` 10 | `wolf` | **30** repros antes del fix | | `ox` 3 | `mammoth` | **10** sesiones de más de 4 h |
-| `exterminator` 15 | `wasp` | **50** tests verdes seguidos | | `mole` 5 | `worm` | **20** días en el mismo repo |
-| | | | | `gremlin` 30 | `devil` | **200** turnos en bypass |
-| | | | | `kraken` 3 | `leviathan` | **10** sesiones al 100% |
+| `surgeon` 20 | `scalpel` | **50** diffs in a row | | `cartographer` 10 | `atlas` | **20** tasks in one plan |
+| `weaver` 10 | `loom` | **25** files in one go | | `oracle` 5 | `sphinx` | **20** plans before code |
+| `monk` 5 | `abbot` | **15** sessions under 40% | | `bolt` 10 | `storm` | **30** sessions under 15 min |
+| `gardener` 2 | `forest` | **7** days of docs | | `sniper` 8 | `falcon` | **25** one-tool tasks |
+| `bloodhound` 10 | `wolf` | **30** repros before the fix | | `ox` 3 | `mammoth` | **10** sessions over 4 h |
+| `exterminator` 15 | `wasp` | **50** green suites in a row | | `mole` 5 | `worm` | **20** days in the same repo |
+| | | | | `gremlin` 30 | `devil` | **200** turns on bypass |
+| | | | | `kraken` 3 | `leviathan` | **10** sessions at 100% |
 
-Dos no son el número del lienzo, y conviene saber por qué:
+Two are not the canvas's number, and it is worth knowing why:
 
-- **`atlas`.** El lienzo pide «5 planes de 10 tareas cerrados», que es una
-  *cuenta* de planes grandes. El contador que hay, `longest_plan`, es el plan
-  más largo cerrado nunca — un máximo, no una cuenta. Poner 50 ahí pediría un
-  solo plan de cincuenta tareas, que es otra cosa, no una más difícil.
-- **`devil`.** El lienzo pide 100 turnos en bypass. `bypass_turns` sube unas
-  treinta veces al día — medido — así que 100 es un título que llega ya
-  cumplido, y eso no es un título. 200 lo pone en una semana, como los demás.
+- **`atlas`.** The canvas asks for "5 closed plans of 10 tasks", which is a
+  *count* of big plans. The counter that exists, `longest_plan`, is the longest
+  plan ever closed — a maximum, not a count. Putting 50 there would ask for one
+  fifty-task plan, which is a different thing, not a harder one.
+- **`devil`.** The canvas asks for 100 turns on bypass. `bypass_turns` climbs
+  about thirty times a day — measured — so 100 is a title that arrives already
+  earned, and that is not a title. 200 puts it a week away, like the rest.
 
 [canvas]: https://claude.ai/design/p/4639e060-9aec-4ae3-855a-f8530ae9ab34
 
-**La rama no la eliges.** En cada bifurcación gana el contador de comportamiento
-que va más alto en ese momento. Si cambias de hábitos antes de subir de nivel,
-cambias de rama.
+**You do not choose the branch.** At each fork the behaviour counter that is
+highest at that moment wins. Change your habits before you level up and you change
+branch.
 
-### «Más alto» no es el número crudo
+### "Highest" is not the raw number
 
-Los contadores que leen las bifurcaciones **no son la misma clase de número**.
-Cuatro suben una vez por *evento* y no paran —un commit, un `/compact`, una
-tarea de plan cerrada— y cinco suben como mucho una vez por *sesión*, al
-cerrarla. Un día tiene una docena de commits y tres o cuatro sesiones, así que
-comparar `methodical` con `impulsive` en crudo lo decidían las unidades antes de
-que el hábito abriera la boca.
+The counters the forks read **are not the same kind of number**. Four climb once
+per *event* and never stop — a commit, a `/compact`, a closed plan task — and five
+climb at most once per *session*, when it closes. A day has a dozen commits and
+three or four sessions, so comparing `methodical` with `impulsive` raw let the
+units decide before the habit had opened its mouth.
 
-Medido en un `pet.json` real, después de tres semanas trabajando exactamente al
-límite: `methodical` 39, `impulsive` 2. Y el 2 no es falta de ganas, es el techo.
-Para ser `brasa` había que acumular más sesiones al límite que commits+compacts
-**en toda la vida de la mascota**, lo cual se llevaba por delante 3 oficios, 6
-marcas y 6 títulos: **16 de las 41 formas**, inalcanzables jugando.
+Measured on a real `pet.json`, after three weeks working exactly at the limit:
+`methodical` 39, `impulsive` 2. And the 2 is not for want of trying, it is the
+ceiling. To be `ember` you had to bank more sessions at the limit than
+commits+compacts **over the whole life of the pet**, which took out 3 trades, 6
+marks and 6 titles: **16 of the 41 forms**, unreachable by playing.
 
-Es el mismo fallo que se arregló en el nivel 5 —«gana el primero que cruza su
-umbral» — un peldaño más arriba y peor, porque aquí no hay umbral que cruzar y
-por tanto nada contra lo que normalizar. Ahora cada contador se divide por su
-**escala**, que es lo que da un día de ese hábito, y la bifurcación vuelve a ser
-una carrera entre formas de trabajar:
+It is the same defect that was fixed at level 5 — "the first to cross its
+threshold wins" — one rung higher and worse, because here there is no threshold to
+cross and therefore nothing to normalise against. Every counter is now divided by
+its **scale**, which is what a day of that habit yields, and the fork goes back to
+being a race between ways of working:
 
-| Contador | Escala | De dónde sale |
+| Counter | Scale | Where it comes from |
 | --- | --- | --- |
-| `methodical` | 10 | commits a 12 xp, más los compacts |
-| `inquisitive` | 8 | suites verdes a 15 xp — donde cae también el freno horario |
-| `diffs` | 10 | solo commits |
-| `tests` | 8 | el mismo freno |
-| `plans` | 21 | tareas de plan a 6 xp |
-| `impulsive` | 3 | una por sesión ≥85% |
-| `ctx_low` | 3 | una por sesión <60% |
-| `ctx_maxed` | 3 | una por sesión ≥95% |
-| `short_sessions` | 3 | una por sesión <15 min |
-| `long_sessions` | 2 | una por sesión ≥90 min — caben menos en un día |
+| `methodical` | 10 | commits at 12 xp, plus the compacts |
+| `inquisitive` | 8 | green suites at 15 xp — where the hourly brake also lands |
+| `diffs` | 10 | commits only |
+| `tests` | 8 | the same brake |
+| `plans` | 21 | plan tasks at 6 xp |
+| `impulsive` | 3 | one per session ≥85% |
+| `ctx_low` | 3 | one per session <60% |
+| `ctx_maxed` | 3 | one per session ≥95% |
+| `short_sessions` | 3 | one per session <15 min |
+| `long_sessions` | 2 | one per session ≥90 min — fewer fit in a day |
 
-Las cinco primeras salen del presupuesto que el diseño ya tenía —un día normal
-son 128 XP, el mismo número detrás del freno horario de la suite— dividido por lo
-que paga cada comida. Las cinco de sesión no pueden pasar de cuántas sesiones
-caben en un día, medido en tres o cuatro. Son una **calibración, no una ley**, y
-viven en `BranchScale` (`internal/pet/evolution.go`).
+The first five come out of the budget the design already had — a normal day is 128
+XP, the same number behind the suite's hourly brake — divided by what each meal
+pays. The five session ones cannot go past how many sessions fit in a day,
+measured at three or four. They are a **calibration, not a law**, and they live in
+`BranchScale` (`internal/pet/evolution.go`).
 
-### Y una rama tomada se defiende
+### And a branch you have taken defends itself
 
-Dividir por la escala arregla *quién* gana la bifurcación, no *cada cuánto*
-cambia de manos. Dos hábitos que van a la par no se mantienen delante el uno del
-otro mucho rato: medido, `methodical` 4,60 días contra `inquisitive` 4,38, que
-son 0,22 de diferencia — **dos suites en un sentido, tres commits en el otro**.
-La mascota cambiaba de nombre y de sprite varias veces en una tarde, en una
-bifurcación que en ningún momento se había decidido de verdad.
+Dividing by the scale fixes *who* wins the fork, not *how often* it changes hands.
+Two habits running level do not stay ahead of one another for long: measured,
+`methodical` 4.60 days against `inquisitive` 4.38, which is 0.22 of a gap — **two
+suites one way, three commits the other**. The pet changed name and sprite several
+times in an afternoon, at a fork that had never actually been decided.
 
-Así que una rama tomada **se defiende**: para quitársela hay que sacarle un día
-entero del hábito (`BranchMargin`, 1.0, en la unidad en la que ya están las
-escalas). Un día es la elección y no medio, porque medio día son cinco commits y
-eso cabe en una tarde; un día de hábito no se cruza ida y vuelta dentro de una
-sesión. Comprobado sobre el `pet.json` real:
+So a branch you have taken **defends itself**: to take it away you have to beat it
+by a whole day of the habit (`BranchMargin`, 1.0, in the unit the scales already
+put things in). A day is the choice and not half of one, because half a day is
+five commits and that fits in an afternoon; a day of habit is not crossed there
+and back inside one session. Checked against the real `pet.json`:
 
-| ventaja de inquisitivo | forma |
+| inquisitive's lead | form |
 | --- | --- |
-| +0,80 días | `pulcro` |
-| +0,92 días | `pulcro` |
-| **+1,05 días** | `cazabugs` |
+| +0.80 days | `tidy` |
+| +0.92 days | `tidy` |
+| **+1.05 days** | `bughunter` |
 
-Es un retardo, no un candado: los contadores solo suben, así que cualquier rama
-se acaba pudiendo tomar — `TestADefendedForkCanStillBeTaken` lo exige de los dos
-lados de cada bifurcación, contra cada defensor posible. Lo que cambia es el
-plazo: el jugador de `brasa` del test cruza el nivel 2 el día 2 llevando la rama
-que iba un pelo por delante en ese instante, y no le quita la bifurcación hasta
-el día 8, cuando la ventaja es un día entero.
+It is a delay, not a lock: the counters only climb, so any branch can eventually
+be taken — `TestADefendedForkCanStillBeTaken` demands it from both sides of every
+fork, against every possible defender. What changes is the wait: the test's `ember`
+player crosses level 2 on day 2 wearing whichever branch was a hair ahead at that
+instant, and does not take the fork off it until day 8, when the lead is a whole
+day.
 
-**El precio, con los ojos abiertos.** Los contadores no pueden decir quién iba
-delante ayer —solo suben—, así que la decisión hay que **guardarla**: `branch` en
-`pet.json`, un hijo por bifurcación cruzada. Eso rompe una propiedad que el resto
-de este fichero sí cumple: la forma deja de ser función pura de los contadores, y
-**dos mascotas con los mismos números pueden llevar formas distintas** según por
-dónde pasaron. Es el único dato de una mascota que está solo en el fichero. Se
-sabía antes de elegirlo.
+**The price, with the eyes open.** The counters cannot say who was ahead yesterday
+— they only climb — so the decision has to be **stored**: `branch` in `pet.json`,
+one child per crossed fork. That breaks a property the rest of this file does hold:
+the form stops being a pure function of the counters, and **two pets with the same
+numbers can wear different forms** depending on the way they came. It is the only
+fact about a pet that lives only in the file. It was known before it was chosen.
 
-Lo escribe `RememberBranch`, y lo escribe `Save` —no cada llamante—, por la misma
-razón que `RememberForm`: seis caminos persisten este fichero y solo dos tenían
-motivo para pensar en ramas. Una bifurcación que no se anota es una bifurcación
-sin defensor, o sea la histéresis no ocurriendo en silencio. Y anota solo las
-bifurcaciones **ya cruzadas**: apuntar la del nivel 3 con la mascota en el 2 le
-daría un defensor elegido un nivel antes de tiempo.
+`RememberBranch` writes it, and `Save` writes it — not each caller — for the same
+reason `RememberForm` does: six paths persist this file and only two had any reason
+to think about branches. A fork that never gets written down is a fork with nobody
+defending it, which is the hysteresis quietly not happening. And it only writes down
+the forks **already crossed**: noting the level 3 one with the pet at level 2 would
+hand it a defender chosen a level early.
 
-En la entrada, el campo pasa por una puerta más estricta que la del peldaño: la
-pareja tiene que nombrar una elección real —una bifurcación que el árbol tenga, y
-un hijo suyo— o se tira. Las bifurcaciones del nivel 5 no entran: esas las decide
-`ripestMark` y no se defienden.
+On the way in, the field passes a stricter gate than the rung's: the pair has to
+name a real choice — a fork the tree has, and a child of it — or it is dropped. The
+level 5 forks do not go in: those are decided by `ripestMark` and are not defended.
 
-Lo que las defiende es un test que juega, no uno que rellena contadores a mano:
-`TestTheEmberBranchSurvivesANormalDayOfWork` simula a alguien que trabaja al
-límite **y además commitea**, y exige las dos direcciones —que llegue a `brasa`
-con un par de commits al día, y que **no** llegue si commitea todo el día—.
-Porque dividir no es poner el pulgar en la balanza.
+What defends them is a test that plays, not one that fills counters in by hand:
+`TestTheEmberBranchSurvivesANormalDayOfWork` simulates somebody who works at the
+limit **and commits as well**, and demands both directions — that they reach `ember`
+with a couple of commits a day, and that they do **not** if they commit all day long.
+Because dividing is not putting a thumb on the scale.
 
-**Por qué los tests viejos no lo veían.** `TestEveryFormIsReachableFromAVeteran`
-escribe el contador a mano (`steer`, «un punto por encima del hermano»), así que
-prueba «alcanzable si el número fuera más alto», nunca «el número puede llegar
-ahí jugando». Y `TestEveryTemperamentIsReachableByPlaying` sí jugaba, pero solo
-al jugador **puro**: su caso de `ember` no cierra nada en absoluto, solo `feed` y
-pico alto. La rama parecía viva y no la podía tomar nadie que trabajase.
+**Why the old tests did not see it.** `TestEveryFormIsReachableFromAVeteran` writes
+the counter by hand (`steer`, "one point above the sibling"), so it tests "reachable
+if the number were higher", never "the number can get there by playing". And
+`TestEveryTemperamentIsReachableByPlaying` did play, but only the **pure** player:
+its `ember` case closes nothing at all, only `feed` and a high peak. The branch
+looked alive and nobody who actually worked could take it.
 
-**El empate de la quimera también se escaló.** Comparaba los tres temperamentos
-en crudo, así que la secreta le tocaba a quien tuviera por casualidad el mismo
-número de commits que de suites — una coincidencia de unidades, no dos formas de
-trabajar que salieron a la par. Ahora empatan en días. Las quimeras ya
-concedidas se quedan: `CheckSecrets` no reescribe una secreta ya puesta.
+**The chimera's tie was scaled too.** It compared the three temperaments raw, so the
+secret went to whoever happened to have the same number of commits as suites — a
+coincidence of units, not two ways of working that came out level. They now tie in
+days. Chimeras already granted stay: `CheckSecrets` does not rewrite a secret
+already set.
 
-**Y las tres ramas se pueden tomar.** La impulsiva estuvo muerta: su contador
-solo lo subía *reventar el contexto*, que es la única comida que **resta** XP.
-La aritmética se cerraba sola —cada punto de `impulsive` costaba 15 XP, y toda
-comida que los devolvía alimentaba a un rival—, así que quien reventaba el
-contexto todo el día acababa con 800 de impulsivo y clavado en el nivel 1 con
-0 XP. Un tercio del árbol detrás de una rama que nadie podía subir.
+**And all three branches can be taken.** The impulsive one was dead: its counter was
+only raised by *blowing the context*, which is the one meal that **subtracts** XP.
+The arithmetic closed on itself — every point of `impulsive` cost 15 XP, and every
+meal that gave them back fed a rival — so somebody blowing the context all day ended
+up with 800 impulsive and nailed to level 1 with 0 XP. A third of the tree behind a
+branch nobody could climb.
 
-Ahora paga el **pico de contexto de la sesión**: a partir del `ImpulsivePeak`
-(85%) cuenta como haber trabajado al límite, que es lo que pide el lienzo
-—«tira al límite sin frenar»— y no lo mismo que estrellarse. Es el espejo de
-`ctx_low`, que premia al que no pasa del 60 y lleva a `pulcro`.
+It now pays from the **session's context peak**: from `ImpulsivePeak` (85%) on it
+counts as having worked at the limit, which is what the canvas asks for — «tira al
+límite sin frenar», push to the limit without braking — and not the same thing as
+crashing. It is the mirror of
+`ctx_low`, which rewards whoever stays under 60 and leads to `tidy`.
 
-**Y un nivel más abajo pasaba lo mismo.** `ctx_maxed`, que elige `feral` entre
-sus dos hermanos, tenía la aritmética cerrada exactamente igual: su única fuente
-era el reventón, mientras que `short_sessions` y `long_sessions` se cobraban
-gratis con solo tener sesiones. Ahora los tres contadores que leen la rama brasa
-son **tres muescas del mismo gesto**, y ninguno se paga en XP:
+**And one level down the same thing was happening.** `ctx_maxed`, which picks
+`feral` out of its two siblings, had the arithmetic closed in exactly the same way:
+its only source was the blow-up, while `short_sessions` and `long_sessions` were
+collected for free just by having sessions. The three counters that read the ember
+branch are now **three notches of the same gesture**, and none of them is paid for
+in XP:
 
-| Pico de la sesión | Contador | Para qué |
+| Session's peak | Counter | What for |
 | --- | --- | --- |
-| ≥ 85 (`ImpulsivePeak`) | `impulsive` | nivel 2 — `ember` |
-| ≥ 95 (`FeralPeak`) | `ctx_maxed` | nivel 3 — `feral` |
-| ≥ 100 | `ctx100_sessions` | la marca `kraken` |
+| ≥ 85 (`ImpulsivePeak`) | `impulsive` | level 2 — `ember` |
+| ≥ 95 (`FeralPeak`) | `ctx_maxed` | level 3 — `feral` |
+| ≥ 100 | `ctx100_sessions` | the `kraken` mark |
 
-El reventón (`overflow`) ya no alimenta ningún hábito: es lo que siempre debió
-ser, un castigo de −15 XP que además rompe las rachas limpias.
+The blow-up (`overflow`) no longer feeds any habit: it is what it always should have
+been, a −15 XP penalty that also breaks the clean streaks.
 
-**Cuidado con el empate.** Una sesión de más de 90 minutos con el pico arriba
-sube `ctx_maxed` *y* `long_sessions`, uno cada uno, y los contadores quedan
-empatados para siempre — pero gana `marathon`, porque en un día caben menos
-sesiones largas que sesiones, y una sesión larga es por tanto más día de trabajo
-que una al límite. `feral` es para quien llena la ventana **rápido**: sesiones
-cortas al límite. Es la distinción que la rama está dibujando, y hay un test que
-la fija (`TestALongSessionAtTheLimitStillGoesToMarathon`).
+**Mind the tie.** A session over 90 minutes with the peak high raises `ctx_maxed`
+*and* `long_sessions`, one each, and the counters stay tied for ever — but `marathon`
+wins, because fewer long sessions than sessions fit in a day, and a long session is
+therefore more of a working day than one at the limit. `feral` is for whoever fills
+the window **fast**: short sessions at the limit. That is the distinction the branch
+is drawing, and a test pins it
+(`TestALongSessionAtTheLimitStillGoesToMarathon`).
 
-**Los nombres del árbol son ids, no texto.** `spark`, `bughunter` o `exterminator`
-son lo que hay escrito en `pet.json` desde la versión en Python, y renombrarlos
-reescribiría todos los ficheros de vida que hay por ahí. Lo que se lee en
-pantalla es la columna en castellano del lienzo —*chispa*, *cazabugs*,
-*exterminador*—, y vive en `internal/pet/names.go`. Una forma sin traducir cae
-en su propio id: un nombre que falta es un nombre por elegir, no un fallo.
+**The tree's names are ids, not text.** `spark`, `bughunter` or `exterminator` are
+what has been written in `pet.json` since the Python version, and renaming them would
+rewrite every life file out there. What you read on screen is whichever language the
+theme is set to — the canvas's Spanish column, *chispa*, *cazabugs*,
+*exterminador*, or the ids themselves in English — and it lives in
+`internal/pet/names.go`. A form with no reading falls back to its own id: a missing
+name is a name yet to be chosen, not a bug. See [language.md](language.md).
 
-Cuál de las dos marcas te toca no lo decide la XP sino el **hábito**: se
-desbloquean al cumplir su condición estando en la evolución padre. La XP sigue
-poniendo el *cuándo* —son formas de nivel 5— pero ya no reparte nada: a partir
-de ahí lo único que se mueve es el hábito, y es eso lo que mide la barra en la
-banda 4 y la fila `marca` de `/pet`.
+Which of the two marks you get is not decided by the XP but by the **habit**: they
+unlock on meeting their condition while in the parent evolution. The XP still sets
+the *when* — they are level 5 forms — but it no longer hands anything out: from
+there on the only thing that moves is the habit, and that is what the bar in band 4
+and `/pet`'s `mark` row measure.
 
-| Nivel | XP | Tramo | Qué eres |
+| Level | XP | Stretch | What you are |
 | --- | --- | --- | --- |
-| 1 | 0 | — | larva — `spark`, sin patas todavía |
-| 2 | 60 | 60 | temperamento — cómo trabajas |
-| 3 | 180 | 120 | oficio — en qué eres bueno |
-| 4 | 400 | 220 | el mismo oficio, asentado |
-| 5 | 2000 | **1600** | marca — más la condición de hábito, o una secreta ya ganada |
-| 6 | 4500 | 2500 | título — la forma final de la rama |
+| 1 | 0 | — | larva — `spark`, no feet yet |
+| 2 | 60 | 60 | temperament — how you work |
+| 3 | 180 | 120 | trade — what you are good at |
+| 4 | 400 | 220 | the same trade, settled |
+| 5 | 2000 | **1600** | mark — plus the habit condition, or a secret already earned |
+| 6 | 4500 | 2500 | title — the branch's final form |
 
-### Por qué el nivel 4 es tan largo
+### Why level 4 is so long
 
-El árbol **solo se bifurca en los niveles 2, 3 y 5**. El 4 no reparte nada: es
-el mismo oficio, asentado. Eso lo convierte en el único tramo donde el hábito
-que decide la marca sigue moviéndose y **todavía puede cambiar de idea** — un
-`cazabugs` que empieza a reproducir fallos antes de arreglarlos se escora a
-`sabueso`, uno que encadena suites verdes se escora a `exterminador`, y
-cualquiera de los dos puede adelantar al otro mientras dure el nivel.
+The tree **only forks at levels 2, 3 and 5**. Level 4 hands out nothing: it is the
+same trade, settled. That makes it the only stretch where the habit that decides the
+mark keeps moving and **can still change its mind** — a `bughunter` who starts
+reproducing bugs before fixing them leans towards `bloodhound`, one who chains green
+suites leans towards `exterminator`, and either can overtake the other for as long
+as the level lasts.
 
-Duraba 500 XP. Medido contra un día real de comidas —unos 12 XP por comida, del
-orden de 60 a la hora de trabajo efectivo— eso son **ocho horas**: una sesión
-larga, y la bifurcación decidida antes de que los hábitos hubieran tenido una
-semana para decir nada. Con 1600 el tramo ronda las **veinticinco horas** de
-trabajo.
+It used to last 500 XP. Measured against a real day of meals — about 12 XP a meal,
+on the order of 60 an hour of effective work — that is **eight hours**: one long
+session, and the fork decided before the habits had had a week to say anything. At
+1600 the stretch is around **twenty-five hours** of work.
 
-Durante ese tramo la banda 4 dice `cazabugs` y nada más: la barra de XP es la
-que enseña el avance, y cuál de las dos marcas se está ganando no se anuncia
-—sigue en disputa hasta el final, que es justo lo que hace largo al nivel 4—.
-La fila `marca` de `/pet` sí lleva la cuenta de los dos hábitos.
+Through that stretch band 4 says `bughunter` and nothing else: the XP bar is the one
+showing the progress, and which of the two marks is being earned is not announced —
+it is still in dispute until the end, which is exactly what makes level 4 long.
+`/pet`'s `mark` row does keep the count of both habits.
 
-### La variante que llevas: `cazabugs[sabueso]`
+### The variant you are wearing: `bughunter[bloodhound]`
 
-La banda 4 escribe entre corchetes **la marca que la mascota lleva puesta**, con
-el oficio del que es variante fuera:
+Band 4 writes **the mark the pet is wearing** in brackets, with the trade it is a
+variant of outside:
 
 ```
-cazabugs[sabueso] nivel 5 │ fresca ✦
+bughunter[bloodhound] level 5 │ fresh ✦
 ```
 
-Se lee entero como un nombre: *un cazabugs, en su forma sabueso*. El árbol se
-bifurca en los niveles 2, 3 y 5, y la marca es la bifurcación del 5 — así que
-el corchete aparece ahí y en ningún otro sitio:
+It reads whole, as one name: *a bughunter, in its bloodhound form*. The tree forks
+at levels 2, 3 and 5, and the mark is the level-5 fork — so the bracket appears
+there and nowhere else:
 
-| Nivel | Banda 4 | Por qué |
+| Level | Band 4 | Why |
 | --- | --- | --- |
-| 4 | `cazabugs` | todavía no hay variante que nombrar |
-| 5 | `cazabugs[sabueso]` | la bifurcación, y por cuál fue |
-| 6 | `lobo` | el título es el final de la rama y no compite con nada |
+| 4 | `bughunter` | there is no variant to name yet |
+| 5 | `bughunter[bloodhound]` | the fork, and which way it went |
+| 6 | `wolf` | the title is the end of the branch and competes with nothing |
 
-**El corchete decía lo contrario y engañaba.** Escribía la marca a la que la
-mascota *apuntaba*, así que un nivel 4 leía `cazabugs[sabueso]` sin ser un sabueso
-y sin garantía de llegar a serlo. La intención era que los corchetes fuesen el
-tiempo verbal —un nombre dice *es*, un corchete dice *va hacia*— pero eso solo
-funciona si se ven: iban pintados en `Rule`, el color de la barra separadora,
-que da **1,54:1** contra el fondo frente al **11,8:1** de las dos palabras entre
-las que se sientan. Lo que llegaba al ojo eran dos palabras brillantes pegadas
-sin nada en medio, y se leía como un nombre compuesto. La puntuación que
-cargaba todo el significado era lo único invisible. Ahora van en `Dim`.
+**The bracket used to say the opposite, and it misled.** It wrote the mark the pet
+was *heading for*, so a level 4 read `bughunter[bloodhound]` without being a
+bloodhound and with no guarantee of becoming one. The intent was for the brackets to
+be the tense — a name says *is*, a bracket says *is heading for* — but that only
+works if they can be seen: they were painted in `Rule`, the separator bar's colour,
+which gives **1.54:1** against the background against the **11.8:1** of the two
+words it sits between. What reached the eye was two bright words stuck together with
+nothing in between, and it read as one compound word. The punctuation carrying the
+whole meaning was the only part invisible. They are `Dim` now.
 
-Es lo primero que la banda suelta al quedarse sin columnas, después del
-bocadillo. Perder el corchete cuesta algo real —cuál de las dos formas tomó el
-oficio— pero la mitad que queda en pie sigue siendo **cierta**: un sabueso es un
-cazabugs, así que `cazabugs` a secas es menos preciso y no es falso.
+It is the first thing the band drops when it runs out of columns, after the speech
+bubble. Losing the bracket costs something real — which of the two forms took the
+trade — but the half left standing is still **true**: a bloodhound is a bughunter,
+so a bare `bughunter` is less precise and is not false.
 
-Y dos secretas fuera del árbol: **phoenix** / *fénix* (llegar a hambre 10 y
-remontar a 0 en la misma sesión, solo desde `feral` o `marathon`) y **chimera** /
-*quimera* (dos temperamentos empatados al subir a nivel 4; hereda ojos de uno y
-cuerpo del otro).
+And two secrets off the tree: **phoenix** (reach hunger 10 and climb back to 0 in
+the same session, only from `feral` or `marathon`) and **chimera** (two temperaments
+tied on the way up to level 4; it inherits the eyes of one and the body of the
+other).
 
-Las dos son formas de **nivel 5** y esperan a los 2000 XP como cualquier otra. La
-condición se cumple antes —la de la quimera, a nivel 4— y entre una cosa y la
-otra el panel dice a qué aspiras: `488 para quimera`. Entregarla en el acto se
-saltaba el nivel 4 entero y ponía un «nivel 5» al lado de 412 XP.
+Both are **level 5** forms and wait for 2000 XP like any other. The condition is met
+earlier — the chimera's at level 4 — and in between the panel says what you are
+heading for: `488 to chimera`. Handing it over on the spot skipped the whole of
+level 4 and put a "level 5" next to 412 XP.
 
-### Una secreta gana su peldaño, no el de arriba
+### A secret earns its own rung, not the one above
 
-Y era el final del camino. `walk` devolvía la secreta **antes** de recorrer el
-árbol, así que la mascota se quedaba en el peldaño 5 para siempre: ni marca, ni
-título, y la rama en la que estaba dejaba de significar nada el día que le tocó
-la secreta. Tres cuartos de rama a cambio de una forma bonita. Una quimera es una
-forma de nivel 5, no una lápida.
+And it was the end of the road. `walk` returned the secret **before** walking the
+tree, so the pet stayed on rung 5 for ever: no mark, no title, and the branch it was
+on stopped meaning anything the day the secret landed. Three quarters of a branch in
+exchange for a pretty form. A chimera is a level 5 form, not a headstone.
 
-Ahora el árbol se recorre primero y la secreta solo se pone por encima si el
-árbol devolvió peldaño 5 **o menos**. El título es peldaño 6 y la supera, así que
-sigue siendo algo en lo que una quimera puede convertirse:
+The tree is walked first now and the secret is only put on top if the tree returned
+rung 5 **or lower**. The title is rung 6 and beats it, so it stays something a
+chimera can turn into:
 
-| Peldaño que da el árbol | Lo que lleva puesto | Por qué |
+| Rung the tree gives | What it wears | Why |
 | --- | --- | --- |
-| oficio (3) o marca (5) | la secreta | es más rara, y es su peldaño |
-| título (6) | el título | está por encima, y se paga con el hábito |
+| trade (3) or mark (5) | the secret | it is rarer, and it is its rung |
+| title (6) | the title | it is above, and it is paid for with the habit |
 
-Las marcas que se salta por el camino no son una pérdida: la secreta ya ocupa ese
-peldaño, y el título de detrás pide **el mismo hábito**, más cantidad. El hábito
-sigue siendo la puerta; lo que cambia es la forma que llevas mientras la cruzas.
-El panel lo dice —`22/50 para avispa` debajo de `fénix`—, que antes estaba
-correctamente vacío porque no había nada a lo que apuntar.
+The marks skipped along the way are not a loss: the secret already occupies that
+rung, and the title behind it asks for **the same habit**, more of it. The habit is
+still the door; what changes is the form you wear while you go through it. The panel
+says so — `22/50 to wasp` under `phoenix` — where before it was correctly empty
+because there was nothing to point at.
 
-Y una vez puesto, el título no se devuelve: `tradeOf` de una secreta es `""`,
-que el suelo lee como «no sé de qué rama viene» y por tanto se queda con lo más
-alto que pisó. Una racha que se cae no te baja de avispa a fénix.
+And once it is on, the title is not given back: `tradeOf` of a secret is `""`, which
+the floor reads as "I do not know which branch this comes from" and therefore keeps
+the highest rung it stood on. A streak falling over does not take you from wasp back
+to phoenix.
 
-## Una forma no baja de escalón
+## A form does not go down a rung
 
-La forma se recalcula desde los contadores en **cada refresco** y no está
-grabada, así que lo que la mascota *es* puede cambiar de una línea a la
-siguiente. Lo que no puede es bajar por el árbol.
+The form is recomputed from the counters on **every refresh** and is not recorded,
+so what the pet *is* can change from one line to the next. What it cannot do is go
+down the tree.
 
-Dos hábitos se van a cero cuando revientas el contexto —`test_streak` y
-`diff_streak`, las dos rachas limpias— y sin un suelo eso era una caída: una
-`avispa` de nivel 6 volvía como `cazabugs`, una forma de nivel 3, con el
-rótulo «nivel 6» al lado. `pet.json` guarda ahora en `form_seen` el peldaño más
-alto pisado, y `pet.Save` lo anota **en cada escritura**, de modo que ningún
-camino puede persistir una mascota y olvidarse de dónde está.
+Two habits go to zero when you blow the context — `test_streak` and `diff_streak`,
+the two clean streaks — and without a floor that was a fall: a level 6 `wasp` came
+back as `bughunter`, a level 3 form, with "level 6" written beside it. `pet.json`
+now keeps the highest rung stood on in `form_seen`, and `pet.Save` writes it down
+**on every write**, so no path can persist a pet and forget where it is.
 
-La regla es que una forma **no se cae**: se mueve en lateral, hacia arriba, o
-de rama.
+The rule is that a form **does not fall**: it moves sideways, upwards, or across
+branches.
 
-| desde | pasa a | por qué |
+| from | goes to | why |
 | --- | --- | --- |
-| `exterminador` | `sabueso` | mismo peldaño, el otro hábito |
-| `exterminador` | `avispa` | hacia arriba, su título |
-| `exterminador` | `cazabugs` | **nunca**: sería bajar de peldaño |
-| `avispa` | `sabueso` | **nunca**: mismo oficio, es la racha cayéndose |
-| `avispa` | `cirujano` | sí: otro oficio, y la marca de allí está ganada |
+| `exterminator` | `bloodhound` | same rung, the other habit |
+| `exterminator` | `wasp` | upwards, its title |
+| `exterminator` | `bughunter` | **never**: that would be going down a rung |
+| `wasp` | `bloodhound` | **never**: same trade, that is the streak falling over |
+| `wasp` | `surgeon` | yes: a different trade, and that mark is earned |
 
-Las dos últimas filas parecen la misma bajada de 6 a 5 y no lo son, así que el
-suelo pregunta **por qué** salió más bajo. Si el oficio es el mismo, se ha caído
-un hábito y eso es justo lo que el suelo para. Si el oficio ha cambiado, la
-mascota se ha movido de rama y la marca de la rama nueva está pagada: enseñar un
-título de una rama que ya no pisa dice menos que enseñar lo que es hoy. Por
-debajo del peldaño 5 no pasa nada en ninguna dirección — un camino que devuelve
-un oficio pelado es xp cayendo o una rama sin nada ganado todavía.
+The last two rows look like the same drop from 6 to 5 and are not, so the floor asks
+**why** it came out lower. If the trade is the same, a habit has fallen and that is
+exactly what the floor is there to stop. If the trade has changed, the pet has moved
+branch and the new branch's mark is paid for: showing a title from a branch it no
+longer stands on says less than showing what it is today. Below rung 5 nothing
+happens in either direction — a walk that returns a bare trade is xp falling, or a
+branch with nothing earned yet.
 
-Dos consecuencias que conviene conocer:
+Two consequences worth knowing:
 
-- **Cambiar de temperamento sí cambia la forma**, en cuanto la rama nueva
-  tenga una marca ganada — y también si ya llevas título. Lo que no hace es
-  dejarte en el oficio pelado mientras no haya nada ganado allí.
-- **El nivel sí puede bajar**, y la forma no. Son dos hechos distintos: la
-  forma es una marca de agua y el nivel es la xp de hoy, que cae al reventar el
-  contexto (−15) y mientras la mascota pasa hambre. Así que `avispa nivel 5` es
-  una pareja que se puede ver, y no es un fallo.
+- **Changing temperament does change the form**, as soon as the new branch has a
+  mark earned — and also if you already wear a title. What it does not do is leave
+  you on the bare trade while nothing is earned there.
+- **The level can go down**, and the form cannot. They are two different facts: the
+  form is a watermark and the level is today's xp, which falls when the context
+  blows (−15) and while the pet goes hungry. So `wasp level 5` is a pairing you can
+  see, and it is not a bug.
 
-## La comida
+## The food
 
-| Comida | XP | Hambre | Tope |
+| Meal | XP | Hunger | Cap |
 | --- | --- | --- | --- |
-| tests en verde | **+15** | −4 | una cada hora, y con un cambio detrás |
-| commit hecho | **+12** | −3 | — |
+| green suite | **+15** | −4 | one an hour, and with a change behind it |
+| commit made | **+12** | −3 | — |
 | `/compact` | **+8** | −3 | — |
-| tarea del plan cerrada | **+6** | −1 | — |
-| `/feed` | **+3** | −2 | uno cada 4 h |
-| contexto al 100% | **−15** | — | — |
-| cada hora a hambre 10 | **−1** | — | — |
+| plan task closed | **+6** | −1 | — |
+| `/feed` | **+3** | −2 | one every 4 h |
+| context at 100% | **−15** | — | — |
+| every hour at hunger 10 | **−1** | — | — |
 
-Y al cerrar sesión, sin XP de por medio: pico bajo del 60% suma `ctx_low`
-(hacia `pulcro`), pico por encima del 85% suma `impulsive` (hacia `brasa`).
+And on session close, with no XP involved: a peak under 60% adds `ctx_low` (towards
+`tidy`), a peak over 85% adds `impulsive` (towards `ember`).
 
-**Por qué la suite verde tiene freno.** Era la comida más grande de la tabla y
-la única sin ningún tope, así que era lo único que compensaba farmear: correr
-la suite en bucle daba +15 cada pocos segundos —120 XP en ocho minutos, medido
-en una sesión real— y con eso el techo y el drenaje eran decoración. Nada que
-se repita en nueve segundos puede valer un quinceavo de nivel.
+**Why the green suite has a brake.** It was the biggest meal on the table and the
+only one with no cap at all, so it was the one thing worth farming: running the suite
+in a loop gave +15 every few seconds — 120 XP in eight minutes, measured in a real
+session — and with that the ceiling and the drain were decoration. Nothing that
+repeats in nine seconds can be worth a fifteenth of a level.
 
-Van dos frenos, porque resuelven cosas distintas:
+There are two brakes, because they solve different things:
 
-- **Una cada hora.** No es un número al azar: el lienzo presupuestaba el nivel 5
-  en «una semana de uso normal», o sea unos 128 XP al día, y ocho suites verdes
-  en una jornada son exactamente eso. El freno sigue calibrado ahí; lo que ha
-  cambiado es el destino, no el ritmo — el nivel 5 se alejó a propósito para
-  que la bifurcación del hábito tenga tiempo de decidirse.
-- **Y con un cambio detrás.** Una suite que pasa sin que hayas editado nada no
-  es trabajo, es la misma suite otra vez. El hook ya sabía qué herramientas se
-  usan, así que le basta con recordar si hubo un `Edit` desde la última vez que
-  cobró. El ciclo rojo → verde del sabueso se apunta igual aunque la suite no
-  pague: reproducir un fallo cuenta por sí solo.
+- **One an hour.** Not an arbitrary number: the canvas budgeted level 5 at "a week
+  of normal use", that is about 128 XP a day, and eight green suites in a working day
+  is exactly that. The brake is still calibrated there; what changed is the
+  destination, not the pace — level 5 moved further away on purpose so the habit's
+  fork has time to decide itself.
+- **And with a change behind it.** A suite that passes without you having edited
+  anything is not work, it is the same suite again. The hook already knew which tools
+  are used, so remembering whether there has been an `Edit` since it last paid is
+  enough. The bloodhound's red → green cycle is booked either way, even when the
+  suite does not pay: reproducing a bug counts on its own.
 
-Cada comida lleva **su propio reloj** (`meals` en `pet.json`). Antes había uno
-solo, `fed_at`, que bastaba mientras `/feed` era la única con espera; dos
-comidas con freno se habrían amordazado la una a la otra.
+Every meal carries **its own clock** (`meals` in `pet.json`). There used to be one,
+`fed_at`, which was enough while `/feed` was the only one with a wait; two meals with
+brakes would have gagged each other.
 
-El **hambre** sube +1 por hora sin comer, hasta 10. A partir de 7 los ojos se
-apagan y la mascota pide comida en la statusline. Al llegar a 10 deja de ser un
-aviso y **empieza a costar 1 XP por hora**, que es la única forma que tiene la
-mascota de perder terreno solo. **Nunca muere**: por abajo se queda en larva, que
-es una forma, no una tumba.
+**Hunger** climbs +1 an hour without food, up to 10. From 7 the eyes go out and the
+pet asks for food in the statusline. At 10 it stops being a warning and **starts
+costing 1 XP an hour**, which is the only way the pet has of losing ground on its
+own. **It never dies**: at the bottom it stays a larva, which is a form, not a grave.
 
-Reventar el contexto resta 15 XP y rompe las rachas limpias.
+Blowing the context costs 15 XP and breaks the clean streaks.
 
-### Por qué el nivel sí baja
+### Why the level does go down
 
-El diseño original decía que el nivel nunca baja, y con esa regla una mascota que
-llegaba al tope se quedaba ahí para siempre: no había nada que ganar ni nada
-que perder. La escalera terminaba y el tamagotchi dejaba de serlo.
+The original design said the level never goes down, and under that rule a pet that
+reached the top stayed there for ever: nothing to gain and nothing to lose. The
+ladder ended and the tamagotchi stopped being one.
 
-Dos cambios lo corrigen sin tocar el árbol, porque la maquinaria de bajar ya
-estaba entera —`LevelFor` sigue a la XP en las dos direcciones, y con el nivel
-baja la forma—; lo que faltaba era que algo restase de verdad:
+Two changes correct it without touching the tree, because the machinery for going
+down was already whole — `LevelFor` follows the XP in both directions, and the form
+comes down with the level — what was missing was something that actually subtracted:
 
-- **La XP tiene techo**: `XPCeiling`, el último umbral más un tramo de nivel 1.
-  Sin él la XP era un foso. Con 1641 puntos y el tope en 900 hacían falta
-  cincuenta contextos reventados para bajar un nivel, así que cualquier castigo
-  se ahogaba en el colchón antes de significar nada.
-- **El hambre al tope drena.** Medio día fuera no cuesta nada; a los **dos días
-  y medio** se pierde el último nivel. Ese número no se mueve al tocar la
-  escalera, porque el techo se define *relativo* al último umbral: son las 60
-  horas del tramo de nivel 1, siempre.
+- **The XP has a ceiling**: `XPCeiling`, the last threshold plus one level-1
+  stretch. Without it the XP was a moat. At 1641 points with the top at 900 it took
+  fifty blown contexts to lose a level, so any penalty drowned in the buffer before
+  it meant anything.
+- **Hunger at the cap drains.** Half a day away costs nothing; at **two and a half
+  days** you lose the last level. That number does not move when the ladder is
+  touched, because the ceiling is defined *relative* to the last threshold: it is the
+  60 hours of the level-1 stretch, always.
 
-  Caer del todo, en cambio, sí escala con la escalera, y ahora son **190 días**
-  —antes eran unos 80—. La doc decía «seis semanas» y ya llevaba tiempo sin ser
-  verdad. Si 190 días parece demasiado indulgente, lo que hay que mover es
-  `StarveXP`, no el techo.
+  Falling all the way, on the other hand, does scale with the ladder, and it is now
+  **190 days** — it used to be about 80. The doc said "six weeks" and had not been
+  true for a while. If 190 days looks too forgiving, the thing to move is `StarveXP`,
+  not the ceiling.
 
-Las cifras viven en `StarveXP` y `XPCeiling`, y hay un test
-(`TestTheCostOfNeglectIsWhatWeMeantItToBe`) que discute con quien las mueva.
+The figures live in `StarveXP` and `XPCeiling`, and there is a test
+(`TestTheCostOfNeglectIsWhatWeMeantItToBe`) that argues with whoever moves them.
 
-## Qué alimenta cada contador
+## What feeds each counter
 
-El hook (`ccpet hook`) y la propia statusline traducen lo que haces en
-contadores. **Las 41 evoluciones son alcanzables**: la raíz, los tres
-temperamentos, los siete oficios, las catorce marcas, los catorce títulos y las
-dos secretas. Y siguen siéndolo con la mascota ya crecida, que es lo que
-`TestEveryFormIsReachableFromAVeteran` fija: en cada bifurcación gana el hábito
-que más lejos ha llegado *respecto a lo que pide* —su umbral en el nivel 5, su
-escala en los niveles 2 y 3— y no el primero que cruzó una línea, así que
-ninguna puerta se cierra a tu espalda.
+The hook (`ccpet hook`) and the statusline itself turn what you do into counters.
+**All 41 evolutions are reachable**: the root, the three temperaments, the seven
+trades, the fourteen marks, the fourteen titles and the two secrets. And they stay
+reachable with the pet already grown, which is what
+`TestEveryFormIsReachableFromAVeteran` pins: at every fork the winner is the habit
+that has got furthest *relative to what it asks for* — its threshold at level 5, its
+scale at levels 2 and 3 — and not the first to cross a line, so no door closes behind
+you.
 
-| Contador | Se llena con | Quién lo ve |
+| Counter | Filled by | Who sees it |
 | --- | --- | --- |
-| `methodical` | commits y `/compact` | hook |
-| `inquisitive` | tests y tareas del plan | hook |
-| `impulsive`, `ctx_maxed` | el pico de contexto de la sesión (85 / 95) | statusline → `SessionEnd` |
-| `diffs`, `diff_streak` | commits (la racha se rompe al reventar) | hook |
-| `tests`, `test_streak` | tests en verde (íd.) | hook |
-| `widest_commit` | el `N files changed` más alto | hook |
-| `longest_plan` | el plan más largo cerrado del todo | hook |
-| `plans_before_code` | un plan de 3+ tareas escrito antes de editar nada | hook |
-| `single_tool_tasks` | tareas cerradas usando una sola herramienta | hook |
-| `repro_before_fix` | un test rojo seguido de uno verde | hook |
-| `docs_days` | días seguidos con un commit de docs o de limpieza | hook + `git show --numstat` |
-| `bypass_turns` | prompts nuevos con los permisos en bypass | statusline + transcript |
-| `ctx_low`, `sessions_under_40` | el pico de contexto de la sesión | statusline → `SessionEnd` |
-| `short_sessions`, `sessions_15min`, `long_sessions`, `sessions_4h` | la duración de la sesión | íd. |
-| `ctx100_sessions` | tocar el 100% de contexto (la tercera muesca) | íd. |
-| `same_repo_days` | días seguidos cerrando sesión en el mismo repo | íd. |
+| `methodical` | commits and `/compact` | hook |
+| `inquisitive` | tests and plan tasks | hook |
+| `impulsive`, `ctx_maxed` | the session's context peak (85 / 95) | statusline → `SessionEnd` |
+| `diffs`, `diff_streak` | commits (the streak breaks on a blow-up) | hook |
+| `tests`, `test_streak` | green suites (same) | hook |
+| `widest_commit` | the highest `N files changed` | hook |
+| `longest_plan` | the longest plan closed all the way | hook |
+| `plans_before_code` | a plan of 3+ tasks written before editing anything | hook |
+| `single_tool_tasks` | tasks closed using one single tool | hook |
+| `repro_before_fix` | a red test followed by a green one | hook |
+| `docs_days` | days running with a docs or cleanup commit | hook + `git show --numstat` |
+| `bypass_turns` | new prompts with permissions on bypass | statusline + transcript |
+| `ctx_low`, `sessions_under_40` | the session's context peak | statusline → `SessionEnd` |
+| `short_sessions`, `sessions_15min`, `long_sessions`, `sessions_4h` | the session's duration | same |
+| `ctx100_sessions` | touching 100% of context (the third notch) | same |
+| `same_repo_days` | days running closing a session in the same repo | same |
 
-Tres datos **solo los ve la statusline**, porque no llegan a ningún hook: el uso
-de contexto, el modo de permisos y el ritmo de tokens. Los va dejando en su
-fichero temporal y el hook de `SessionEnd` los convierte en contadores.
+Three facts are **seen only by the statusline**, because they reach no hook: the
+context usage, the permission mode and the token pace. It leaves them in its scratch
+file and the `SessionEnd` hook turns them into counters.
 
-El **modo de permisos** merece una nota: no viene en el payload de la statusline,
-pero sí en el transcript, cuya ruta sí llega. Se lee la cola del fichero (32 KB,
-0,02 ms) buscando el último `permissionMode`. Es la única forma de que `gremlin`
-—«30 turnos con permisos en bypass»— sea alcanzable.
+The **permission mode** deserves a note: it does not come in the statusline's
+payload, but it does come in the transcript, whose path does arrive. The tail of the
+file is read (32 KB, 0.02 ms) looking for the last `permissionMode`. It is the only
+way for `gremlin` — "30 turns with permissions on bypass" — to be reachable.
 
-## Cómo se deducen las cosas que el CLI no dice
+## How the things the CLI does not say are worked out
 
-Dos comidas y cuatro marcas salen de **deducir**, no de un dato que el CLI
-exponga. La regla al escribirlas ha sido siempre la misma: **preferir perderse
-una comida a inventarse una.**
+Two meals and four marks come from **inference**, not from anything the CLI exposes.
+The rule while writing them has always been the same: **rather miss a meal than
+invent one.**
 
-**Tests en verde.** Tres capas, de más dura a más blanda:
+**Green suites.** Three layers, hardest to softest:
 
-1. Un `is_error` del CLI manda sobre todo: equivale al código de salida y es el
-   único dato duro que hay.
-2. Los patrones de rojo se buscan **solo en las últimas doce líneas**, que es
-   donde va el resumen. Buscarlos en toda la salida hacía que un test llamado
-   `test_login_failed` tiñera de rojo una suite verde.
-3. No hace falta un patrón de verde. Si el comando era un runner y salió bien,
-   cuenta — así entran los runners que no están en la lista.
+1. An `is_error` from the CLI beats everything: it is the exit code, and the only
+   hard fact there is.
+2. The red patterns are looked for **in the last twelve lines only**, which is where
+   the summary goes. Looking for them in the whole output made a test called
+   `test_login_failed` paint a green suite red.
+3. No green pattern is needed. If the command was a runner and it came out fine, it
+   counts — which is how runners not on the list get in.
 
-Para reconocer el runner hay una lista larga (pytest, jest, vitest, go, cargo,
-phpunit, rspec, mvn, gradle, dotnet, swift, flutter, mix, make/just/task…), un
-último recurso por el **nombre del ejecutable** (`run-tests.sh`, `testear.sh`,
-`bin/spec` cuentan; el `test` de shell no, que es una comparación de ficheros), y
-`PET_TEST_RUNNERS` para meter un regex propio.
+To recognise the runner there is a long list (pytest, jest, vitest, go, cargo,
+phpunit, rspec, mvn, gradle, dotnet, swift, flutter, mix, make/just/task…), a last
+resort by the **executable's name** (`run-tests.sh`, `testear.sh`, `bin/spec` count;
+shell's `test` does not, being a file comparison), and `PET_TEST_RUNNERS` for a regex
+of your own.
 
-Y lo más importante: el runner tiene que estar **en posición de comando**, no en
-cualquier parte del texto. El comando se parte por los operadores de shell
-(`;`, `&&`, `||`, `|`) y cada trozo se mira por su principio, saltándose las
-asignaciones de entorno y el `sudo`. Sin eso, un `echo "lanza pytest"` o un
-`grep -rn "go test"` contaban como suite verde — el mismo fallo que ya tenía la
-detección de commits, arreglado aquí de la misma manera.
+And most importantly: the runner has to be **in command position**, not anywhere in
+the text. The command is split on the shell operators (`;`, `&&`, `||`, `|`) and each
+piece is looked at from its start, skipping environment assignments and `sudo`.
+Without that, an `echo "run pytest"` or a `grep -rn "go test"` counted as a green
+suite — the same defect commit detection already had, fixed here the same way.
 
-**Commit hecho.** `git … commit` tiene que estar al principio del comando o
-detrás de un operador de shell. Sin ese anclaje, un `grep -rn "git commit"`
-contaba como commit.
+**Commit made.** `git … commit` has to be at the start of the command or behind a
+shell operator. Without that anchor, a `grep -rn "git commit"` counted as a commit.
 
-**Las cuatro marcas deducidas.** Ninguna adivina intenciones: todas miran un
-hecho comprobable que se le parece mucho.
+**The four inferred marks.** None of them guesses at intent: they all look at a
+checkable fact that resembles it closely.
 
-| Marca | Lo que pide el diseño | Lo que se mira de verdad |
+| Mark | What the design asks for | What is actually looked at |
 | --- | --- | --- |
-| `bloodhound` | repro antes del fix | un test rojo seguido de uno verde en la misma sesión |
-| `oraculo` | planes escritos antes de tocar código | un `TodoWrite` de 3+ tareas antes del primer `Edit`/`Write` |
-| `gardener` | docs y limpieza dos días seguidos | `git show --numstat` del commit: mayoría de `.md`/`docs/`, o un borrado grande |
-| `sniper` | tareas cerradas con una sola herramienta | herramientas distintas usadas entre dos tareas cerradas |
+| `bloodhound` | repro before the fix | a red test followed by a green one in the same session |
+| `oracle` | plans written before touching code | a `TodoWrite` of 3+ tasks before the first `Edit`/`Write` |
+| `gardener` | docs and cleanup two days running | `git show --numstat` of the commit: mostly `.md`/`docs/`, or a big deletion |
+| `sniper` | tasks closed with one single tool | distinct tools used between two closed tasks |
 
-Son aproximaciones y se equivocan: un rojo por un fallo de red y un verde después
-cuentan como repro→fix aunque no arreglaras nada. Pero se equivocan **por lo
-bajo** casi siempre, y ninguna se inventa un hecho que no haya ocurrido.
+They are approximations and they get it wrong: a red from a network failure and a
+green afterwards count as repro→fix even if you fixed nothing. But they get it wrong
+**on the low side** almost always, and none of them invents a fact that did not
+happen.
 
-## Los mandos
+## The controls
 
 ```bash
-pet                    # el panel: nivel, evolución, xp, hambre, racha y la comida de hoy
-pet feed               # +3 xp, hambre −2, uno cada cuatro horas
-pet count <c> [n]      # suma a un contador de comportamiento
-pet record <c> <v>     # guarda el máximo de un contador
+pet                    # the panel: level, evolution, xp, hunger, streak and today's food
+pet feed               # +3 xp, hunger −2, one every four hours
+pet count <c> [n]      # add to a behaviour counter
+pet record <c> <v>     # keep a counter's maximum
 ```
 
-Instalados como `/pet` y `/feed` desde `scripts/install.sh`.
+Installed as `/pet` and `/feed` by `scripts/install.sh`.
 
-Para empezar de cero: `rm ~/.claude/pet.json`. Para soltar solo las ramas
-defendidas y dejar que se recalculen: quitar la clave `branch`.
+To start from scratch: `rm ~/.claude/pet.json`. To release just the defended
+branches and let them be recomputed: remove the `branch` key.
 
 ---
 
-Ver también el [README](../../README.md) para las bandas y la paleta, y
-[vitals.md](vitals.md) para la otra capa, la del momento.
+See also the [README](../../README.md) for the bands and the palette, and
+[vitals.md](vitals.md) for the other layer, the one of the moment.

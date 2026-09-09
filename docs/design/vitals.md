@@ -1,185 +1,186 @@
-# El uso de la mascota
+# The pet's usage
 
-Qué mide exactamente la mascota de la statusline, y qué hace que pase de *fresh* a
+What exactly the statusline's pet measures, and what takes it from *fresh* to
 *k.o.*
 
-Esta es **una de las dos capas**. La vida es del momento: sube y baja con el uso
-y se recupera al compactar. La otra capa, el progreso —la XP que elige en qué
-evoluciona—, está en [evolution.md](evolution.md) y no baja nunca.
+This is **one of the two layers**. Life belongs to the moment: it goes up and down
+with usage and it comes back when you compact. The other layer, the progress — the
+XP that picks what it evolves into — is in [evolution.md](evolution.md), and it
+never goes down.
 
-## Un solo número
+## One number
 
-Todo —estado, ojos, patas, cabeza, color— sale de **un número entre 0 y 100**: lo
-llena que está la ventana de contexto **de esta sesión**.
-
-```
-uso = context_window.used_percentage
-```
-
-Ejemplo real: contexto al 36% → `lively`. Ni las cinco horas ni los siete días
-entran: son de la **cuenta**, no de la sesión, y tienen su propio sitio en la
-banda 1.
-
-## Por qué solo el contexto
-
-Esta es la tercera respuesta a la misma pregunta, y las dos anteriores no se
-tiraron por capricho. Cada una arregló algo real y rompió otra cosa.
-
-**Primero fue una media ponderada 50/30/20**, con un argumento razonable detrás:
-el contexto es lo único que puedes gestionar en el momento —compactas, cierras
-la sesión, abres otra—, así que pesa más, pero los límites también aprietan.
-
-Lo que ese argumento no vio es que **una media diluye** justo el caso que
-importa. Con la ventana llena del todo y las cuotas ociosas:
+Everything — state, eyes, feet, head, colour — comes out of **one number between 0
+and 100**: how full the context window of **this session** is.
 
 ```
-media:   0.5·100 + 0.3·20 + 0.2·10  =  58   →  "a gusto", turquesa
+usage = context_window.used_percentage
 ```
 
-El contexto agotado, sin sitio para trabajar, y la mascota diciendo que está
-cómodo. Eso no es una ponderación desafortunada: es el número mintiendo justo
-cuando hacía falta que no lo hiciera.
+A real example: context at 36% → `lively`. Neither the five hours nor the seven
+days come into it: they belong to the **account**, not to the session, and they
+have their own place in band 1.
 
-**Después fue el cuello más apretado**, `max(ctx, 5h, 7d)`, que es lo que medía
-la primera versión del proyecto (`statusline.sh`, commit `05bf5c7`) bajo una
-frase que sigue sonando bien: *«no finge emociones; refleja el cuello más
-apretado»*. Arregló la dilución de golpe y trajo un problema del que aquel
-documento ya avisaba —«si el límite de 7 días va por el 95%, la mascota está
-`drowning` toda la semana aunque abras la sesión con la ventana vacía»— y que se
-juzgó el precio barato.
+## Why the context only
 
-No lo era, porque el problema es peor de lo que decía ese aviso. **Las cuotas son
-de la cuenta.** Todas las sesiones abiertas leen el mismo número, así que la
-mascota dejaba de describir la sesión en la que vive:
+This is the third answer to the same question, and the two before it were not
+thrown away on a whim. Each fixed something real and broke something else.
+
+**First it was a 50/30/20 weighted average**, with a reasonable argument behind
+it: the context is the only thing you can manage in the moment — you compact, you
+close the session, you open another — so it weighs more, but the limits squeeze
+too.
+
+What that argument did not see is that **an average dilutes** exactly the case
+that matters. With the window completely full and the quotas idle:
 
 ```
-sesión A   ventana al  6%,  5h al 81%   →  cansada
-sesión B   ventana al 64%,  5h al 81%   →  cansada
+average:  0.5·100 + 0.3·20 + 0.2·10  =  58   →  "easy", turquoise
 ```
 
-Dos ventanas que no se parecen en nada, dos mascotas idénticos, y un `/clear` que
-no cambiaba nada porque lo que gobernaba no era el contexto. La lectura no
-mentía sobre la cuenta; mentía sobre **la sesión**, que es de lo que la mascota
-habla.
+The context spent, no room to work in, and the pet saying it is comfortable. That
+is not an unfortunate weighting: it is the number lying at precisely the moment it
+needed not to.
 
-**Y el contexto sí es una experiencia.** Una ventana llena es un Claude más
-lento y más espeso, algo que notas mientras trabajas, en esta terminal, en esta
-conversación. `espesa` y `cansada` describen eso. Una cuota al 81% no se nota en
-ninguna respuesta: se nota cuando te corta, y para eso no hace falta una cara,
-hace falta un número.
+**Then it was the tightest neck**, `max(ctx, 5h, 7d)`, which is what the project's
+first version measured (`statusline.sh`, commit `05bf5c7`) under a line that still
+sounds right: *«no finge emociones; refleja el cuello más apretado»* — it does not
+fake emotions; it reflects the tightest neck. It fixed the dilution outright and
+brought a problem that document already warned about — "if the 7-day limit is
+sitting at 95%, the pet is `drowning` all week even if you open the session with
+an empty window" — and which was judged a cheap price.
 
-## Las cuotas no desaparecen
+It was not, because the problem is worse than that warning said. **The quotas
+belong to the account.** Every open session reads the same number, so the pet
+stopped describing the session it lives in:
 
-Siguen en la banda 1, como números, **pintados con esta misma escalera**:
+```
+session A   window at  6%,  5h at 81%   →  tired
+session B   window at 64%,  5h at 81%   →  tired
+```
+
+Two windows with nothing in common, two identical pets, and a `/clear` that
+changed nothing because what governed was not the context. The reading was not
+lying about the account; it was lying about **the session**, which is what the pet
+talks about.
+
+**And the context really is an experience.** A full window is a slower, thicker
+Claude, something you feel while you work, in this terminal, in this conversation.
+`sluggish` and `tired` describe that. A quota at 81% is not felt in any answer: it
+is felt when it cuts you off, and that does not need a face, it needs a number.
+
+## The quotas do not disappear
+
+They are still in band 1, as numbers, **painted with this same ladder**:
 
 ```
 ████░░░░░░░░░░░░ 7% · 1M ctx │ xhigh │ 5h 82%  7d 21%
 ```
 
-Un `5h` al 95 sale en el índigo de `drowning`, así que lo que está a punto de
-pararte es el color más fuerte de la línea aunque la mascota esté verde. Eso es
-todo lo que necesitan: dicen cuánto queda del día, y eso se lee en una cifra.
+A `5h` at 95 comes out in `drowning`'s indigo, so the thing about to stop you is
+the strongest colour on the line even with the pet in green. That is all they
+need: they say how much of the day is left, and that reads as a figure.
 
-Las cuentas por API no reciben `rate_limits`, así que ahí no hay nada que leer —y
-antes eso obligaba a que la mascota tuviera un caso especial. Ya no.
+API accounts do not receive `rate_limits`, so there is nothing to read there — and
+that used to force a special case into the pet. Not any more.
 
-## La curva viene de la primera versión
+## The curve comes from the first version
 
-Los umbrales no son arbitrarios ni se han tocado nunca. Son la curva de comodidad
-que dibujaba `statusline.sh`, **cuadrática** —alta y plana abajo, se desploma solo
-cerca del tope, porque *un 44% no es media vida*—, resuelta para el uso:
+The thresholds are not arbitrary and have never been touched. They are the comfort
+curve `statusline.sh` drew, **quadratic** — high and flat at the bottom, falling
+away only near the top, because *44% is not half a life* — solved for usage:
 
 ```
-vida = 100 · (1 − (uso/100)²)      →      uso = 100 · √(1 − vida/100)
+life = 100 · (1 − (usage/100)²)      →      usage = 100 · √(1 − life/100)
 
-vida 95 → 22.36 → cap 22        vida 40 → 77.46 → cap 78
-vida 80 → 44.72 → cap 45        vida 20 → 89.44 → cap 89
-vida 60 → 63.25 → cap 63
+life 95 → 22.36 → cap 22        life 40 → 77.46 → cap 78
+life 80 → 44.72 → cap 45        life 20 → 89.44 → cap 89
+life 60 → 63.25 → cap 63
 ```
 
-La curva ha sobrevivido intacta a las tres entradas; lo único que se desviaba era
-lo que se le metía. Hay un test que la fija
+The curve has survived all three inputs intact; the only thing that drifted was
+what was fed into it. A test pins it
 (`TestTheThresholdsAreTheFirstVersionsComfortCurve`).
 
-## La barra de la banda 1 mide lo mismo
+## Band 1's bar measures the same thing
 
-La barra y la mascota son **una sola medida**. Es la única disposición que no ha
-fallado, y las otras dos se probaron:
+The bar and the pet are **one measurement**. It is the only arrangement that has
+not failed, and the other two were tried:
 
-- La barra medía el contexto y solo **tomaba prestado el color** del cuello: con
-  el contexto al 48% y la cuota de 5h al 67 salía una barra a media asta junto a
-  la palabra `espesa`, que es la lectura del 67. Dos números en la misma línea, y
-  el que mandaba era el que no se veía.
-- Se ascendió la barra al cuello para cerrar esa grieta, y entonces la banda
-  imprimía `82% 5h` tres columnas antes de imprimir `5h 82%` otra vez, mientras
-  el contexto —el único de los tres que es de esta sesión— se quedaba con un `7%`
-  suelto y sin barra.
+- The bar measured the context and only **borrowed the colour** of the neck: with
+  the context at 48% and the 5h quota at 67 you got a half-mast bar next to the
+  word `sluggish`, which is the reading for 67. Two numbers on the same line, and
+  the one in charge was the one you could not see.
+- The bar was promoted to the neck to close that gap, and then the band printed
+  `82% 5h` three columns before printing `5h 82%` again, while the context — the
+  only one of the three that belongs to this session — was left with a bare `7%`
+  and no bar.
 
-Ahora el largo, el número y el color son el contexto, y la mascota es ese mismo
-contexto. No pueden discrepar porque no hay dos cosas.
+Now the length, the number and the colour are the context, and the pet is that
+same context. They cannot disagree, because there are not two things.
 
-El color, además, es **el cuerpo de la mascota**: la rampa de su rama en el peldaño
-que elige el estado. Antes era el color de la escalera de estados, que coincidía
-con la mascota en *cómo* va la sesión pero no en *quién* la está viviendo —una
-escalera única para todos las mascotas, cuando desde el atlas el tono es de la
-rama. Un `cazabugs` azul junto a una barra verde que significaba lo mismo.
+The colour, on top of that, is **the pet's body**: its branch's ramp at the step
+the state picks. It used to be the state ladder's colour, which agreed with the
+pet about *how* the session is going but not about *who* is living it — one ladder
+for every pet, when since the atlas the hue belongs to the branch. A blue
+`bughunter` next to a green bar that meant the same thing.
 
-## Dónde cae cada estado
+## Where each state falls
 
-| Uso | Estado | Ojos | Cabeza | Patas |
+| Usage | State | Eyes | Head | Feet |
 | --- | --- | --- | --- | --- |
-| ≤22% | fresh ✦ | `>` `<` | sí | anda |
-| ≤45% | lively | `>` `<` | sí | anda |
-| ≤63% | easy | `o` `o` | sí | anda |
-| ≤78% | sluggish | `▬` `▬` | sí | quieto |
-| ≤89% | tired | `_` `_` | hundida | quieto |
-| <100% | drowning | `x` `x` | hundida | quieto |
-| **100%** | k.o. | `x` `x` | hundida | tumbado, patas al aire |
+| ≤22% | fresh ✦ | `>` `<` | up | walking |
+| ≤45% | lively | `>` `<` | up | walking |
+| ≤63% | easy | `o` `o` | up | walking |
+| ≤78% | sluggish | `▬` `▬` | up | still |
+| ≤89% | tired | `_` `_` | sunk | still |
+| <100% | drowning | `x` `x` | sunk | still |
+| **100%** | k.o. | `x` `x` | sunk | on its back, feet in the air |
 
-Con **hambre ≥7** los ojos no cambian de forma: se apagan de color. El hambre es
-de la otra capa y no toca el estado.
+At **hunger ≥7** the eyes do not change shape: their colour goes out. Hunger
+belongs to the other layer and does not touch the state.
 
-Son **cuatro señales independientes** que se van cayendo en orden: primero los
-ojos, luego el paso de las patas, luego la cabeza se hunde y al final la silueta
-se tumba. A un vistazo se distingue *tired* de *drowning* sin leer la etiqueta.
+They are **four independent signals** that drop away in order: first the eyes,
+then the step of the feet, then the head sinks and at the end the silhouette lies
+down. At a glance you can tell *tired* from *drowning* without reading the label.
 
-**El k.o. ya no necesita puerta trasera.** `StateFor` llevaba un segundo
-argumento cuyo único trabajo era forzar el k.o. cuando el contexto llegaba al
-100, porque una media de tres números no llega a 100 si no llegan los tres: con
-ctx, 5h y 7d al 100, 90 y 90 la media salía 95 —*drowning*— y ese sprite no se
-veía nunca. Un número que ya es el contexto llega al 100 él solo.
+**The k.o. no longer needs a back door.** `StateFor` carried a second argument
+whose only job was to force the k.o. when the context reached 100, because an
+average of three numbers does not reach 100 unless all three do: with ctx, 5h and
+7d at 100, 90 and 90 the average came out 95 — *drowning* — and that sprite was
+never seen. A number that already is the context reaches 100 on its own.
 
-## Cuando falta el dato
+## When the data is missing
 
-Un CLI viejo no manda `context_window`. Entonces el uso es 0, la mascota sale
-fresco y **la banda 1 no dibuja barra**: una barra al 0% sería una medida que no
-ha tomado nadie. No se inventa un estado y no se sustituye por una cuota.
+An old CLI does not send `context_window`. Then usage is 0, the pet comes out
+fresh, and **band 1 draws no bar**: a bar at 0% would be a measurement nobody has
+taken. No state is invented, and no quota is put in its place.
 
-## Qué NO mide
+## What it does NOT measure
 
-Ni el **coste en dólares**, ni el **tiempo de sesión**, ni las **líneas tocadas**,
-ni el estado de git, ni la caché, ni —desde esta versión— las **cuotas de la
-cuenta**. Todo eso sale en las bandas, pero no le afecta a la mascota.
+Not the **cost in dollars**, not the **session time**, not the **lines touched**,
+not git's state, not the cache, and not — since this version — the **account's
+quotas**. All of that shows in the bands, but none of it reaches the pet.
 
-Tampoco mide el **progreso**. Que la mascota esté *k.o.* no lo devuelve a larva:
-la silueta la elige la XP, y la XP no la toca el uso. Un `surgeon` reventado
-sigue siendo un surgeon, con cara de haber visto cosas.
+Nor does it measure **progress**. The pet being *k.o.* does not send it back to a
+larva: the silhouette is chosen by the XP, and usage does not touch the XP. A
+blown-out `surgeon` is still a surgeon, with the face of one who has seen things.
 
-Los contadores que abren la rama brasa —`impulsive` a partir de un pico del 85%,
-`ctx_maxed` a partir del 95%— leen ese mismo pico de contexto. Durante un tiempo
-leyeron el cuello, con el argumento de que una cuota apretada también es trabajar
-al límite; el resultado era que abrir cuatro sesiones en paralelo pagaba la rama
-sin haber llenado una sola ventana.
+The counters that open the ember branch — `impulsive` from a peak of 85% on,
+`ctx_maxed` from 95% on — read that same context peak. For a while they read the
+neck, on the argument that a tight quota is also working at the limit; the result
+was that opening four sessions in parallel paid for the branch without a single
+window ever being filled.
 
-## Honestidad
+## Honesty
 
-La mascota **no finge emociones**. No se pone contento porque el código compile ni
-triste porque falle un test: refleja un número real y comprobable, y ahora
-además un número del que la sesión que lo enseña es responsable. Si está
-cansado, es que tu ventana va por el 85%.
+The pet **does not fake emotions**. It does not cheer up because the code compiles
+or sadden because a test fails: it reflects a real, checkable number, and now on
+top of that a number the session showing it is responsible for. If it is tired, it
+is because your window is at 85%.
 
 ---
 
-Ver también el [README](../../README.md) para las bandas, la paleta y el resto de la
-statusline, y [evolution.md](evolution.md) para la otra capa: XP, hambre,
-comida y las 41 evoluciones.
+See also the [README](../../README.md) for the bands, the palette and the rest of
+the statusline, and [evolution.md](evolution.md) for the other layer: XP, hunger,
+food and the 41 evolutions.

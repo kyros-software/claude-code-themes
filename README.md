@@ -1,23 +1,22 @@
 # claude-code-themes
 
-Tres temas de color para [Claude Code](https://claude.com/claude-code) y una
-**statusline** que ocupa el pie de la ventana: cuatro bandas de datos a la
-izquierda y una mascota a la derecha que refleja el estado de la sesión y
-**evoluciona según cómo trabajas** — 41 formas en un árbol de seis niveles, con
-xp, hambre y racha.
+Three colour themes for [Claude Code](https://claude.com/claude-code) and a
+**statusline** that takes the foot of the window: four bands of data on the left
+and a pet on the right that reflects the state of the session and **evolves with
+how you work** — 41 forms in a six-level tree, with xp, hunger and a streak.
 
-Plugin instalable. El runtime es un binario de Go sin dependencias: ni `python3`,
-ni `node`, ni `jq`. Cuesta 1,5 ms por refresco.
+Installable as a plugin. The runtime is a Go binary with no dependencies: no
+`python3`, no `node`, no `jq`. It costs 1.5 ms a refresh.
 
 ```
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Opus 5  ██████░░░░░░░░░░ 36% · 1M ctx │ xhigh │ 5h 41%  7d 13% │ 98% cache                           ▚╲   ╱▞
 claude-code-themes (main) │ +184/−37 │ $28.29 │ 1h 12m                                                ▗▟███▙▖
-criterio                                                                                             ▐█ > < █▌
-cazabugs nivel 4 │ vibrante                                                                           ▖▖▀▀▀▗▗
+explanatory                                                                                          ▐█ > < █▌
+bughunter level 4 │ lively                                                                            ▖▖▀▀▀▗▗
 ```
 
-## Instalación
+## Installing
 
 ```
 /plugin marketplace add kyros-software/claude-code-themes
@@ -25,274 +24,282 @@ cazabugs nivel 4 │ vibrante                                                   
 /pet-statusline
 ```
 
-Lo primero trae los temas, los comandos y los hooks que alimentan a la mascota. Lo
-tercero enciende la statusline — hace falta aparte porque `statusLine` no es un
-componente de plugin y la clave va en `~/.claude/settings.json`, con copia de
-seguridad y escritura atómica. Después, `/theme` → Terminal.
+The first brings the themes, the commands and the hooks that feed the pet. The
+third turns the statusline on — it takes a step of its own because `statusLine`
+is not a plugin component and the key goes into `~/.claude/settings.json`, with a
+backup and an atomic write. After that, `/theme` → Terminal.
 
-Sin plugin:
+Without the plugin:
 
 ```bash
-scripts/install.sh            # temas + statusline + mascota + /pet y /feed
-scripts/install.sh --hooks    # además engancha los hooks que le dan de comer
+scripts/install.sh            # themes + statusline + pet + /pet and /feed
+scripts/install.sh --hooks    # and wires up the hooks that feed it
 scripts/install.sh --uninstall
 ```
 
-Los **hooks van aparte a propósito**: viven en el `settings.json` global, así que
-corren en todos tus repos. Sin ellos la mascota existe y se ve, pero solo come con
-`/feed`.
+The **hooks are a separate step on purpose**: they live in the global
+`settings.json`, so they run in every one of your repos. Without them the pet
+exists and shows up, but it only eats through `/feed`.
 
-## Las cuatro bandas
+## The four bands
 
-- **1 · el motor** — modelo, contexto, los dos límites, razonamiento y ritmo: lo
-  que cambia cada turno. Las cuotas van pintadas con la misma escalera de color que
-  la mascota, así que un `5h` al 95% sale en índigo aunque la ventana esté vacía.
-- **2 · el trabajo** — repo, rama, diff, coste y el reloj de la sesión.
-- **3 · dónde y con qué criterio** — la carpeta (solo la carpeta; si estás en la
-  raíz del repo, desaparece) y el estilo de salida activo, **comprobado contra el
-  disco** antes de pintarlo: el payload manda el nombre configurado, no el cargado.
-- **4 · la mascota** — oficio, la marca entre corchetes, nivel, cómo está, la barra y
-  el bocadillo. `cazabugs[sabueso]` se lee entero como un nombre: *un cazabugs, en
-  su forma sabueso*.
+- **1 · the engine** — model, context, the two limits, effort and pace: what
+  changes every turn. The quotas are painted with the same colour ladder as the
+  pet, so a `5h` at 95% comes out indigo even with an empty window.
+- **2 · the work** — repo, branch, diff, cost and the session's clock.
+- **3 · where, and with what judgement** — the directory (just the directory; at
+  the root of the repo it disappears) and the active output style, **checked
+  against the disk** before it is painted: the payload sends the configured name,
+  not the loaded one.
+- **4 · the pet** — trade, the mark in brackets, level, how it is doing, the bar
+  and the speech bubble. `bughunter[bloodhound]` reads whole, as one name: *a
+  bughunter, in its bloodhound form*.
 
-Por debajo de **100 columnas** la banda 4 se queda solo con el oficio; por debajo de
-**55**, la mascota desaparece.
+Below **100 columns** band 4 keeps the trade and nothing else; below **55**, the
+pet disappears.
 
-El porqué de cada decisión está en [statusline.md](docs/design/statusline.md).
+The why behind every decision is in [statusline.md](docs/design/statusline.md).
 
-## La mascota
+## The pet
 
-Nueve columnas. La silueta **y el color** los elige la evolución; los ojos, las
-patas y el peldaño de la rampa los elige el estado. Cada rama tiene su tono y lo
-mantiene en los siete estados, que es lo que permite distinguir 41 siluetas en las
-filas que hay.
+Nine columns. The silhouette **and the colour** are chosen by the evolution; the
+eyes, the feet and the step of the ramp are chosen by the state. Every branch has
+its own hue and keeps it across the seven states, which is what makes 41
+silhouettes tellable apart in the rows there are.
 
-### Siete estados
+### Seven states
 
-Un solo número decide estado, ojos, patas y color: `context_window.used_percentage`.
-Cambia **cuatro señales independientes**, en este orden — primero los ojos, luego el
-paso, luego la cabeza se hunde, y al final la silueta se tumba. A un vistazo se
-distingue *cansada* de *ahogada* sin leer la etiqueta.
+One number decides state, eyes, feet and colour:
+`context_window.used_percentage`. It moves **four independent signals**, in this
+order — first the eyes, then the step, then the head sinks, and at the end the
+silhouette lies down. At a glance you can tell *tired* from *drowning* without
+reading the label.
 
-| Uso | Etiqueta | Ojos | Cabeza | Patas |
+| Usage | Label | Eyes | Head | Feet |
 | --- | --- | --- | --- | --- |
-| ≤22% | fresca ✦ | `>` `<` | sí | anda |
-| ≤45% | vibrante | `>` `<` | sí | anda |
-| ≤63% | a gusto | `o` `o` | sí | anda |
-| ≤78% | espesa | `▬` `▬` | sí | quieto |
-| ≤89% | cansada | `_` `_` | **hundida** | quieto |
-| <100% | ahogada | `x` `x` | hundida | quieto |
-| 100% | k.o. | `x` `x` | hundida | **tumbado** |
+| ≤22% | fresh ✦ | `>` `<` | up | walking |
+| ≤45% | lively | `>` `<` | up | walking |
+| ≤63% | easy | `o` `o` | up | walking |
+| ≤78% | sluggish | `▬` `▬` | up | still |
+| ≤89% | tired | `_` `_` | **sunk** | still |
+| <100% | drowning | `x` `x` | sunk | still |
+| 100% | k.o. | `x` `x` | sunk | **lying down** |
 
-Es **solo el contexto**, a propósito. Las cuotas de 5h y 7d son de la cuenta, no de
-la sesión: metiéndolas en la cuenta, todas las ventanas abiertas leían el mismo
-número y la mascota dejaba de hablar de la sesión en la que vive. Siguen en la banda
-1, con número y color, pero sin cara. El razonamiento entero en
-[vitals.md](docs/design/vitals.md).
+It is **the context only**, on purpose. The 5h and 7d quotas belong to the
+account, not to the session: with them in the sum, every open window read the
+same number and the pet stopped talking about the session it lives in. They are
+still in band 1, with their number and their colour, but with no face. The whole
+reasoning is in [vitals.md](docs/design/vitals.md).
 
-### El árbol
+### The tree
 
-La forma no la eliges: sale de cómo trabajas. Los commits y los `/compact` llevan
-por la rama **metódica**, los tests y los planes por la **inquisitiva**, y trabajar
-con el contexto arriba por la **impulsiva**.
+You do not pick the form: it comes out of how you work. Commits and `/compact`s
+lead down the **methodical** branch, tests and plans down the **inquisitive**
+one, and working with the context high down the **impulsive** one.
 
 ```
-        nivel 1        2            3          5              6
-        chispa ─┬─ brasa ─┬─ maratón ──┬─ buey ────── mamut
-                │         │            └─ topo ────── gusano
-                │         ├─ salvaje ──┬─ gremlin ─── diablo
-                │         │            └─ kraken ──── leviatán
-                │         └─ velocista ┬─ francotirador ─ halcón
-                │                      └─ relámpago ─ tormenta
-                ├─ pauta ─┬─ pulcro ───┬─ jardinero ─ bosque
-                │         │            └─ monje ───── abad
-                │         └─ refactor ─┬─ cirujano ── bisturí
-                │                      └─ tejedor ─── telar
-                └─ sonda ─┬─ arquitecto┬─ cartógrafo ─ atlas
-                          │            └─ oráculo ─── esfinge
-                          └─ cazabugs ─┬─ exterminador ─ avispa
-                                       └─ sabueso ──── lobo
+        level 1   2           3             5              6
+        spark ─┬─ ember ───┬─ marathon ──┬─ ox ─────────── mammoth
+               │           │             └─ mole ───────── worm
+               │           ├─ feral ─────┬─ gremlin ────── devil
+               │           │             └─ kraken ─────── leviathan
+               │           └─ sprinter ──┬─ sniper ─────── falcon
+               │                         └─ bolt ───────── storm
+               ├─ pattern ─┬─ tidy ──────┬─ gardener ───── forest
+               │           │             └─ monk ───────── abbot
+               │           └─ refactor ──┬─ surgeon ────── scalpel
+               │                         └─ weaver ─────── loom
+               └─ probe ───┬─ architect ─┬─ cartographer ─ atlas
+                           │             └─ oracle ─────── sphinx
+                           └─ bughunter ─┬─ exterminator ─ wasp
+                                         └─ bloodhound ─── wolf
 ```
 
-1 raíz + 3 temperamentos + 7 oficios + 14 marcas + 14 títulos = **39**, más dos
-secretas fuera del árbol: `fénix` y `quimera`. El nivel 4 no bifurca.
+1 root + 3 temperaments + 7 trades + 14 marks + 14 titles = **39**, plus two
+secrets off the tree: `phoenix` and `chimera`. Level 4 does not fork.
 
-Cada fila del lienzo es una forma en los siete estados. **La marca de arriba y el
-número de patas identifican la forma y no cambian nunca**; el estado rellena los
-ojos, mueve el paso, aplana el cuerpo a partir de *cansada*, lo tumba en *k.o.* sin
-perder la cuenta de patas, y baja el color por la rampa de esa rama.
+Every row of the design canvas is one form in the seven states. **The mark on top
+and the number of feet identify the form and never change**; the state fills in
+the eyes, moves the step, flattens the body from *tired* on, lays it down at
+*k.o.* without losing the count of feet, and walks the colour down that branch's
+ramp.
 
-![Nivel 1: chispa](assets/formas-nivel-1.png)
-![Nivel 2: los tres temperamentos](assets/formas-nivel-2.png)
-![Nivel 3: los siete oficios](assets/formas-nivel-3a.png)
-![Nivel 3: los siete oficios, continuación](assets/formas-nivel-3b.png)
+![Level 1: spark](assets/formas-nivel-1.png)
+![Level 2: the three temperaments](assets/formas-nivel-2.png)
+![Level 3: the seven trades](assets/formas-nivel-3a.png)
+![Level 3: the seven trades, continued](assets/formas-nivel-3b.png)
 
-Las marcas y los títulos heredan la rampa de su oficio —un sabueso es azul como el
-cazabugs del que sale, y lo que los distingue es el cuerpo—, y por eso **diez rampas
-bastan para 41 formas**. Todas salen de `internal/pet/testdata/ATLAS.json`, que está
-en el repo y contra el que cuatro tests comparan el Go: los 41 nombres, las 10
-rampas, los padres del árbol y las 287 siluetas fila a fila.
+The marks and the titles inherit their trade's ramp — a bloodhound is blue like
+the bughunter it comes from, and what tells them apart is the body — and that is
+why **ten ramps are enough for 41 forms**. They all come out of
+`internal/pet/testdata/ATLAS.json`, which is in the repo and which four tests
+compare the Go against: the 41 names, the 10 ramps, the tree's parents and the
+287 silhouettes row by row.
 
-### Cómo come
+### How it eats
 
-| Evento | xp | Hambre | Freno |
+| Event | xp | Hunger | Brake |
 | --- | --- | --- | --- |
-| tests en verde | **+15** | −4 | una vez por hora, y solo si has cambiado algo |
+| green suite | **+15** | −4 | once an hour, and only if you changed something |
 | commit | **+12** | −3 | — |
 | compact | **+8** | −3 | — |
-| tarea del plan cerrada | **+6** | −1 | — |
-| `/feed` | **+3** | −2 | uno cada cuatro horas |
-| contexto al 100% | **−15** | — | rompe la racha |
+| a plan's task closed | **+6** | −1 | — |
+| `/feed` | **+3** | −2 | one every four hours |
+| context at 100% | **−15** | — | breaks the streak |
 
-Los niveles llegan a 60, 180, 400, 2000 y 4500 xp.
+The levels land at 60, 180, 400, 2000 and 4500 xp.
 
-**Y baja.** El hambre sube +1 por hora sin comer, con tope en 10; a partir de ahí
-cada hora cuesta 1 xp. La xp tiene techo —el último umbral más un tramo de nivel 1,
-`4500 + 60`—, porque sin él el colchón acumulado se traga cualquier castigo. De ahí
-las dos cifras: 60 horas —**dos días y medio**— para perder el nivel de arriba, y
-4560 horas, **unos seis meses**, para volver a larva. Nunca muere: por abajo se
-queda en `chispa`, que es una forma, no una tumba.
+**And it goes down.** Hunger climbs +1 an hour without food, capped at 10; past
+that every hour costs 1 xp. The xp has a ceiling — the last threshold plus one
+level-1 stretch, `4500 + 60` — because without it the buffer you have built up
+swallows any penalty. Hence the two figures: 60 hours — **two and a half days** —
+to lose the level above, and 4560 hours, **about six months**, to go back to a
+larva. It never dies: at the bottom it stays a `spark`, which is a form, not a
+grave.
 
-**Una forma no se cae.** Se mueve en lateral, hacia arriba o de rama: un
-`exterminador` pasa a `sabueso` o a `avispa`, pero nunca vuelve a `cazabugs`
-pelado. Baja un peldaño en un solo caso —cambias de rama y allí ya tienes una
-marca ganada—, porque eso no es caerse, es haberte movido. El nivel sí puede
-bajar aunque la forma no, así que `avispa nivel 5` es legítimo.
+**A form does not fall.** It moves sideways, upwards or across branches: an
+`exterminator` becomes a `bloodhound` or a `wasp`, but never a bare `bughunter`
+again. It goes down a rung in one case only — you change branch and you already
+have a mark earned there — because that is not falling, that is having moved. The
+level can go down even when the form does not, so `wasp level 5` is legitimate.
 
-El árbol entero y qué alimenta cada contador, en
+The whole tree, and what feeds each counter, is in
 [evolution.md](docs/design/evolution.md).
 
 ### `/pet`
 
-Enseña los **22 contadores que deciden el árbol**, no solo los cuatro de la
-statusline. El color significa una sola cosa: si ese contador te lleva a algún sitio
-al que todavía puedes llegar.
+Shows the **22 counters that decide the tree**, not just the four the statusline
+carries. The colour means one thing only: whether that counter is taking you
+somewhere you can still get to.
 
 ```
-  cazabugs   nivel 4
-  inquisitivo › sonda › cazabugs
+  bughunter   level 4
+  inquisitive › probe › bughunter
 
-  nivel  █░░░░░░░░░░░░░░░  533/2000 xp
-  hambre ██░░░░░░░░  2
-  racha  ███░░░░  3 días · mejor 3
+  level  █░░░░░░░░░░░░░░░  533/2000 xp
+  hunger ██░░░░░░░░  2
+  streak ███░░░░  3 days · best 3
 
-  la marca del nivel 5
-    ✓ sabueso        reproducir antes de arreglar  36/10
-      exterminador   días seguidos en verde         2/15
+  the level 5 mark
+    ✓ bloodhound     reproduced before fixing   36/10
+      exterminator   days running in the green  2/15
 ```
 
-## Los temas
+## The themes
 
-| Tema | Acento | Look |
+| Theme | Accent | Look |
 | --- | --- | --- |
-| **Terminal** | `#4dd6c1` turquesa | un color por tipo de dato |
-| **Blood Red** | `#ff5c47` coral | cálido: coral, terracota, vino |
-| **Electric Blue** | `#2e8bff` azul | frío: cian, azure, azul profundo |
+| **Terminal** | `#4dd6c1` turquoise | one colour per kind of data |
+| **Blood Red** | `#ff5c47` coral | warm: coral, terracotta, wine |
+| **Electric Blue** | `#2e8bff` blue | cold: cyan, azure, deep blue |
 
-![Electric Blue a la izquierda y Blood Red a la derecha](assets/preview.png)
+![Electric Blue on the left and Blood Red on the right](assets/preview.png)
 
-*La statusline que asoma en la esquina de esa captura es vieja; los colores del CLI,
-que es lo que enseña, siguen siendo estos.*
+*The statusline showing in the corner of that screenshot is an old one; the CLI's
+colours, which are what it is there to show, are still these.*
 
-**Terminal** es el que empareja con la statusline: un tipo de dato lleva siempre el
-mismo color, así no hay que leer para saber qué estás mirando.
+**Terminal** is the one that pairs with the statusline: a kind of data always
+carries the same colour, so you do not have to read to know what you are looking
+at.
 
-| Rol | Hex | |
+| Role | Hex | |
 | --- | --- | --- |
-| Rutas, ficheros, repos | `#4DD6C1` | turquesa |
-| Identificadores, código, altas | `#57E389` | verde |
-| Urls, ramas, enlaces | `#6FB6FF` | azul claro |
-| Números, dinero, avisos | `#E8C46A` | ámbar |
-| Modos y ajustes del CLI | `#B07CF0` | violeta |
-| Bajas, errores, riesgo | `#F2777A` | salmón |
-| Énfasis en prosa | `#ECEFF4` | casi blanco |
-| Separadores, unidades | `#6B7683` | gris |
+| Paths, files, repos | `#4DD6C1` | turquoise |
+| Identifiers, code, additions | `#57E389` | green |
+| Urls, branches, links | `#6FB6FF` | light blue |
+| Numbers, money, warnings | `#E8C46A` | amber |
+| CLI modes and settings | `#B07CF0` | violet |
+| Deletions, errors, risk | `#F2777A` | salmon |
+| Emphasis in prose | `#ECEFF4` | near white |
+| Separators, units | `#6B7683` | grey |
 
-Los tres cubren los **72 tokens** que reconoce Claude Code, no solo la docena que se
-ve de un vistazo.
+All three cover the **72 tokens** Claude Code knows about, not just the dozen you
+see at a glance.
 
-## Idioma
+## Language
 
-El tema habla **español o inglés**: la mascota, el panel, la statusline, los
-mensajes de instalación y la ayuda. En español por defecto, que es lo que hablaba
-antes de hablar dos idiomas — actualizar no te cambia el pie de la ventana.
+The theme speaks **Spanish or English**: the pet, the panel, the statusline, the
+install messages and the help. Spanish by default, which is what it spoke before
+it spoke two languages — upgrading does not reword the foot of your window.
 
 ```bash
-ccpet lang            # dice cuál habla y quién lo decidió
-ccpet lang en         # inglés, a partir de ahora
-ccpet lang es         # español
-ccpet lang auto       # el que diga tu locale (LC_ALL, LC_MESSAGES, LANG)
+ccpet lang            # says which it speaks and who decided that
+ccpet lang en         # English, from now on
+ccpet lang es         # Spanish
+ccpet lang auto       # whatever your locale says (LC_ALL, LC_MESSAGES, LANG)
 ```
 
-Se guarda en `~/.claude/ccpet.json`, junto al `pet.json`, y respeta
-`CLAUDE_CONFIG_DIR` como todo lo demás. Para una sola vez, sin tocar el ajuste:
+It is kept in `~/.claude/ccpet.json`, beside `pet.json`, and it honours
+`CLAUDE_CONFIG_DIR` like everything else. For one command, without touching the
+setting:
 
 ```bash
-ccpet --lang en                 # el panel en inglés
-CCPET_LANG=en ccpet             # lo mismo, por entorno
+ccpet --lang en                 # the panel in English
+CCPET_LANG=en ccpet             # the same, through the environment
 ```
 
-Los **identificadores no cambian nunca**: el `pet.json` guarda `bughunter`,
-`bloodhound` y `fresh` en los dos idiomas, así que cambiar de idioma no toca la
-vida de la mascota ni te hace perder una racha. Lo que cambia es solo lo que lees
-— y en inglés los nombres del árbol *son* los identificadores, porque el árbol ya
-estaba escrito en inglés: `cazabugs[sabueso]` se lee `bughunter[bloodhound]`.
+The **ids never change**: `pet.json` holds `bughunter`, `bloodhound` and `fresh`
+in both languages, so switching does not touch the pet's life or cost you a
+streak. All that changes is what you read — and in English the tree's names *are*
+the ids, because the tree was written in English already:
+`bughunter[bloodhound]` reads in Spanish as `cazabugs[sabueso]`.
 
-Los tres temas de color son los mismos en los dos idiomas: el color no habla.
+The three colour themes are the same in both languages: colour does not talk.
 
-## Ajustes
+## Settings
 
-| Variable | Efecto |
+| Variable | Effect |
 | --- | --- |
-| `STATUSLINE_PET=0` | apaga la mascota, deja las cuatro bandas |
-| `STATUSLINE_PET_WALK=1` | anda en cada refresco en vez de a ratos |
-| `STATUSLINE_BACKGROUND=0` | quita el fondo del pie |
-| `STATUSLINE_RULE=0` | quita la raya de arriba y ahorra una fila |
-| `STATUSLINE_RIGHT_PAD` | margen derecho, por defecto `6` |
-| `PET_TEST_RUNNERS` | regex extra para reconocer tu runner de tests |
-| `CLAUDE_CONFIG_DIR` | mueve `~/.claude`; la mascota y la statusline lo respetan |
-| `CCPET_LANG` | `es`, `en` o `auto` para un rato; manda sobre el ajuste guardado |
+| `STATUSLINE_PET=0` | turns the pet off, leaves the four bands |
+| `STATUSLINE_PET_WALK=1` | walks on every refresh instead of now and then |
+| `STATUSLINE_BACKGROUND=0` | drops the footer's background |
+| `STATUSLINE_RULE=0` | drops the rule on top and saves a row |
+| `STATUSLINE_RIGHT_PAD` | right margin, `6` by default |
+| `PET_TEST_RUNNERS` | extra regex to recognise your test runner |
+| `CLAUDE_CONFIG_DIR` | moves `~/.claude`; the pet and the statusline honour it |
+| `CCPET_LANG` | `es`, `en` or `auto` for a while; wins over the saved setting |
 
-**Truecolor.** Los temas usan color de 24 bits, y Windows Terminal, WSL y `docker
-run` no exportan `COLORTERM`. Sin él los tonos parecidos colapsan al mismo:
+**Truecolor.** The themes use 24-bit colour, and Windows Terminal, WSL and
+`docker run` do not export `COLORTERM`. Without it, close shades collapse into
+one:
 
 ```bash
 export COLORTERM=truecolor                                  # .zshrc / .bashrc
 docker run -e COLORTERM=truecolor -e TERM=xterm-256color ...
 ```
 
-La mascota sí tiene plan B: cuantiza al cubo de 256 de verdad, así que se ve igual,
-con menos tonos.
+The pet does have a plan B: it quantises to the real 256 cube, so it looks the
+same with fewer shades.
 
-## Migración desde la versión en Python
+## Migrating from the Python version
 
-**No hay que hacer nada.** `scripts/install.sh` borra los lanzadores viejos y el
-`pet.json` se traduce solo la primera vez que se escribe. La mascota conserva xp,
-racha, contadores y forma secreta. Lo que se lee en pantalla está en castellano; el
-fichero guarda los ids en inglés, porque renombrarlos reescribiría todos los
-ficheros de vida que hay por ahí.
+**There is nothing to do.** `scripts/install.sh` deletes the old launchers and
+`pet.json` is translated by itself the first time it is written. The pet keeps
+its xp, streak, counters and secret form. What you read on screen is in whichever
+language you have set; the file holds the ids in English, because renaming them
+would rewrite every life file out there.
 
-Lo único a mano son las variables de entorno: las que estaban en español ya no
-se leen, y ahora son `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
-`STATUSLINE_BACKGROUND` y `STATUSLINE_RULE`.
+The one thing by hand is the environment variables: the ones that were in Spanish
+are no longer read, and are now `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
+`STATUSLINE_BACKGROUND` and `STATUSLINE_RULE`.
 
-## Más a fondo
+## Deeper in
 
-- [statusline.md](docs/design/statusline.md) — las cuatro bandas: por qué cada dato
-  está donde está y qué se verifica antes de pintarlo
-- [vitals.md](docs/design/vitals.md) — la capa del momento: de fresca a k.o.
-- [evolution.md](docs/design/evolution.md) — la capa permanente: xp, comida y las 41
-  formas
-- [idioma.md](docs/design/idioma.md) — español o inglés: qué se traduce, qué no, y
-  por qué el `pet.json` es el mismo fichero en los dos
-- [runtime.md](docs/design/runtime.md) — por qué Go, a dónde va el tiempo, el
-  candado del `pet.json` y por qué los binarios van en el repo
-- [audit-log.md](docs/audit-log.md) — histórico: la auditoría de la versión Python
-- [umbrales.md](docs/design/umbrales.md) — **sin implementar**: el árbol de 97 formas
-  del lienzo de diseño, por qué su regla deja 27 de las 42 marcas fuera de alcance, y
-  el arreglo que las devuelve. Las puertas viven en `testdata/PUERTAS-97.json` y las
-  comprueba `go test ./internal/pet/ -run NinetySeven`
+- [statusline.md](docs/design/statusline.md) — the four bands: why each piece of
+  data is where it is, and what is verified before it is painted
+- [vitals.md](docs/design/vitals.md) — the layer of the moment: from fresh to k.o.
+- [evolution.md](docs/design/evolution.md) — the permanent layer: xp, food and the
+  41 forms
+- [language.md](docs/design/language.md) — Spanish or English: what is translated,
+  what is not, and why `pet.json` is the same file in both
+- [runtime.md](docs/design/runtime.md) — why Go, where the time goes, the
+  `pet.json` lock and why the binaries are in the repo
+- [audit-log.md](docs/audit-log.md) — history: the audit of the Python version
+- [thresholds.md](docs/design/thresholds.md) — **unimplemented**: the design
+  canvas's 97-form tree, why its rule puts 27 of the 42 marks out of reach, and
+  the fix that gives them back. The gates live in `testdata/PUERTAS-97.json` and
+  `go test ./internal/pet/ -run NinetySeven` checks them
 
-## Licencia
+## Licence
 
 [MIT](LICENSE).

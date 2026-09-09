@@ -1,182 +1,183 @@
-# La statusline, banda por banda
+# The statusline, band by band
 
-Por qué cada dato está donde está, y qué se comprueba antes de pintarlo. El
-[README](../../README.md) dice qué lleva cada banda; esto dice por qué.
+Why each piece of data is where it is, and what is checked before it is painted.
+The [README](../../README.md) says what each band carries; this says why.
 
 ```
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Opus 5  ██████░░░░░░░░░░ 36% · 1M ctx │ xhigh │ 5h 41%  7d 13% │ 98% cache                           ▚╲   ╱▞
 claude-code-themes (main) │ +184/−37 │ $28.29 │ 1h 12m                                                ▗▟███▙▖
-criterio                                                                                             ▐█ > < █▌
-cazabugs nivel 4 │ vibrante                                                                           ▖▖▀▀▀▗▗
+explanatory                                                                                          ▐█ > < █▌
+bughunter level 4 │ lively                                                                            ▖▖▀▀▀▗▗
 ```
 
-Es un **pie**, no una línea más del hilo: fondo un tono por encima del negro y una
-raya fina arriba. Cinco filas — la raya y cuatro bandas —, con la mascota anclada a
-la derecha ocupando las cuatro. Cada banda agrupa datos que se miran juntos, y
-suelta los elementos de menor prioridad antes que hacer *wrap*, que descuadra la
-caja del prompt.
+It is a **footer**, not one more line of the thread: a background one shade above
+black and a thin rule on top. Five rows — the rule and four bands — with the pet
+anchored to the right across all four. Each band groups data that is looked at
+together, and drops its lowest-priority elements rather than wrapping, which
+knocks the prompt box out of square.
 
-## Banda 1 · el motor
+## Band 1 · the engine
 
-Las cuotas van como número pelado, sin barra, y **pintadas con la misma escalera**
-que la barra de contexto y la mascota: un `5h` al 95% sale en el índigo de *ahogada*,
-así que lo que está a punto de pararte es el color más fuerte de la línea aunque la
-mascota esté verde. Es la respuesta a «¿por qué está ahogado si la ventana está
-vacía?».
+The quotas go as a bare number, no bar, and **painted with the same ladder** as
+the context bar and the pet: a `5h` at 95% comes out in *drowning*'s indigo, so
+the thing about to stop you is the strongest colour on the line even with the pet
+in green. It is the answer to "why is it drowning when the window is empty?".
 
-**El `tok/s` es real, no una estimación**, y hay que mirar de dónde sale. Los dos
-campos del payload no miden lo mismo: `total_output_tokens` es lo que sacó la
-*última* respuesta —se reinicia cada turno, no es un contador que sube— mientras
-`total_api_duration_ms` es el tiempo de API *acumulado* de la sesión. El ritmo de
-la última respuesta es lo primero entre lo que ha crecido lo segundo. Restar dos
-`total_output_tokens` seguidos no mide nada: son dos respuestas distintas, y el
-resultado sale inflado o negativo según cuál fuera más larga.
+**The `tok/s` is real, not an estimate**, and where it comes from is worth
+looking at. The payload's two fields do not measure the same thing:
+`total_output_tokens` is what the *last* response produced — it resets every turn,
+it is not a counter that climbs — while `total_api_duration_ms` is the session's
+*accumulated* API time. The last response's pace is the first over however much
+the second has grown. Subtracting two consecutive `total_output_tokens` measures
+nothing: they are two different responses, and the result comes out inflated or
+negative depending on which was longer.
 
-Se apaga solo a los dos minutos sin moverse, y entonces el acierto de caché ocupa
-ese hueco. Nunca salen los dos.
+It goes out by itself after two minutes without moving, and then the cache hit
+takes that slot. The two never show at once.
 
-La barra mide el mismo número que decide la mascota, así que **barra y mascota no
-pueden contradecirse**. Las otras dos disposiciones se probaron y se leyeron como
-un fallo: con la barra midiendo el contexto y tomando prestado el color del cuello,
-una sesión al 48% con la cuota de 5h al 67 dibujaba una barra a media asta junto a
-la palabra `espesa`, que es la lectura del 67. Ascendiendo la barra al cuello para
-cerrar esa grieta, la banda imprimía `82% 5h` tres columnas antes de imprimir
-`5h 82%` otra vez.
+The bar measures the same number that decides the pet, so **bar and pet cannot
+contradict each other**. The other two arrangements were tried and read as a bug:
+with the bar measuring the context and borrowing the neck's colour, a session at
+48% with the 5h quota at 67 drew a half-mast bar next to the word `sluggish`,
+which is the reading for 67. Promoting the bar to the neck to close that gap, the
+band printed `82% 5h` three columns before printing `5h 82%` again.
 
-## Banda 2 · el trabajo
+## Band 2 · the work
 
-El nombre del repo lo da `workspace.repo.name` del payload cuando hay remoto, y si
-no, la carpeta raíz. Solo el nombre: el owner es siempre el mismo y no te dice
-dónde estás.
+The repo's name comes from the payload's `workspace.repo.name` when there is a
+remote, and otherwise from the root directory. The name only: the owner is always
+the same and tells you nothing about where you are.
 
-## Banda 3 · dónde y con qué criterio
+## Band 3 · where, and with what judgement
 
-La carpeta y el estilo de salida activo: lo que casi no se mueve.
+The directory and the active output style: what barely moves.
 
-De la ruta sale únicamente **la carpeta en la que estás**, y si se llama igual que
-el repo —es decir, estás en su raíz— desaparece, porque eso ya lo dice la banda 2.
+Out of the path comes only **the directory you are in**, and if it is named the
+same as the repo — that is, you are at its root — it disappears, because band 2
+already says so.
 
-Los dos salen a pelo, sin etiqueta, y quien los distingue es el color: la carpeta
-en gris porque es un sitio, el estilo en el morado de `Mode` porque es un ajuste de
-la CLI. Se leen en orden *dónde → quién*, y cuando la banda se queda corta cae
-antes el estilo: la banda era de la carpeta primero.
+The two go bare, with no label, and what tells them apart is the colour: the
+directory in grey because it is a place, the style in `Mode`'s purple because it
+is a CLI setting. They read in the order *where → who*, and when the band runs
+short the style falls first: the band was the directory's to begin with.
 
-### Por qué el estilo va en minúscula
+### Why the style is lowercased
 
-Es la voz del pie, no un dato del estilo. Todo lo demás que ocupa ese sitio ya
-llega en minúscula —`xhigh`, `plan`, `auto-edit`, el `cazabugs` de la mascota—, así que
-un nombre capitalizado sería la única palabra de la línea que grita.
+It is the footer's voice, not a fact about the style. Everything else that takes
+that slot arrives lowercase already — `xhigh`, `plan`, `auto-edit`, the pet's
+`bughunter` — so a capitalised name would be the one word on the line that shouts.
 
-Se hace en la banda y no al leer el payload por dos razones: `Payload.Style`
-conserva el nombre real, y así entran también `Explanatory` y `Learning`, que
-vienen capitalizados y **no se pueden renombrar**. La carpeta de al lado no se
-toca: tiene que coincidir con lo que dice `ls`.
+It happens in the band and not when the payload is read, for two reasons:
+`Payload.Style` keeps the real name, and this way `Explanatory` and `Learning`
+are covered too, which arrive capitalised and **cannot be renamed**. The directory
+beside it is left alone: it has to match what `ls` says.
 
-### Por qué el nombre se comprueba contra el disco
+### Why the name is checked against the disk
 
-El payload manda el nombre **configurado**, no el cargado. En el CLI son dos pasos
-y solo llega el primero:
+The payload sends the **configured** name, not the loaded one. In the CLI they are
+two steps and only the first arrives:
 
 ```js
 let d = Tn()?.outputStyle || "default"
-return e[d] ?? null              // e = los estilos que cargaron
+return e[d] ?? null              // e = the styles that loaded
 ...
-output_style: { name: Xe }       // Xe = la config, en crudo
+output_style: { name: Xe }       // Xe = the config, raw
 ```
 
-O sea que una errata en `settings.json`, o un archivo borrado, se reportan igual
-que un estilo que funciona **mientras el system prompt se queda vacío**. Pintar ese
-nombre sería repetir la afirmación en vez de verificarla.
+Which means a typo in `settings.json`, or a deleted file, is reported exactly like
+a style that works **while the system prompt stays empty**. Painting that name
+would be repeating the claim instead of verifying it.
 
-Así que la banda lo busca ella: los estilos de fábrica resuelven sin archivo, y el
-resto tiene que aparecer en `~/.claude/output-styles/` o en `.claude/output-styles/`
-del repo, con la regla de nombre del propio CLI — el `name:` del frontmatter, y si
-no el nombre del archivo sin `.md`, comparado **con mayúsculas y todo**, porque al
-otro lado es una clave de objeto. Si no aparece, no se pinta.
+So the band looks it up itself: the built-in styles resolve with no file, and the
+rest have to show up in `~/.claude/output-styles/` or in the repo's
+`.claude/output-styles/`, under the CLI's own naming rule — the frontmatter's
+`name:`, and failing that the filename without `.md`, compared **case and all**,
+because on the other side it is an object key. If it does not show up, it is not
+painted.
 
-Los estilos que trae un plugin se buscan **en flojo**: vale cualquier copia
-instalada bajo `plugins/cache/`, sin averiguar qué versión está viva — eso es el
-cargador de plugins entero, una vez por segundo. Un falso positivo ahí solo
-significa pintar un nombre que existe en algún sitio; esconder un estilo que
-funciona sería peor. Cuesta 0,16 µs si es de fábrica, 5,9 µs si acierta en el
-directorio de usuario y 28 µs en el barrido completo.
+Styles that come from a plugin are looked up **loosely**: any copy installed under
+`plugins/cache/` will do, without working out which version is live — that is the
+whole plugin loader, once a second. A false positive there only means painting a
+name that exists somewhere; hiding a style that works would be worse. It costs
+0.16 µs if it is built in, 5.9 µs on a hit in the user directory and 28 µs for the
+full sweep.
 
-Lo que **no** detecta: un estilo que resuelve pero que no está cargado *en esta
-sesión* porque la config cambió después de arrancarla. No hay rastro barato que
-distinga eso — `/output-style` reescribe ese mismo ajuste y sí se aplica en
-caliente, así que por fecha las dos situaciones son idénticas. Se arregla
-reabriendo, y la banda no finge saberlo.
+What it does **not** catch: a style that resolves but is not loaded *in this
+session* because the config changed after it started. There is no cheap trace that
+tells that apart — `/output-style` rewrites that same setting and does apply hot,
+so by timestamp the two situations are identical. Reopening fixes it, and the band
+does not pretend to know.
 
-Sin estilo puesto el payload no manda un hueco: manda la palabra `"default"`
-—`output_style: {name: outputStyle || "default"}`, leído del binario, no supuesto—
-y pintarla gastaría columnas en decir que no hay nada.
+With no style set the payload does not send a gap: it sends the word `"default"` —
+`output_style: {name: outputStyle || "default"}`, read off the binary, not assumed
+— and painting it would spend columns saying there is nothing.
 
-### La banda puede quedar vacía
+### The band can come out empty
 
-En la raíz de un repo y sin estilo, que es la mayoría de las sesiones. Esa fila se
-ancla con un **braille en blanco** (`U+2800`), porque Claude Code recorta los
-espacios de la izquierda y sin él el trozo de mascota de esa fila se cae al borde.
+At the root of a repo with no style, which is most sessions. That row is anchored
+with a **blank braille** (`U+2800`), because Claude Code trims leading spaces and
+without it that row's piece of the pet falls to the edge.
 
-## Banda 4 · la mascota
+## Band 4 · the pet
 
 ```
-cazabugs[sabueso] nivel 5 │ fresca ✦ │ ████░░░░ │ ◗ cinco días de racha
+bughunter[bloodhound] level 5 │ fresh ✦ │ ████░░░░ │ ◗ five days on the trot
 ```
 
-El corchete escribe **la marca que la mascota lleva puesta**, con el oficio del que
-es variante fuera: se lee entero como un nombre, *un cazabugs, en su forma
-sabueso*. El árbol se bifurca en los niveles 2, 3 y 5, y la marca es la del 5, así
-que el corchete sale ahí y en ningún otro sitio: `cazabugs` en el nivel 4,
-`cazabugs[sabueso]` en el 5, y `lobo` a secas en el 6, donde el título es el final
-de la rama y no necesita contexto.
+The bracket writes **the mark the pet is wearing**, with the trade it is a variant
+of outside it: it reads whole, as one name, *a bughunter, in its bloodhound form*.
+The tree forks at levels 2, 3 and 5, and the mark is the level-5 one, so the
+bracket appears there and nowhere else: `bughunter` at level 4,
+`bughunter[bloodhound]` at 5, and a plain `wolf` at 6, where the title is the end
+of the branch and needs no context.
 
-**Decía lo contrario.** Escribía la marca a la que la mascota *apuntaba*, de modo que
-un nivel 4 leía `cazabugs[sabueso]` sin ser un sabueso. La idea era que el corchete
-fuese el tiempo verbal —un nombre dice *es*, un corchete dice *va hacia*—, y eso
-solo funciona si se ve: iba pintado en el color de la barra separadora, **1,54:1**
-contra el fondo frente al **11,8:1** de las dos palabras que lo rodean. Dos
-palabras brillantes pegadas sin nada visible en medio se leen como un nombre
-compuesto, que es exactamente lo que era.
+**It used to say the opposite.** It wrote the mark the pet was *heading for*, so a
+level 4 read `bughunter[bloodhound]` without being a bloodhound. The idea was for
+the bracket to be the tense — a name says *is*, a bracket says *is heading for* —
+and that only works if it can be seen: it was painted in the separator bar's
+colour, **1.54:1** against the background against the **11.8:1** of the two words
+around it. Two bright words stuck together with nothing visible in between read as
+one compound word, which is exactly what it was.
 
-**El estado vive aquí, no coronando a la mascota.** El lienzo lo dibuja dos veces, pero
-en una terminal de verdad la misma palabra acaba en el mismo pie a pocas columnas
-de sí misma y se lee como un fallo. Bajarlo a la banda le devolvió a la mascota la fila
-que necesita la cresta.
+**The state lives here, not crowning the pet.** The canvas draws it twice, but on
+a real terminal the same word ends up in the same footer within a few columns of
+itself and reads as a bug. Moving it down to the band gave the pet back the row
+its crest needs.
 
-La barra mide **el tramo de este nivel**, no la xp total, así que amanece vacía el
-día después de subir. En el tope, donde ya no queda escalera, cambia de moneda:
-pasa a medir el **hábito** que abre la siguiente marca, en ámbar y con su nombre al
-lado. Una mascota que ya lleva la suya no tiene ninguna de las dos, y entonces la
-banda se sostiene sobre el estado.
+The bar measures **this level's stretch**, not the total xp, so it wakes up empty
+the day after a level-up. At the top, where there is no ladder left, it changes
+currency: it starts measuring the **habit** that opens the next mark, in amber and
+with its name beside it. A pet already wearing its own has neither, and then the
+band leans on the state.
 
-## Anchos
+## Widths
 
-| Columnas | Qué pasa |
+| Columns | What happens |
 | --- | --- |
-| < 100 (`BubbleMin`) | la banda 4 se queda **solo con el oficio** |
-| < 55 (`minWidthForPet`) | la mascota desaparece y quedan las cuatro bandas |
+| < 100 (`BubbleMin`) | band 4 keeps **the trade and nothing else** |
+| < 55 (`minWidthForPet`) | the pet disappears and the four bands remain |
 
-**El margen derecho.** La statusline no recibe el ancho de la terminal —no hay
-campo para eso en el JSON—, así que sale de `COLUMNS`. Y Claude Code recorta la
-línea unas 5 columnas antes, de modo que alinear sobre `COLUMNS-1` trunca la mascota
-o lo hace *wrap*. De ahí el margen de 6 por defecto (`STATUSLINE_RIGHT_PAD`).
+**The right margin.** The statusline is not told the terminal's width — there is no
+field for it in the JSON — so it comes from `COLUMNS`. And Claude Code cuts the
+line some 5 columns earlier, so aligning against `COLUMNS-1` truncates the pet or
+wraps it. Hence the default margin of 6 (`STATUSLINE_RIGHT_PAD`).
 
-**Los espacios de la izquierda.** Claude Code los recorta. Las filas cuya mitad
-izquierda va vacía son solo "espacios + mascota": al recortarlos, la mascota se cae al
-borde y acabas con trozos sueltos por la pantalla. Por eso el braille en blanco.
+**Leading spaces.** Claude Code trims them. Rows whose left half is empty are just
+"spaces + pet": trimmed, the pet falls to the edge and you end up with loose
+pieces around the screen. Hence the blank braille.
 
-## Lo que no está en su mano
+## What is out of its hands
 
-- La línea de `bypass permissions` y los badges tipo `/rc active` los pinta Claude
-  Code en su propio footer. Por eso el modo de permisos sale como **marca** y no
-  como palabra: en bypass, un `⚡` rojo, en vez de deletrear otra vez lo que ya está
-  escrito tres líneas más arriba. `plan` y `auto-edit` conservan su nombre: no
-  tienen glifo evidente y uno inventado sería un acertijo.
-- **El techo de la animación son 1 fps.** Se re-ejecuta por eventos (con *debounce*
-  de 300 ms) y en reposo solo si defines `refreshInterval`, cuyo mínimo es 1 s.
-- El **banner de bienvenida** usa acentos de onboarding que no forman parte del
-  sistema de temas: se queda en el rosa de marca con cualquier tema activo.
+- The `bypass permissions` line and badges like `/rc active` are painted by Claude
+  Code in its own footer. That is why the permission mode comes out as a **mark**
+  and not as a word: on bypass, a red `⚡`, instead of spelling out again what is
+  already written three lines above. `plan` and `auto-edit` keep their names: they
+  have no obvious glyph and an invented one would be a riddle.
+- **The animation's ceiling is 1 fps.** It re-runs on events (with a 300 ms
+  debounce) and at rest only if you set `refreshInterval`, whose minimum is 1 s.
+- The **welcome banner** uses onboarding accents that are not part of the theme
+  system: it stays brand pink whatever theme is active.
 
-El modo de permisos no viene en el payload, pero sí en el transcript, cuya ruta sí
-llega. Se lee solo la cola del fichero (0,02 ms).
+The permission mode does not come in the payload, but it does come in the
+transcript, whose path does arrive. Only the tail of the file is read (0.02 ms).

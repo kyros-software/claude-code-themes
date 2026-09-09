@@ -1,27 +1,28 @@
-> **Documento histórico.** Esto audita la implementación en **Python**, que fue
-> la del proyecto hasta la versión 2.0.0. El runtime es ahora un binario de Go y
-> los números de aquí ya no describen lo que corre en tu máquina: la statusline
-> pasó de 22,4 ms a 3,5 y el hook de 21,3 a 1,6. Se conserva porque las
-> mediciones y el razonamiento siguen siendo ciertos sobre lo que medían, y
-> porque explican **por qué** se acabó cambiando de lenguaje: el código propio
-> costaba 1,5 ms y el resto era Python presentándose. Los nombres de fichero e
-> identificador son los de entonces (`statusline.sh`, `ESTADOS`).
+> **Historical document.** This audits the **Python** implementation, which was
+> the project's up to version 2.0.0. The runtime is a Go binary now and the
+> numbers here no longer describe what runs on your machine: the statusline went
+> from 22.4 ms to 3.5 and the hook from 21.3 to 1.6. It is kept because the
+> measurements and the reasoning are still true about what they measured, and
+> because they explain **why** the language was changed in the end: our own code
+> cost 1.5 ms and the rest was Python turning up. The file and identifier names
+> are the ones of the time (`statusline.sh`, `ESTADOS`), and so is the Spanish
+> they are written in.
 
-# Auditoría de la statusline
+# Statusline audit
 
-Repaso de rendimiento y errores de `statusline.sh`, medido sobre el commit
-`e94ac98` el 1 de septiembre de 2026. Python 3.12.3, WSL2, git 2.43.
+A pass over `statusline.sh`'s performance and bugs, measured on commit `e94ac98`
+on 1 September 2026. Python 3.12.3, WSL2, git 2.43.
 
-Todo lo que hay aquí está **medido, no estimado**. Lo que no pude reproducir está
-en [Descartado](#descartado) para que nadie lo vuelva a perseguir.
+Everything here is **measured, not estimated**. What I could not reproduce is in
+[Discarded](#discarded) so that nobody chases it again.
 
-> **Estado a 1 de septiembre de 2026.** Los bugs 1-4 están **arreglados** y el
-> `python3 -S` **aplicado**. Los puntos de diseño 5 y 6 también están cerrados
-> ya: ver «Los dos puntos de diseño» al final. Las medidas de más abajo
-> son las de *antes* de arreglar nada: son la línea base, y las dejo tal cual
-> para que se pueda comparar. Al final hay una sección con las de después.
+> **State as of 1 September 2026.** Bugs 1-4 are **fixed** and `python3 -S` is
+> **applied**. Design points 5 and 6 are closed now too: see "The two design
+> points" at the end. The measurements below are the ones from *before* anything
+> was fixed: they are the baseline, and I leave them as they are so they can be
+> compared. There is a section with the after figures at the end.
 
-## Cómo reproducir las medidas
+## How to reproduce the measurements
 
 ```bash
 J='{"session_id":"bench","model":{"display_name":"Opus 5 (1M context)"},
@@ -32,83 +33,83 @@ J='{"session_id":"bench","model":{"display_name":"Opus 5 (1M context)"},
     "prompt_cache":{"hit_ratio":0.98},
     "rate_limits":{"five_hour":{"used_percentage":41},"seven_day":{"used_percentage":13}}}'
 
-# tiempo por invocación
+# time per invocation
 t0=$(date +%s%N); for i in $(seq 30); do echo "$J" | COLUMNS=116 ./statusline.sh >/dev/null; done
 t1=$(date +%s%N); echo $(( (t1-t0)/30/1000000 )) ms
 
-# desglose de los imports
+# breakdown of the imports
 python3 -X importtime -c 'import sys,json,os,re,subprocess,time' 2>&1 | sort -t'|' -k2 -rn | head
 ```
 
 ---
 
-## Rendimiento
+## Performance
 
-### A dónde se va el tiempo
+### Where the time goes
 
-| Componente | Coste | % |
+| Component | Cost | % |
 | --- | --- | --- |
-| **Total por invocación** (este repo) | **25,3 ms** | 100% |
-| ↳ arranque de CPython (`python3 -c pass`) | 11,3 ms | 45% |
-| ↳ ↳ *de los cuales el módulo `site`* | *4,7 ms* | *19%* |
-| ↳ imports: `json` 5,1 · `re` 4,0 · `subprocess` 3,8 (+`threading`, `selectors`) | ~6 ms | 24% |
-| ↳ compilar los 10 KB de `PY_SRC` | 2,0 ms | 8% |
-| ↳ los dos `git` | 2,0 ms | 8% |
-| ↳ `$(cat <<EOF)` + subshell de bash | 0,8 ms | 3% |
+| **Total per invocation** (this repo) | **25.3 ms** | 100% |
+| ↳ CPython startup (`python3 -c pass`) | 11.3 ms | 45% |
+| ↳ ↳ *of which the `site` module* | *4.7 ms* | *19%* |
+| ↳ imports: `json` 5.1 · `re` 4.0 · `subprocess` 3.8 (+`threading`, `selectors`) | ~6 ms | 24% |
+| ↳ compiling the 10 KB of `PY_SRC` | 2.0 ms | 8% |
+| ↳ the two `git` calls | 2.0 ms | 8% |
+| ↳ `$(cat <<EOF)` + bash subshell | 0.8 ms | 3% |
 
-En un repo grande (`avanzapi-frontend`, ~840 ficheros) sube a **30,7 ms**, porque
-`git status --porcelain` pasa de 1,1 a 6,0 ms.
+In a big repo (`avanzapi-frontend`, ~840 files) it climbs to **30.7 ms**, because
+`git status --porcelain` goes from 1.1 to 6.0 ms.
 
-**El cuello no es git: es el arranque del intérprete.** El 70% del tiempo se va
-antes de ejecutar la primera línea útil. Optimizar las llamadas a git es pulir
-el 8% del problema.
+**The neck is not git: it is the interpreter starting.** 70% of the time goes
+before the first useful line runs. Optimising the git calls is polishing 8% of the
+problem.
 
-### Frecuencia real
+### The real frequency
 
-`settings.json` declara `refreshInterval: 1`, pero la medida no da 1 Hz.
-Muestreando los mtime de `/tmp/claude-statusline-*` a 20 Hz durante 15 s:
+`settings.json` declares `refreshInterval: 1`, but the measurement does not give
+1 Hz. Sampling the mtimes of `/tmp/claude-statusline-*` at 20 Hz for 15 s:
 
 ```
-sesiones activas: 3 de 12
-por sesión:       ~0,7 Hz
-agregado:         2,2 invocaciones/s  ->  ~6% de un núcleo, continuo
+active sessions:  3 of 12
+per session:      ~0.7 Hz
+aggregate:        2.2 invocations/s  ->  ~6% of a core, continuously
 ```
 
-No es un incendio, pero es permanente mientras la CLI esté abierta, y escala con
-el número de sesiones abiertas a la vez.
+Not a fire, but permanent for as long as the CLI is open, and it scales with the
+number of sessions open at once.
 
-### Optimizaciones prototipadas
+### Prototyped optimisations
 
-Ambas verificadas produciendo salida **byte a byte idéntica** al original.
+Both verified as producing output **byte for byte identical** to the original.
 
-| Cambio | Resultado | Veredicto |
+| Change | Result | Verdict |
 | --- | --- | --- |
-| `exec python3 -S -c` (saltarse `site`) | 25,3 → **23,3 ms** (−8%) | **Aplicar.** Riesgo cero: el script solo usa stdlib. |
-| \+ mover git a bash y quitar `subprocess` | → **21,1 ms** (−17%) | **No aplicar.** Ver abajo. |
+| `exec python3 -S -c` (skip `site`) | 25.3 → **23.3 ms** (−8%) | **Apply.** Zero risk: the script only uses the stdlib. |
+| \+ move git to bash and drop `subprocess` | → **21.1 ms** (−17%) | **Do not apply.** See below. |
 
-El segundo suena bien y no lo vale: bash no tiene el `cwd`, que viene en el JSON
-por stdin y stdin solo se lee una vez. Habría que fiarse de `$PWD` asumiendo que
-Claude Code invoca la statusline dentro del workspace — una suposición no
-documentada, a cambio de 2 ms.
+The second sounds good and is not worth it: bash does not have the `cwd`, which
+comes in the JSON on stdin, and stdin is only read once. You would have to trust
+`$PWD` assuming Claude Code invokes the statusline inside the workspace — an
+undocumented assumption, in exchange for 2 ms.
 
-**La palanca de verdad no es micro-optimizar, es `refreshInterval`.** Lo único
-que exige refrescar cada segundo es la animación de las patas. A `refreshInterval: 5`
-el coste cae cinco veces.
+**The real lever is not micro-optimising, it is `refreshInterval`.** The only thing
+that demands a refresh every second is the feet's animation. At
+`refreshInterval: 5` the cost falls fivefold.
 
 ---
 
 ## Bugs
 
-| # | Severidad | Qué pasa | Estado |
+| # | Severity | What happens | State |
 | --- | --- | --- | --- |
-| 1 | **Alta** | Un `used_percentage` no numérico deja la statusline en blanco | **arreglado** — todo número del JSON pasa por `num()` |
-| 2 | Media | Reescribe el fichero de estado en cada refresco aunque no cambie | **arreglado** — solo escribe cuando cambia |
-| 3 | Baja | Ficheros huérfanos en `/tmp`, uno por sesión, nunca se limpian | **arreglado** — barre los de más de un día, y `SessionEnd` borra el suyo |
-| 4 | Cosmética | Descriptor de fichero que no se cierra | **arreglado** — `finally: os.close(fd)` |
+| 1 | **High** | A non-numeric `used_percentage` leaves the statusline blank | **fixed** — every number from the JSON goes through `num()` |
+| 2 | Medium | Rewrites the state file on every refresh even when it has not changed | **fixed** — only writes on a change |
+| 3 | Low | Orphan files in `/tmp`, one per session, never cleaned | **fixed** — sweeps the ones over a day old, and `SessionEnd` deletes its own |
+| 4 | Cosmetic | A file descriptor that is never closed | **fixed** — `finally: os.close(fd)` |
 
-### 1 · Crash con `used_percentage` no numérico
+### 1 · Crash on a non-numeric `used_percentage`
 
-**Alta**, porque el fallo no degrada: desaparece la statusline entera.
+**High**, because the failure does not degrade: the whole statusline disappears.
 
 ```
 $ echo '{"context_window":{"used_percentage":"abc"}}' | ./statusline.sh
@@ -117,257 +118,259 @@ Traceback (most recent call last):
 ValueError: cannot convert float NaN to integer
 ```
 
-| Valor | Resultado |
+| Value | Result |
 | --- | --- |
-| `"NaN"`, `"abc"`, `[]` | **crash**, salida vacía, exit 1 |
+| `"NaN"`, `"abc"`, `[]` | **crash**, empty output, exit 1 |
 | `"36"`, `true`, `-5`, `150` | ok |
 
-La causa es que `float(pct)` y `round(float(pct))` en la banda 1 son **el único
-punto del script sin `try/except`**. Todos los demás campos numéricos —`cache`,
-`coste`, `ctxsz`, `durms`, `rl5`, `rl7`— sí están guardados. Es una
-inconsistencia, no una decisión.
+The cause is that `float(pct)` and `round(float(pct))` in band 1 are **the only
+point in the script with no `try/except`**. Every other numeric field — `cache`,
+`coste`, `ctxsz`, `durms`, `rl5`, `rl7` — is guarded. It is an inconsistency, not a
+decision.
 
-Arreglo: normalizar `pct` a `float` o `None` una sola vez, junto al resto de
-lecturas, y dejar de reconvertir en cada uso.
+Fix: normalise `pct` to `float` or `None` once, alongside the other reads, and stop
+reconverting at each use.
 
-### 2 · Escritura redundante del estado
+### 2 · Redundant state write
 
-El fichero por sesión guarda la etiqueta anterior para poner en negrita un
-refresco al cruzar umbral. Se escribe **siempre**, cambie o no:
+The per-session file keeps the previous label so that one refresh can be bolded on
+crossing a threshold. It is written **always**, changed or not:
 
 ```
-intento 1: mtime=10:53:55.511667035  contenido=8 bytes
-intento 2: mtime=10:53:55.538067034  contenido=8 bytes   <- mismo contenido
-intento 3: mtime=10:53:55.564467033  contenido=8 bytes   <- mismo contenido
+attempt 1: mtime=10:53:55.511667035  content=8 bytes
+attempt 2: mtime=10:53:55.538067034  content=8 bytes   <- same content
+attempt 3: mtime=10:53:55.564467033  content=8 bytes   <- same content
 ```
 
-Un `write()` más metadatos de sistema de ficheros por invocación, por sesión, para
-no cambiar nada. El bloque ya lee el valor anterior: basta con escribir solo si
-difiere.
+One `write()` plus filesystem metadata per invocation, per session, to change
+nothing. The block already reads the previous value: writing only when it differs is
+enough.
 
-### 3 · Basura en `/tmp`
+### 3 · Rubbish in `/tmp`
 
-Un fichero por `session_id`, creado siempre, borrado nunca. En la máquina de
-pruebas: **12 ficheros, 9 de sesiones muertas**. Son 8 bytes cada uno, así que el
-problema no es el espacio sino que crece sin techo y `/tmp` no siempre se limpia
-al reiniciar (WSL entre ellos).
+One file per `session_id`, always created, never deleted. On the test machine:
+**12 files, 9 of them from dead sessions**. They are 8 bytes each, so the problem is
+not the space but that it grows with no ceiling and `/tmp` is not always cleaned on
+reboot (WSL among them).
 
-Arreglo: al escribir, barrer los `claude-statusline-*` con mtime de más de un día.
+Fix: when writing, sweep the `claude-statusline-*` with an mtime over a day old.
 
-### 4 · Descriptor sin cerrar
+### 4 · Unclosed descriptor
 
 ```python
 return os.get_terminal_size(os.open("/dev/tty", os.O_RDONLY)).columns
 ```
 
-`os.open` devuelve un fd que nadie cierra. Inocuo —el proceso muere acto
-seguido— y solo se ejecuta en la rama de respaldo, cuando falta `COLUMNS`. Está
-aquí por higiene, no por impacto.
+`os.open` returns an fd nobody closes. Harmless — the process dies right after —
+and it only runs on the fallback branch, when `COLUMNS` is missing. It is here for
+hygiene, not for impact.
 
 ---
 
-## Diseño
+## Design
 
-No son errores: son decisiones que conviene tomar a sabiendas.
+Not bugs: decisions worth taking knowingly.
 
-### 5 · El k.o. es prácticamente inalcanzable
+### 5 · The k.o. is practically unreachable
 
-Con los tres consumos presentes, el estado `k.o.` exige `uso > 99,999`, y siendo
-una media ponderada eso significa los tres al 100% clavado:
+With all three usages present, the `k.o.` state demands `usage > 99.999`, and being
+a weighted average that means all three pinned at 100%:
 
-| ctx | 5h | 7d | uso | estado |
+| ctx | 5h | 7d | usage | state |
 | --- | --- | --- | --- | --- |
-| 100 | 100 | 100 | 100,000 | k.o. |
-| 100 | 100 | 99 | 99,800 | ahogada |
-| 100 | 90 | 90 | 95,000 | ahogada |
-| 100 | — | — | 100,000 | k.o. |
+| 100 | 100 | 100 | 100.000 | k.o. |
+| 100 | 100 | 99 | 99.800 | drowning |
+| 100 | 90 | 90 | 95.000 | drowning |
+| 100 | — | — | 100.000 | k.o. |
 
-Es coherente con lo que documenta [VIDA.md](design/vitals.md), y aun así merece decirlo
-claro: **el sprite del k.o., el que más trabajo llevó, no se va a ver casi
-nunca.** Solo aparece si el único dato disponible es el contexto. Si se quiere
-que sea alcanzable, el umbral tiene que bajar (p. ej. 97) o el k.o. debe
-dispararse por el máximo de los tres en vez de por la media.
+It is consistent with what [vitals.md](design/vitals.md) documents, and it still
+deserves saying plainly: **the k.o. sprite, the one that took the most work, is
+almost never going to be seen.** It only appears if the context is the one piece of
+data available. If it is to be reachable, the threshold has to come down (to 97,
+say) or the k.o. has to fire off the maximum of the three rather than the average.
 
-### 6 · La animación va a tope por defecto
+### 6 · The animation runs flat out by default
 
-El código leía una variable de entorno de calma y, solo si estaba puesta,
-limitaba el paso a cuatro refrescos de cada doce:
+The code read a calm environment variable and, only if it was set, limited the step
+to four refreshes out of twelve:
 
 ```python
 anda = bool(E.get("anda")) and (paso % 12 < 4 if _calma else True)
 ```
 
-Sin esa variable las patas alternan en **cada** refresco, para
-siempre, en visión periférica. El modo calmado —andar 4 segundos de cada 12— es
-mejor default; quien quiera el baile continuo que lo pida con una variable.
+Without that variable the feet alternate on **every** refresh, for ever, in
+peripheral vision. Calm mode — walking 4 seconds out of every 12 — is the better
+default; whoever wants the continuous dance can ask for it with a variable.
 
 ---
 
-## Descartado
+## Discarded
 
-Comprobado y **no** es problema. Documentado para no repetir el trabajo.
+Checked, and **not** a problem. Written down so the work is not repeated.
 
-- **Inyección de shell.** No hay. El JSON nunca pasa por el shell y `git -C` se
-  invoca con lista de argumentos, sin `shell=True`. Probado con
-  `display_name: "'; rm -rf /"` → se pinta literal.
-- **Caracteres de doble ancho descuadrando la mascota.** No hay ninguno. Todos los
-  glifos no-ASCII del script son East Asian *Ambiguous*, que se pintan a una
-  columna; cero `W`, cero `F`, cero Nerd Font. `vis()` cuenta bien.
-- **Contención de `index.lock` por lanzar `git status` en bucle.** No ocurre: el
-  mtime de `.git/index` no cambia tras el `status`. `git --no-optional-locks status`
-  sería profiláctico. Ojo con la sintaxis: la opción va **antes** del subcomando,
-  ponerla detrás es error.
-- **`assemble()` es O(n²).** Lo es, y da igual: n ≤ 6.
-- **Robustez de entrada.** JSON inválido, `{}`, `cwd` inexistente, `COLUMNS` de 20
-  a 200: todo degrada limpio, exit 0, sin wrap ni desbordes.
-
----
-
-## Orden sugerido
-
-1. Bug 1 — es el único que rompe algo visible.
-2. `python3 -S` — 8% gratis.
-3. Bugs 2 y 3 — higiene, cinco minutos.
-4. Diseño 6 — invertir el default de la animación.
-5. Diseño 5 y bug 4 — cuando apetezca.
+- **Shell injection.** There is none. The JSON never goes through the shell and
+  `git -C` is invoked with an argument list, no `shell=True`. Tested with
+  `display_name: "'; rm -rf /"` → it is painted literally.
+- **Double-width characters knocking the pet out of square.** There are none. Every
+  non-ASCII glyph in the script is East Asian *Ambiguous*, which paint at one
+  column; zero `W`, zero `F`, zero Nerd Font. `vis()` counts correctly.
+- **`index.lock` contention from running `git status` in a loop.** It does not
+  happen: `.git/index`'s mtime does not change after the `status`.
+  `git --no-optional-locks status` would be prophylactic. Mind the syntax: the
+  option goes **before** the subcommand, putting it after is an error.
+- **`assemble()` is O(n²).** It is, and it does not matter: n ≤ 6.
+- **Input robustness.** Invalid JSON, `{}`, a nonexistent `cwd`, `COLUMNS` from 20
+  to 200: everything degrades cleanly, exit 0, no wrap and no overflow.
 
 ---
 
-Ver también el [README](../README.md) para las bandas y la paleta, y
-[VIDA.md](design/vitals.md) para la fórmula del estado de la mascota.
+## Suggested order
+
+1. Bug 1 — the only one that breaks something visible.
+2. `python3 -S` — 8% for free.
+3. Bugs 2 and 3 — hygiene, five minutes.
+4. Design 6 — invert the animation's default.
+5. Design 5 and bug 4 — whenever.
 
 ---
 
-## Después de arreglarlo
+See also the [README](../README.md) for the bands and the palette, and
+[vitals.md](design/vitals.md) for the pet's state formula.
 
-Mismas condiciones, mismo repo, mismo JSON de prueba.
+---
 
-| | antes | después |
+## After fixing it
+
+Same conditions, same repo, same test JSON.
+
+| | before | after |
 | --- | --- | --- |
-| Tiempo por invocación | 25,3 ms | **24,9 ms** |
-| `used_percentage` no numérico | crash, salida vacía | degrada, exit 0 |
-| Escrituras de estado por refresco | 1 siempre | 0 salvo cambio |
-| Huérfanos en `/tmp` | crecen sin techo | se barren a las 24 h |
+| Time per invocation | 25.3 ms | **24.9 ms** |
+| Non-numeric `used_percentage` | crash, empty output | degrades, exit 0 |
+| State writes per refresh | 1 always | 0 unless changed |
+| Orphans in `/tmp` | grow with no ceiling | swept at 24 h |
 
-El tiempo baja **solo 0,4 ms** y eso merece explicación: `python3 -S` quita
-2,0 ms, pero el sistema de evoluciones añade la lectura de `~/.claude/pet.json`
-y el import del módulo. La cuenta neta es que **todo el tamagotchi entró
-gratis**, no que el arreglo no sirviera.
+The time drops **only 0.4 ms** and that deserves an explanation: `python3 -S` takes
+2.0 ms off, but the evolution system adds reading `~/.claude/pet.json` and importing
+the module. The net sum is that **the whole tamagotchi came in for free**, not that
+the fix did nothing.
 
-Dos decisiones de diseño salieron de esta auditoría:
+Two design decisions came out of this audit:
 
-- **El dibujo vive en su propio módulo, no incrustado en el `.sh`.** Un módulo
-  importado usa caché de bytecode; un `python3 -c` recompila su fuente en cada
-  refresco. Eso devuelve los 2 ms del `compile()` que medía la tabla de arriba.
-- **`tempfile` se importa dentro de `escribir_pet()`**, no arriba. Cuesta 2,0 ms
-  y la statusline lee ese fichero en cada refresco pero **no lo escribe nunca**:
-  solo escriben los hooks y `/feed`.
+- **The drawing lives in its own module, not embedded in the `.sh`.** An imported
+  module uses the bytecode cache; a `python3 -c` recompiles its source on every
+  refresh. That gives back the 2 ms of `compile()` the table above measured.
+- **`tempfile` is imported inside `escribir_pet()`**, not at the top. It costs
+  2.0 ms and the statusline reads that file on every refresh but **never writes
+  it**: only the hooks and `/feed` write.
 
-Y una que no cambió: `git --no-optional-locks` **sí** está aplicado, aunque la
-auditoría lo clasificara como profiláctico. Es gratis y el escenario que evita
-—dos sesiones peleándose por `index.lock`— es real aunque no lo reprodujera.
+And one that did not change: `git --no-optional-locks` **is** applied, even though
+the audit classified it as prophylactic. It is free and the scenario it avoids — two
+sessions fighting over `index.lock` — is real even if I did not reproduce it.
 
 ---
 
-## Segunda ronda: la revisión de las evoluciones
+## Second round: the evolutions review
 
-Un `/code-review` sobre el commit de las evoluciones sacó **quince hallazgos, los
-quince reales**. Reproduje los tres peores antes de tocar nada. Todos arreglados.
+A `/code-review` over the evolutions commit turned up **fifteen findings, all
+fifteen real**. I reproduced the worst three before touching anything. All fixed.
 
-### El grave
+### The serious one
 
-**Ejecución de código desde cualquier repo que abras.** `python3 -c` mete el
-directorio actual en `sys.path` como `""`, y la statusline corre con el cwd
-puesto en tu proyecto. `sys.path.insert(0, SL_DIR)` empujaba el cwd a la
-posición 1 en vez de quitarlo, así que **si faltaba ese módulo en `~/.claude` —el
-camino de degradación que el propio README anuncia— se importaba el del
-del repo abierto**, ejecutándolo una vez por refresco, con la excepción tragada
-por el `try` del import. Reproducido: `*** CODIGO DEL REPO EJECUTADO ***`, rc=0,
-sin rastro. Ahora el cwd se purga de `sys.path` antes de importar.
+**Code execution from any repo you open.** `python3 -c` puts the current directory
+on `sys.path` as `""`, and the statusline runs with the cwd set to your project.
+`sys.path.insert(0, SL_DIR)` pushed the cwd to position 1 rather than removing it,
+so **if that module was missing from `~/.claude` — the degradation path the README
+itself announces — the one from the open repo was imported**, running it once per
+refresh, with the exception swallowed by the import's `try`. Reproduced:
+`*** REPO CODE EXECUTED ***`, rc=0, no trace. The cwd is now purged from `sys.path`
+before importing.
 
-### El vergonzoso
+### The embarrassing one
 
-**El bug 1 de la primera ronda, reintroducido en dos ficheros nuevos.** El
-`num()` que blinda el JSON de stdin no se aplicó ni a `~/.claude/pet.json` ni al
-fichero de sesión de `/tmp`. Un `{"hambre":"mucha"}` volvía a dejar la statusline
-en blanco. Los dos ficheros son editables por cualquiera y uno vive en `/tmp`.
-Ahora todo campo de los dos pasa por un normalizador de tipos.
+**Bug 1 from the first round, reintroduced in two new files.** The `num()` that
+armours the JSON from stdin was applied neither to `~/.claude/pet.json` nor to the
+session file in `/tmp`. A `{"hambre":"mucha"}` left the statusline blank again. Both
+files are editable by anyone and one lives in `/tmp`. Every field of both now goes
+through a type normaliser.
 
-### Los otros trece
+### The other thirteen
 
-| Qué | Cómo se veía |
+| What | How it showed |
 | --- | --- |
-| `dict(PET_VACIO)` era copia superficial | `contadores` aliasaba el dict del módulo: un `contar()` contaminaba todas las lecturas siguientes del proceso |
-| `sesiones_ctx100` contado dos veces | el kraken se alcanzaba en 2 sesiones en vez de 3 |
-| `t0` ausente = epoch 0 | sesiones de 56 años que regalaban `buey` |
-| `_subio` filtrado por `leer_pet` | el bocadillo de subida de nivel era código muerto |
-| tope diario de `/feed` sobre `hoy[-40:]` | se saltaba en cuanto rotaba el registro |
-| `git commit` sin anclar | un `grep "git commit"` daba +12 xp |
-| `\bok\b` con `re.I` | cualquier salida que dijera "ok" daba +15 xp |
-| `session_id` sin validar en un `open()` | travesía de ruta fuera de `TMPDIR` |
-| marcadores `claude-pet-todos-*` | prefijo que el barrido de huérfanos no alcanzaba |
-| `json.load` sin `try` en el desinstalador | con `set -e`, un settings.json roto impedía desinstalar |
-| `settings.json` escrito sin átomo | un fallo a media escritura vaciaba tu configuración global |
-| `alimentar(ahora=…)` a medias | `dia` del reloj real y `ayer` del parámetro |
-| `fenix` y `quimera` inalcanzables | nadie escribía `secreta`: dos plantillas eran datos muertos |
+| `dict(PET_VACIO)` was a shallow copy | `contadores` aliased the module's dict: one `contar()` poisoned every later read in the process |
+| `sesiones_ctx100` counted twice | the kraken was reached in 2 sessions instead of 3 |
+| a missing `t0` = epoch 0 | 56-year sessions handing out `ox` |
+| `_subio` filtered out by `leer_pet` | the level-up bubble was dead code |
+| `/feed`'s daily cap over `hoy[-40:]` | it was skipped as soon as the log rotated |
+| `git commit` unanchored | a `grep "git commit"` gave +12 xp |
+| `\bok\b` with `re.I` | any output saying "ok" gave +15 xp |
+| unvalidated `session_id` in an `open()` | path traversal outside `TMPDIR` |
+| `claude-pet-todos-*` markers | a prefix the orphan sweep never reached |
+| `json.load` with no `try` in the uninstaller | with `set -e`, a broken settings.json stopped you uninstalling |
+| `settings.json` written non-atomically | a failure mid-write emptied your global configuration |
+| `alimentar(ahora=…)` only half done | `dia` off the real clock and `ayer` off the parameter |
+| `phoenix` and `chimera` unreachable | nobody wrote `secreta`: two templates were dead data |
 
-Las dos últimas se arreglaron **implementándolas**, no documentándolas: el fénix
-pide tocar hambre 10 y volver a 0 en la misma sesión desde `salvaje` o `maratón`,
-y la quimera dos temperamentos empatados al llegar a nivel 4. Las 27 plantillas
-son ahora alcanzables.
+The last two were fixed by **implementing them**, not by documenting them: the
+phoenix asks for touching hunger 10 and coming back to 0 in the same session from
+`feral` or `marathon`, and the chimera for two temperaments tied on reaching level
+4. The 27 templates are now reachable.
 
-### Lo que enseña
+### What it teaches
 
-Los cuatro bugs de la primera ronda eran de **entrada externa mal validada**.
-Doce de estos quince también. La diferencia es que en la primera ronda había una
-sola entrada —el JSON de stdin— y en esta hay cuatro: stdin, `pet.json`, el
-fichero de sesión y el JSON del hook. **Blindé la que ya conocía y no las tres
-nuevas.** La lección no es "validar más": es que cada fichero que se añade es una
-frontera de confianza nueva, y conviene contarlas.
+The four bugs of the first round were all **badly validated external input**.
+Twelve of these fifteen too. The difference is that in the first round there was one
+input — the JSON on stdin — and in this one there are four: stdin, `pet.json`, the
+session file and the hook's JSON. **I armoured the one I already knew about and not
+the three new ones.** The lesson is not "validate more": it is that every file you
+add is a new trust boundary, and it is worth counting them.
 
 ---
 
-## Los dos puntos de diseño, cerrados
+## The two design points, closed
 
-### 5 · El k.o. ya es alcanzable
+### 5 · The k.o. is reachable now
 
-Exigir el 100% de la **media** era exigir los tres consumos al 100% a la vez: con
-ctx, 5h y 7d al 100, 90 y 90 la media daba 95, o sea *ahogada*. El sprite en el
-que más trabajo se invirtió no se veía nunca.
+Demanding 100% of the **average** was demanding all three usages at 100% at once:
+with ctx, 5h and 7d at 100, 90 and 90 the average gave 95, that is *drowning*. The
+sprite that took the most work was never seen.
 
-Ahora el k.o. tiene **puerta propia**: salta en cuanto el contexto llega al 100%,
-sin mirar la media. Es coherente con por qué la media pondera 50/30/20 — el
-contexto es lo único que te para de verdad — y no toca ningún otro estado.
+The k.o. now has **a door of its own**: it fires as soon as the context reaches
+100%, without looking at the average. It is consistent with why the average weighs
+50/30/20 — the context is the only thing that really stops you — and it touches no
+other state.
 
-> **Nota posterior.** Esa puerta ya no existe, y este apartado explica por qué
-> hizo falta: era el síntoma, no la enfermedad. La causa era la media, que no
-> puede llegar a 100 si no llegan los tres consumos. El uso volvió a ser el
-> **cuello más apretado** —lo que medía la primera versión—, que llega a 100 él
-> solo, así que la puerta sobraba y se fue con ella. Ver
+> **Later note.** That door no longer exists, and this section explains why it was
+> needed: it was the symptom, not the disease. The cause was the average, which
+> cannot reach 100 unless all three usages do. Usage went back to being the
+> **tightest neck** — what the first version measured — which reaches 100 on its
+> own, so the door was surplus and went with it. See
 > [design/vitals.md](design/vitals.md).
 >
-> **Y una tercera.** El cuello tampoco se quedó. Las cuotas de 5h y 7d son de la
-> **cuenta**, no de la sesión, así que todas las ventanas abiertas leían el mismo
-> número y la mascota dejaba de describir la suya. El uso es ahora el contexto de
-> la sesión y nada más; el k.o. sigue sin necesitar puerta, porque el contexto
-> llega al 100 él solo igual que el cuello.
+> **And a third.** The neck did not stay either. The 5h and 7d quotas belong to the
+> **account**, not to the session, so every open window read the same number and the
+> pet stopped describing its own. Usage is now the session's context and nothing
+> else; the k.o. still needs no door, because the context reaches 100 on its own
+> just as the neck did.
 
-### 6 · La calma es el defecto
+### 6 · Calm is the default
 
-La variable de calma pasó de ser un apaño opcional a no existir (se perdió al
-mover el dibujo a su propio módulo) y luego a existir otra vez. Ahora está resuelto al
-revés: **por defecto anda cuatro segundos de cada doce**, y la variable de andar
-devuelve el baile continuo que pedía el diseño. Un movimiento perpetuo en la
-esquina del ojo a 1 fps es un coste de atención permanente a cambio de nada.
+The calm variable went from being an optional patch to not existing (it was lost
+when the drawing moved into its own module) and then to existing again. It is now
+solved the other way round: **by default it walks four seconds out of every
+twelve**, and the walk variable gives back the continuous dance the design asked
+for. Perpetual motion at the corner of your eye at 1 fps is a permanent attention
+cost in exchange for nothing.
 
-## Y una lección que no es de código
+## And a lesson that is not about code
 
-Al hacer estos cambios descubrí que **otra sesión de Claude estaba editando este
-mismo repo a la vez** (`claude-code-themes-84`, rediseñando la salida como un pie
-con fondo y raya). Mis parches y los suyos se aplicaron sobre el mismo árbol de
-trabajo sin colisionar por pura suerte: usé reemplazo de cadenas con anclas que
-seguían existiendo.
+While making these changes I discovered that **another Claude session was editing
+this same repo at the same time** (`claude-code-themes-84`, redesigning the output
+as a footer with a background and a rule). My patches and theirs applied over the
+same working tree without colliding out of pure luck: I used string replacement
+with anchors that still existed.
 
-Que funcionara no lo hace correcto. Lo que hay que hacer antes de editar un
-fichero en un repo compartido es mirar `git status` **y** si hay otras sesiones
-vivas, no descubrirlo a mitad de camino porque la salida no cuadraba.
+That it worked does not make it right. What to do before editing a file in a shared
+repo is to look at `git status` **and** at whether there are other live sessions,
+not to find out halfway through because the output did not add up.

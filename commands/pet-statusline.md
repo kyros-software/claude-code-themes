@@ -1,5 +1,5 @@
 ---
-description: Enciende o apaga la statusline de cuatro bandas (on | off | status)
+description: Turn the four-band statusline on or off (on | off | status)
 argument-hint: "[on|off|status]"
 allowed-tools: ["Bash(~/.claude/ccpet/bin/ccpet setup:*)"]
 ---
