@@ -101,6 +101,80 @@ var BranchBy = map[string]string{
 	"sprinter": "short_sessions", "marathon": "long_sessions", "feral": "ctx_maxed",
 }
 
+// BranchScale is one branch's worth of each fork counter: what a person
+// leaning hard into that habit reaches in a day of normal use.
+//
+// topBranch used to compare these counters RAW, and they are not the same kind
+// of number. Four of them bump once per EVENT and never stop - a commit, a
+// compact, a closed plan task - and five bump at most once per SESSION, at the
+// close. A day holds a dozen commits and three or four sessions, so a raw race
+// between `methodical` and `impulsive` was settled by the units before the
+// habit got a word in: this machine's own pet.json read 39 against 2 after
+// three weeks of work, and the 2 is the ceiling, not the effort.
+//
+// It is the bug ripestMark was fixed for at level 5 - "the first sibling past
+// its line keeps the branch" - one rung up and worse, because up here there is
+// no threshold to cross and so nothing to normalise against. Dividing by the
+// scale puts every counter in the same unit, DAYS of that habit, and the fork
+// goes back to being a race between ways of working.
+//
+// Where the numbers come from. The design budgets a normal day at 128 XP - the
+// same budget behind the hourly cooldown on a green suite, "ocho suites verdes
+// en una jornada" - so a day spent leaning on one meal is 128 divided by what
+// that meal pays: ten commits at 12, eight suites at 15, twenty-one plan tasks
+// at 6. The per-session counters cannot outrun the number of sessions in a day,
+// which is three or four, measured over three weeks on this machine. The
+// duration pair splits that between them, because a day does not hold three
+// sessions of four hours.
+//
+// They are a calibration, not a law, and the test that defends them is
+// TestTheEmberBranchSurvivesANormalDayOfWork in internal/hook: it plays a
+// person who works at the limit AND commits, which is the case the raw race
+// could not see.
+var BranchScale = map[string]int{
+	// Per event, off the 128 XP day.
+	"methodical":  10, // commits at 12 xp, plus the compacts
+	"inquisitive": 8,  // green suites at 15, where the hourly cooldown lands too
+	"diffs":       10, // commits alone
+	"tests":       8,  // the same cooldown
+	"plans":       21, // closed plan tasks at 6 xp
+
+	// Per session, capped by how many sessions fit in a day.
+	"impulsive":      3, // one per session over 85%
+	"ctx_low":        3, // one per session under 60%
+	"ctx_maxed":      3, // one per session over 95%
+	"short_sessions": 3, // one per session under 15 min
+	"long_sessions":  2, // one per session over 90 min - fewer of those fit
+}
+
+// branchShare is how far a fork counter has come in its own unit: days of that
+// habit.
+//
+// A counter with no scale divides by one, which is the raw number and the old
+// behaviour. That is deliberate: a fork added without a scale keeps working and
+// TestEveryForkCounterHasAScale says so out loud, rather than the shape quietly
+// going wrong because of a zero nobody wrote.
+func branchShare(s *State, form string) float64 {
+	counter := BranchBy[form]
+	if counter == "" {
+		return 0
+	}
+	done := s.Counters[counter]
+	if done < 0 {
+		done = 0
+	}
+	return float64(done) / float64(scaleOf(counter))
+}
+
+// scaleOf is BranchScale with the missing entry read as 1, which is the raw
+// count and the behaviour before there were scales at all.
+func scaleOf(counter string) int {
+	if scale := BranchScale[counter]; scale > 0 {
+		return scale
+	}
+	return 1
+}
+
 // Unlock is the habit a level-5 mark asks for. Not XP: a habit.
 type Unlock struct {
 	Counter   string
@@ -279,6 +353,15 @@ func (m Mark) Share() float64 {
 // CurrentForm, and asking for it keeps this from walking the tree a second
 // time on every refresh - and from disagreeing with the form on screen.
 func NextMark(s *State, form string) (Mark, bool) {
+	// A secret hides the branch but no longer hides the title, so there is
+	// something left to point at. Ask the tree where the pet is really
+	// standing: on a mark it has earned, and the bar measures that mark's
+	// title - or on a bare trade, and the bar measures the nearest mark, which
+	// is the gate on the way to its title either way.
+	if secretForm(form) {
+		form, _ = treeWalk(s)
+	}
+
 	// A pet wearing a mark is not finished any more: there is a title behind
 	// it, asking for the same habit three times over. Only a title has nothing
 	// left to reach.
@@ -477,17 +560,93 @@ func RememberForm(s *State, form string) {
 	}
 }
 
-// topBranch picks between siblings: the highest counter wins, and a tie falls
-// back to the order the design lists them in.
-func topBranch(s *State, candidates []string) string {
+// BranchMargin is what it costs to TAKE a fork off the branch already standing
+// there: one full day of the habit, in the unit BranchScale is written in.
+//
+// Without it the fork went to whoever was ahead by any amount at all, and two
+// habits that run level do not stay ahead of each other for long. Measured:
+// methodical 4.60 days against inquisitive 4.38, which is a gap of 0.22 - two
+// green suites one way, three commits the other. The pet changed name and
+// sprite several times in an afternoon, on a fork that had not really been
+// decided at any point.
+//
+// A day is the unit the scales are already denominated in, so the rule says
+// itself: to take somebody's branch you have to out-work them by a day of the
+// habit, not by a commit.
+const BranchMargin = 1.0
+
+// topBranch picks between siblings: the habit that has come furthest IN ITS
+// OWN UNIT wins, a tie falls back to the order the design lists them in, and
+// a fork already taken is DEFENDED - see BranchMargin.
+//
+// It compared the raw counters until it turned out that half of them count
+// events and half count sessions, which is a race with a winner before it
+// starts. See BranchScale.
+//
+// The price of the defence, paid with eyes open: the shape stops being a pure
+// function of the counters. Two pets with identical numbers can wear different
+// forms, because one of them got there by a road the other did not. Everything
+// else in this file recomputes from the counters and says so; this is the one
+// fact about a pet that is only in the file.
+func topBranch(s *State, parent string) string {
+	candidates := Tree[parent]
 	best := candidates[0]
-	bestScore := s.Counters[BranchBy[best]]
+	bestShare := branchShare(s, best)
 	for _, kid := range candidates[1:] {
-		if score := s.Counters[BranchBy[kid]]; score > bestScore {
-			best, bestScore = kid, score
+		if share := branchShare(s, kid); share > bestShare {
+			best, bestShare = kid, share
 		}
 	}
-	return best
+
+	held, defended := s.Branch[parent]
+	if !defended || held == best {
+		return best
+	}
+	// A held branch that is not a child of this fork is a hand-edited or
+	// outdated file, and defends nothing. Load drops these, so reaching here
+	// means the state was built in memory.
+	found := false
+	for _, kid := range candidates {
+		if kid == held {
+			found = true
+		}
+	}
+	if !found {
+		return best
+	}
+	if bestShare >= branchShare(s, held)+BranchMargin {
+		return best
+	}
+	return held
+}
+
+// RememberBranch writes down which side of each fork the pet is standing on,
+// so the next walk knows who is defending it.
+//
+// It records what topBranch ALREADY decided, hysteresis included, so calling it
+// twice changes nothing: the held branch stays held until a rival earns the
+// margin, and the moment one does, that is what gets written.
+//
+// Only the forks the pet has actually reached. A level 2 pet has not chosen a
+// trade, and writing a guess would hand the level 3 fork to a defender that
+// was never there - which is the fork deciding itself one level early.
+//
+// Like RememberForm, this is for callers that PERSIST the state. The panel's
+// what-if pet must not call it: asking what the next level would look like is
+// not the pet living through it.
+func RememberBranch(s *State) {
+	level := LevelFor(s.XP)
+	if level < 2 {
+		return
+	}
+	if s.Branch == nil {
+		s.Branch = map[string]string{}
+	}
+	here := topBranch(s, Root)
+	s.Branch[Root] = here
+	if level >= 3 {
+		s.Branch[here] = topBranch(s, here)
+	}
 }
 
 // CurrentForm walks the tree from the root as far as XP and habits allow.
@@ -532,18 +691,45 @@ func CurrentForm(s *State) (string, int) {
 // a reason, and the alternative was a test standing guard over a line nobody
 // would think to connect. Asking the right question costs nothing.
 func walk(s *State) (string, int) {
-	level := LevelFor(s.XP)
-	if level >= 5 && s.Secret != "" {
+	here, level := treeWalk(s)
+
+	// A secret is a rung-5 form, and it wins the rung it stands on: it is
+	// rarer than either mark and the pet earned it doing something neither
+	// mark asks for. What it must NOT do is win rungs above its own.
+	//
+	// It used to return here, before the walk, and that quietly ended the
+	// pet's life at rung 5: no mark, no title, three quarters of its branch
+	// gone the day the secret landed. A chimera is a level 5 form, not a
+	// tombstone. Now the walk runs first and the secret only takes over when
+	// the tree came back with rung 5 or less - so a title, which is rung 6,
+	// goes on being something a chimera can grow into.
+	//
+	// The marks it skips past are not a loss: the secret already occupies
+	// their rung, and the title behind them asks for the same habit, more of
+	// it. The habit is still the gate; only the shape on the way is different.
+	if level >= 5 && s.Secret != "" && Tier(here) < 6 {
 		if _, ok := Sprites[string(s.Secret)]; ok {
-			return string(s.Secret), 5
+			return string(s.Secret), level
 		}
 	}
+	return here, level
+}
+
+// treeWalk is the shape the TREE gives, with no secret laid over it.
+//
+// Kept apart from walk because two callers need the branch the pet is actually
+// standing on rather than the shape it wears: the walk itself, to know whether
+// a title outranks the secret, and NextMark, to know which title a pet wearing
+// one is climbing towards. Asking walk would get the secret back, which is the
+// one answer neither of them can use.
+func treeWalk(s *State) (string, int) {
+	level := LevelFor(s.XP)
 	here := Root
 	if level >= 2 {
-		here = topBranch(s, Tree[Root])
+		here = topBranch(s, Root)
 	}
 	if level >= 3 {
-		here = topBranch(s, Tree[here])
+		here = topBranch(s, here)
 	}
 	if level >= 5 {
 		if kid, ok := ripestMark(s, Tree[here], true); ok {
@@ -561,6 +747,16 @@ func walk(s *State) (string, int) {
 		}
 	}
 	return here, level
+}
+
+// secretForm says a form is one of the two off the tree.
+func secretForm(form string) bool {
+	for _, secret := range Secrets {
+		if form == secret {
+			return true
+		}
+	}
+	return false
 }
 
 // Lineage is the path walked to get here: temperament -> trade -> mark.

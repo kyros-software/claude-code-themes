@@ -268,10 +268,25 @@ func CheckSecrets(s *State) {
 
 	// chimera: two temperaments tied on reaching level 4. It inherits one's
 	// eyes and the other's body, which is what its sprite draws.
+	//
+	// Tied the way the FORK reads a tie, which since BranchScale is not the
+	// raw counters: `methodical` counts commits and `impulsive` counts
+	// sessions, so the two landing on the same number is a coincidence of
+	// units, not two ways of working that came out level. The pet this was
+	// handing chimeras to was the ordinary one whose commits happened to cross
+	// its suites.
+	//
+	// Scaled to the common denominator instead of compared as floats, so "tied"
+	// stays exact integer arithmetic and does not depend on which pair of
+	// scales happens to divide evenly.
 	if LevelFor(s.XP) >= 4 {
+		den := 1
+		for _, t := range Temperaments {
+			den *= scaleOf(t)
+		}
 		var top [3]int
 		for i, t := range Temperaments {
-			top[i] = s.Counters[t]
+			top[i] = s.Counters[t] * (den / scaleOf(t))
 		}
 		// three values: sort by hand rather than pull in sort for this
 		for i := 0; i < 3; i++ {

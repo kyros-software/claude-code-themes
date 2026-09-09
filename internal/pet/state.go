@@ -83,6 +83,19 @@ type State struct {
 	// already is and the floor starts from there.
 	FormSeen string `json:"form_seen"`
 
+	// Branch is the child taken at each fork the pet has crossed, keyed by the
+	// parent form: {"spark": "pattern", "pattern": "tidy"}.
+	//
+	// A fork is sticky - see topBranch and BranchMargin - and the counters
+	// cannot say who was standing there, because they only ever go up: 46
+	// against 35 does not remember which was ahead yesterday. So the decision
+	// is written down.
+	//
+	// Absent from an older file, which reads as "nobody is defending this
+	// fork": the first walk decides on the counters alone and the answer is
+	// recorded from there on.
+	Branch map[string]string `json:"branch"`
+
 	Counters map[string]int    `json:"counters"`
 	Meals    map[string]int64  `json:"meals"`
 	Log      []LogEntry        `json:"log"`
@@ -115,6 +128,10 @@ func (s *State) Clone() *State {
 	out.Meals = make(map[string]int64, len(s.Meals))
 	for k, v := range s.Meals {
 		out.Meals[k] = v
+	}
+	out.Branch = make(map[string]string, len(s.Branch))
+	for k, v := range s.Branch {
+		out.Branch[k] = v
 	}
 	out.DayMarks = make(map[string]string, len(s.DayMarks))
 	for k, v := range s.DayMarks {
@@ -267,6 +284,31 @@ func Load(path string) *State {
 		}
 	}
 
+	// The forks, through a stricter gate than the rung: an entry only survives
+	// if the key is a fork the tree really has AND the value is one of that
+	// fork's own children. A pair that does not name a real choice is not a
+	// choice, and topBranch would have to re-check it on every walk anyway.
+	if held, ok := flat["branch"].(map[string]any); ok {
+		for parent, raw := range held {
+			child := asString(raw)
+			if translated, ok := legacyForms[child]; ok {
+				child = translated
+			}
+			if translated, ok := legacyForms[parent]; ok {
+				parent = translated
+			}
+			for _, kid := range Tree[parent] {
+				if kid != child || BranchBy[kid] == "" {
+					continue
+				}
+				if s.Branch == nil {
+					s.Branch = map[string]string{}
+				}
+				s.Branch[parent] = child
+			}
+		}
+	}
+
 	if counters, ok := flat["counters"].(map[string]any); ok {
 		for k, v := range counters {
 			if newKey, ok := legacyCounters[k]; ok {
@@ -367,6 +409,11 @@ func Save(s *State, path string) bool {
 	if form, _ := CurrentForm(s); form != "" {
 		RememberForm(s, form)
 	}
+	// And the forks it is standing at, for the same reason and in the same
+	// place: six paths persist this file and only two of them have any reason
+	// to think about branches. A fork that never gets written down is a fork
+	// with nobody defending it, which is the hysteresis quietly not happening.
+	RememberBranch(s)
 	if s.Counters == nil {
 		s.Counters = map[string]int{}
 	}
@@ -381,6 +428,9 @@ func Save(s *State, path string) bool {
 	}
 	if s.Meals == nil {
 		s.Meals = map[string]int64{}
+	}
+	if s.Branch == nil {
+		s.Branch = map[string]string{}
 	}
 	dir := filepath.Dir(path)
 	if os.MkdirAll(dir, 0o755) != nil {

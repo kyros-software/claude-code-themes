@@ -335,7 +335,12 @@ func TestTheBranchFollowsTheHighestCounter(t *testing.T) {
 }
 
 func TestATieFallsBackToDesignOrder(t *testing.T) {
-	tied := &State{XP: 100, Counters: map[string]int{"methodical": 5, "inquisitive": 5, "impulsive": 5}}
+	// A tie is one day of each habit, not one COUNT of each: the three
+	// counters are scaled before they race, so 5/5/5 is three different
+	// amounts of work. See BranchScale.
+	tied := &State{XP: 100, Counters: map[string]int{
+		"methodical": BranchScale["methodical"], "inquisitive": BranchScale["inquisitive"],
+		"impulsive": BranchScale["impulsive"]}}
 	if form, _ := CurrentForm(tied); form != Tree[Root][0] {
 		t.Errorf("tie went to %s, want %s", form, Tree[Root][0])
 	}
@@ -356,8 +361,12 @@ func TestASecretStillWaitsForLevelFive(t *testing.T) {
 	// The condition is met at level 4 - "dos temperamentos empatados al subir
 	// a nivel 4" - but the form is a level-5 one. The canvas draws exactly
 	// this pet: "refactor · nivel 4" with "488 para quimera" underneath.
+	// Four days of each of the two temperaments - which is the tie, and is not
+	// the same number twice since BranchScale.
 	pending := &State{XP: 412, Secret: "chimera",
-		Counters: map[string]int{"methodical": 40, "inquisitive": 40, "diffs": 30}}
+		Counters: map[string]int{
+			"methodical": 4 * BranchScale["methodical"], "inquisitive": 4 * BranchScale["inquisitive"],
+			"diffs": 3 * BranchScale["diffs"]}}
 	form, level := CurrentForm(pending)
 	if form == "chimera" {
 		t.Error("the secret was handed over before level 5")
@@ -587,9 +596,13 @@ func TestThePhoenixOnlyFromTheTwoFormsThatReachIt(t *testing.T) {
 }
 
 func TestTheChimeraNeedsATieAtLevelFour(t *testing.T) {
+	// Four days of each, which is the tie the chimera means. It is not four
+	// COUNTS of each: a commit and a green suite buy different amounts of
+	// temperament, so the numbers differ. See BranchScale.
 	s := New()
 	s.XP = 400
-	s.Counters = map[string]int{"methodical": 4, "inquisitive": 4}
+	s.Counters = map[string]int{
+		"methodical": 4 * BranchScale["methodical"], "inquisitive": 4 * BranchScale["inquisitive"]}
 	Feed(s, "compact", "", t0)
 	if s.Secret != "chimera" {
 		t.Errorf("secret = %q", s.Secret)
@@ -600,7 +613,8 @@ func TestASecretIsNeverOverwritten(t *testing.T) {
 	s := New()
 	s.Secret = "phoenix"
 	s.XP = 400
-	s.Counters = map[string]int{"methodical": 4, "inquisitive": 4}
+	s.Counters = map[string]int{
+		"methodical": 4 * BranchScale["methodical"], "inquisitive": 4 * BranchScale["inquisitive"]}
 	Feed(s, "compact", "", t0)
 	if s.Secret != "phoenix" {
 		t.Errorf("secret = %q", s.Secret)
@@ -1036,13 +1050,75 @@ func TestAMarkStillHasItsTitleToReach(t *testing.T) {
 	}
 }
 
-func TestASecretHasNothingLeftToReach(t *testing.T) {
+// onABranch is a pet standing on `bughunter`, secret in hand, with as much of
+// the exterminator's habit as asked for.
+func onABranch(secret Secret, level, streak int) *State {
 	s := New()
-	s.XP = xpFor(5)
-	s.Secret = "phoenix"
+	s.XP = xpFor(level)
+	s.Secret = secret
+	s.Counters = map[string]int{
+		"inquisitive": 10 * BranchScale["inquisitive"], // probe over pattern
+		"tests":       10 * BranchScale["tests"],       // bughunter over architect
+		"test_streak": streak,                          // exterminator, and wasp behind it
+	}
+	return s
+}
+
+// A secret used to be the end of the road: walk returned it before the tree
+// ran at all, so the pet stopped at rung 5 for good - no title, and the branch
+// it was standing on stopped meaning anything the day the secret landed.
+//
+// The secret still wins its OWN rung. It does not win the one above.
+func TestASecretStillGrowsIntoItsTitle(t *testing.T) {
+	// The habit is not there yet: the secret is the best the pet has.
+	held := onABranch("phoenix", 6, Unlocks["exterminator"].Threshold)
+	if form, _ := CurrentForm(held); form != "phoenix" {
+		t.Errorf("con la marca ganada y el título no, sale %q, se esperaba phoenix", form)
+	}
+
+	// And with the title's habit paid for, the title outranks it.
+	earned := onABranch("phoenix", 6, TitleAsks["wasp"])
+	if form, level := CurrentForm(earned); form != "wasp" || level != 6 {
+		t.Errorf("con el título ganado sale %q/%d, se esperaba wasp/6", form, level)
+	}
+}
+
+// The level the card prints beside a secret is the pet's, not a 5 nailed on.
+// It used to be the literal, which nobody could see because every test that
+// asked stood the pet at level 5.
+func TestASecretDoesNotFreezeTheLevel(t *testing.T) {
+	s := onABranch("chimera", 6, 0)
+	if form, level := CurrentForm(s); form != "chimera" || level != 6 {
+		t.Errorf("sale %q/%d, se esperaba chimera/6", form, level)
+	}
+}
+
+// A title, once worn, is not handed back to the secret when the streak falls -
+// the floor stops that, the same as for any other form.
+func TestATitleIsNotTakenBackByTheSecret(t *testing.T) {
+	s := onABranch("phoenix", 6, TitleAsks["wasp"])
 	form, _ := CurrentForm(s)
-	if _, ok := NextMark(s, form); ok {
-		t.Error("a secret was offered a mark to reach")
+	RememberForm(s, form)
+
+	s.Counters["test_streak"] = 0 // the context blew and the streak went with it
+	if got, _ := CurrentForm(s); got != "wasp" {
+		t.Errorf("la racha se cayó y el título con ella: %q", got)
+	}
+}
+
+// And the bar has something to point at again. While the secret was terminal
+// this was correctly empty; now it is the title the pet is climbing towards,
+// which the panel would otherwise never mention.
+func TestASecretIsPointedAtItsTitle(t *testing.T) {
+	s := onABranch("phoenix", 5, Unlocks["exterminator"].Threshold)
+	form, _ := CurrentForm(s)
+	mark, ok := NextMark(s, form)
+	if !ok {
+		t.Fatal("una secreta no tiene a dónde ir, y ahora sí lo tiene")
+	}
+	if mark.Form != "wasp" || mark.Threshold != TitleAsks["wasp"] {
+		t.Errorf("apunta a %s %d/%d, se esperaba wasp .../%d",
+			mark.Form, mark.Done, mark.Threshold, TitleAsks["wasp"])
 	}
 }
 

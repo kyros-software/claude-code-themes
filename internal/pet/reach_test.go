@@ -111,15 +111,10 @@ func play(t *testing.T, form string) *State {
 
 	for _, node := range path {
 		switch {
-		// A fork decided by a counter race: out-count every sibling.
+		// A fork decided by a counter race: out-work every sibling, in days
+		// of the habit rather than in raw counts. See outrank.
 		case BranchBy[node] != "":
-			top := 0
-			for _, sib := range Tree[Parent[node]] {
-				if v := s.Counters[BranchBy[sib]]; v > top {
-					top = v
-				}
-			}
-			raise(t, s, BranchBy[node], top+1)
+			raise(t, s, BranchBy[node], outrank(s, node))
 
 		// A title: the same habit as its mark, at twice the bar. Getting the
 		// title means also winning the mark's fork on the way past, and both
@@ -178,6 +173,46 @@ func raise(t *testing.T, s *State, counter string, to int) {
 	s.Counters[counter] = to
 }
 
+// outrank is the value that wins node's fork: enough of node's own counter to
+// pass the ripest sibling once every counter is divided by its scale.
+//
+// It used to be "one more than the highest sibling", which was the same
+// arithmetic topBranch did and stopped being true when topBranch started
+// dividing. A helper that models the old rule tests the old rule.
+//
+// Never below what the counter already holds, because playing cannot lower one
+// and raise would refuse it - and a value already above every sibling is
+// already a winner.
+func outrank(s *State, node string) int {
+	parent := Parent[node]
+	top := 0.0
+	for _, sib := range Tree[parent] {
+		if sib == node {
+			continue
+		}
+		if share := branchShare(s, sib); share > top {
+			top = share
+		}
+	}
+	// A fork with somebody standing on it costs the margin on top, which is
+	// what topBranch asks of a challenger. Without this every test that steers
+	// a pet across a defended fork would be steering it nowhere.
+	if held, ok := s.Branch[parent]; ok && held != node {
+		if share := branchShare(s, held) + BranchMargin; share > top {
+			top = share
+		}
+	}
+	scale := BranchScale[BranchBy[node]]
+	if scale <= 0 {
+		scale = 1
+	}
+	want := int(math.Floor(top*float64(scale))) + 1
+	if have := s.Counters[BranchBy[node]]; have > want {
+		want = have
+	}
+	return want
+}
+
 // steer sets the counter races along the way so the walk from the root
 // actually arrives at node. Without it every synthetic state drifts to
 // whatever sibling happens to be first in the map, which says nothing about
@@ -185,13 +220,118 @@ func raise(t *testing.T, s *State, counter string, to int) {
 func steer(s *State, node string) {
 	for f, ok := node, true; ok; f, ok = Parent[f] {
 		if c := BranchBy[f]; c != "" {
-			top := 0
-			for _, sib := range Tree[Parent[f]] {
-				if v := s.Counters[BranchBy[sib]]; v > top {
-					top = v
+			s.Counters[c] = outrank(s, f)
+		}
+	}
+}
+
+// Every fork has to have a scale, or topBranch silently divides that one
+// branch by one and the race is raw again for exactly the sibling nobody
+// thought about. This is the guard for a fork added later.
+func TestEveryForkCounterHasAScale(t *testing.T) {
+	for form, counter := range BranchBy {
+		if BranchScale[counter] <= 0 {
+			t.Errorf("%s se bifurca por %q y ese contador no tiene escala",
+				form, counter)
+		}
+	}
+}
+
+// --- the defended fork ------------------------------------------------------
+
+// habitDays is a counter value expressed in what BranchScale says a day of
+// that habit is, which is the unit the margin is written in.
+func habitDays(counter string, n float64) int {
+	return int(n * float64(BranchScale[counter]))
+}
+
+// A fork already taken is not handed over to whoever creeps a nose ahead. That
+// nose was the whole complaint: methodical 4.60 against inquisitive 4.38, two
+// suites one way and three commits the other, and the pet changed sprite twice
+// in an afternoon over a fork nobody had really won.
+func TestADefendedForkResistsANarrowLead(t *testing.T) {
+	s := &State{XP: xpFor(2), Branch: map[string]string{Root: "pattern"},
+		Counters: map[string]int{
+			"methodical":  habitDays("methodical", 4),
+			"inquisitive": habitDays("inquisitive", 4.875), // ahead, by less than a day
+		}}
+	if got := topBranch(s, Root); got != "pattern" {
+		t.Errorf("una ventaja de 0,875 días se llevó la rama: %s", got)
+	}
+}
+
+// And it IS handed over once the lead is a day of the habit, which is what
+// makes the margin a delay and not a lock.
+func TestADefendedForkYieldsToAClearLead(t *testing.T) {
+	s := &State{XP: xpFor(2), Branch: map[string]string{Root: "pattern"},
+		Counters: map[string]int{
+			"methodical":  habitDays("methodical", 4),
+			"inquisitive": habitDays("inquisitive", 5), // exactly the margin
+		}}
+	if got := topBranch(s, Root); got != "probe" {
+		t.Errorf("un día entero de ventaja no bastó: %s", got)
+	}
+}
+
+// The margin must not amputate the tree, which is the failure this whole file
+// exists to catch: a defended fork is slower to take, never impossible. Every
+// side of every counter fork, against every possible defender.
+func TestADefendedForkCanStillBeTaken(t *testing.T) {
+	for parent, kids := range Tree {
+		if BranchBy[kids[0]] == "" {
+			continue // a mark fork: ripestMark decides those, undefended
+		}
+		for _, held := range kids {
+			for _, want := range kids {
+				s := veteran()
+				s.Branch = map[string]string{parent: held}
+				steer(s, want)
+				if got := topBranch(s, parent); got != want {
+					t.Errorf("%s: con %s defendiendo, %s es inalcanzable (sale %s)",
+						parent, held, want, got)
 				}
 			}
-			s.Counters[c] = top + 1
+		}
+	}
+}
+
+// Only the forks the pet has actually crossed. Writing the level 3 fork while
+// the pet is still level 2 would hand it a defender chosen a level early, off
+// counters that have not decided anything yet.
+func TestRememberBranchOnlyWritesForksTheP3tHasCrossed(t *testing.T) {
+	s := &State{XP: xpFor(2), Counters: map[string]int{"methodical": 50, "diffs": 50}}
+	RememberBranch(s)
+	if s.Branch[Root] != "pattern" {
+		t.Errorf("la bifurcación del nivel 2 no se anotó: %v", s.Branch)
+	}
+	if got, ok := s.Branch["pattern"]; ok {
+		t.Errorf("anotó la del nivel 3 a nivel 2: %s", got)
+	}
+
+	s.XP = xpFor(3)
+	RememberBranch(s)
+	if s.Branch["pattern"] != "refactor" {
+		t.Errorf("a nivel 3 no se anotó el oficio: %v", s.Branch)
+	}
+}
+
+// It records what topBranch already decided, so running it again changes
+// nothing - otherwise every save would nudge the fork it was meant to hold.
+func TestRememberBranchIsIdempotent(t *testing.T) {
+	s := &State{XP: xpFor(3), Counters: map[string]int{
+		"methodical": habitDays("methodical", 4), "inquisitive": habitDays("inquisitive", 4.5),
+		"diffs": 30, "ctx_low": 3}}
+	RememberBranch(s)
+	first := map[string]string{}
+	for k, v := range s.Branch {
+		first[k] = v
+	}
+	for range 5 {
+		RememberBranch(s)
+	}
+	for k, v := range first {
+		if s.Branch[k] != v {
+			t.Errorf("%s se movió de %s a %s sin que cambiara un contador", k, v, s.Branch[k])
 		}
 	}
 }
@@ -531,6 +671,53 @@ func TestTheRungSurvivesTheRoundTrip(t *testing.T) {
 	back.Counters["test_streak"] = 0
 	if got, _ := CurrentForm(back); Tier(got) < Tier(form) {
 		t.Errorf("tras cargar del fichero cayo a %s (escalon %d)", got, Tier(got))
+	}
+}
+
+// The forks go through a stricter gate than the rung: the pair has to name a
+// real choice - a fork the tree has, and one of that fork's own children - or
+// it defends nothing and is not worth keeping.
+func TestABranchThatNamesNoRealChoiceIsDropped(t *testing.T) {
+	for _, tc := range []struct {
+		stored, wantKey, wantValue string
+	}{
+		{`{"spark":"pattern"}`, "spark", "pattern"}, // a real fork
+		{`{"pattern":"tidy"}`, "pattern", "tidy"},   // and the one below it
+		{`{"spark":"godzilla"}`, "", ""},            // not a child of spark
+		{`{"spark":"tidy"}`, "", ""},                // a form, wrong fork
+		{`{"godzilla":"pattern"}`, "", ""},          // not a fork
+		{`{"../../etc/passwd":"pattern"}`, "", ""},  // not anything
+		{`{"bughunter":"bloodhound"}`, "", ""},      // a MARK fork: ripestMark owns it
+		{`{"chispa":"pauta"}`, "spark", "pattern"},  // v1 Spanish, both halves
+	} {
+		path := t.TempDir() + "/pet.json"
+		if err := os.WriteFile(path,
+			[]byte(`{"xp":`+strconv.Itoa(xpFor(3))+`,"branch":`+tc.stored+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got := Load(path).Branch
+		if tc.wantKey == "" {
+			if len(got) != 0 {
+				t.Errorf("%s se guardó como %v, y no nombra ninguna elección", tc.stored, got)
+			}
+			continue
+		}
+		if got[tc.wantKey] != tc.wantValue {
+			t.Errorf("%s se cargó como %v, se esperaba %s=%s",
+				tc.stored, got, tc.wantKey, tc.wantValue)
+		}
+	}
+}
+
+// Clone exists because a shallow copy of a State shares its maps. Branch is
+// the sixth one, and the panel builds a what-if pet on every /pet.
+func TestCloneDoesNotShareTheBranch(t *testing.T) {
+	s := New()
+	s.Branch = map[string]string{Root: "pattern"}
+	twin := s.Clone()
+	twin.Branch[Root] = "ember"
+	if s.Branch[Root] != "pattern" {
+		t.Errorf("escribir en la copia movió la rama del original: %s", s.Branch[Root])
 	}
 }
 

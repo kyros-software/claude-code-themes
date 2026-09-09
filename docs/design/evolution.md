@@ -95,6 +95,113 @@ Dos no son el número del lienzo, y conviene saber por qué:
 que va más alto en ese momento. Si cambias de hábitos antes de subir de nivel,
 cambias de rama.
 
+### «Más alto» no es el número crudo
+
+Los contadores que leen las bifurcaciones **no son la misma clase de número**.
+Cuatro suben una vez por *evento* y no paran —un commit, un `/compact`, una
+tarea de plan cerrada— y cinco suben como mucho una vez por *sesión*, al
+cerrarla. Un día tiene una docena de commits y tres o cuatro sesiones, así que
+comparar `methodical` con `impulsive` en crudo lo decidían las unidades antes de
+que el hábito abriera la boca.
+
+Medido en un `pet.json` real, después de tres semanas trabajando exactamente al
+límite: `methodical` 39, `impulsive` 2. Y el 2 no es falta de ganas, es el techo.
+Para ser `brasa` había que acumular más sesiones al límite que commits+compacts
+**en toda la vida de la mascota**, lo cual se llevaba por delante 3 oficios, 6
+marcas y 6 títulos: **16 de las 41 formas**, inalcanzables jugando.
+
+Es el mismo fallo que se arregló en el nivel 5 —«gana el primero que cruza su
+umbral» — un peldaño más arriba y peor, porque aquí no hay umbral que cruzar y
+por tanto nada contra lo que normalizar. Ahora cada contador se divide por su
+**escala**, que es lo que da un día de ese hábito, y la bifurcación vuelve a ser
+una carrera entre formas de trabajar:
+
+| Contador | Escala | De dónde sale |
+| --- | --- | --- |
+| `methodical` | 10 | commits a 12 xp, más los compacts |
+| `inquisitive` | 8 | suites verdes a 15 xp — donde cae también el freno horario |
+| `diffs` | 10 | solo commits |
+| `tests` | 8 | el mismo freno |
+| `plans` | 21 | tareas de plan a 6 xp |
+| `impulsive` | 3 | una por sesión ≥85% |
+| `ctx_low` | 3 | una por sesión <60% |
+| `ctx_maxed` | 3 | una por sesión ≥95% |
+| `short_sessions` | 3 | una por sesión <15 min |
+| `long_sessions` | 2 | una por sesión ≥90 min — caben menos en un día |
+
+Las cinco primeras salen del presupuesto que el diseño ya tenía —un día normal
+son 128 XP, el mismo número detrás del freno horario de la suite— dividido por lo
+que paga cada comida. Las cinco de sesión no pueden pasar de cuántas sesiones
+caben en un día, medido en tres o cuatro. Son una **calibración, no una ley**, y
+viven en `BranchScale` (`internal/pet/evolution.go`).
+
+### Y una rama tomada se defiende
+
+Dividir por la escala arregla *quién* gana la bifurcación, no *cada cuánto*
+cambia de manos. Dos hábitos que van a la par no se mantienen delante el uno del
+otro mucho rato: medido, `methodical` 4,60 días contra `inquisitive` 4,38, que
+son 0,22 de diferencia — **dos suites en un sentido, tres commits en el otro**.
+La mascota cambiaba de nombre y de sprite varias veces en una tarde, en una
+bifurcación que en ningún momento se había decidido de verdad.
+
+Así que una rama tomada **se defiende**: para quitársela hay que sacarle un día
+entero del hábito (`BranchMargin`, 1.0, en la unidad en la que ya están las
+escalas). Un día es la elección y no medio, porque medio día son cinco commits y
+eso cabe en una tarde; un día de hábito no se cruza ida y vuelta dentro de una
+sesión. Comprobado sobre el `pet.json` real:
+
+| ventaja de inquisitivo | forma |
+| --- | --- |
+| +0,80 días | `pulcro` |
+| +0,92 días | `pulcro` |
+| **+1,05 días** | `cazabugs` |
+
+Es un retardo, no un candado: los contadores solo suben, así que cualquier rama
+se acaba pudiendo tomar — `TestADefendedForkCanStillBeTaken` lo exige de los dos
+lados de cada bifurcación, contra cada defensor posible. Lo que cambia es el
+plazo: el jugador de `brasa` del test cruza el nivel 2 el día 2 llevando la rama
+que iba un pelo por delante en ese instante, y no le quita la bifurcación hasta
+el día 8, cuando la ventaja es un día entero.
+
+**El precio, con los ojos abiertos.** Los contadores no pueden decir quién iba
+delante ayer —solo suben—, así que la decisión hay que **guardarla**: `branch` en
+`pet.json`, un hijo por bifurcación cruzada. Eso rompe una propiedad que el resto
+de este fichero sí cumple: la forma deja de ser función pura de los contadores, y
+**dos mascotas con los mismos números pueden llevar formas distintas** según por
+dónde pasaron. Es el único dato de una mascota que está solo en el fichero. Se
+sabía antes de elegirlo.
+
+Lo escribe `RememberBranch`, y lo escribe `Save` —no cada llamante—, por la misma
+razón que `RememberForm`: seis caminos persisten este fichero y solo dos tenían
+motivo para pensar en ramas. Una bifurcación que no se anota es una bifurcación
+sin defensor, o sea la histéresis no ocurriendo en silencio. Y anota solo las
+bifurcaciones **ya cruzadas**: apuntar la del nivel 3 con la mascota en el 2 le
+daría un defensor elegido un nivel antes de tiempo.
+
+En la entrada, el campo pasa por una puerta más estricta que la del peldaño: la
+pareja tiene que nombrar una elección real —una bifurcación que el árbol tenga, y
+un hijo suyo— o se tira. Las bifurcaciones del nivel 5 no entran: esas las decide
+`ripestMark` y no se defienden.
+
+Lo que las defiende es un test que juega, no uno que rellena contadores a mano:
+`TestTheEmberBranchSurvivesANormalDayOfWork` simula a alguien que trabaja al
+límite **y además commitea**, y exige las dos direcciones —que llegue a `brasa`
+con un par de commits al día, y que **no** llegue si commitea todo el día—.
+Porque dividir no es poner el pulgar en la balanza.
+
+**Por qué los tests viejos no lo veían.** `TestEveryFormIsReachableFromAVeteran`
+escribe el contador a mano (`steer`, «un punto por encima del hermano»), así que
+prueba «alcanzable si el número fuera más alto», nunca «el número puede llegar
+ahí jugando». Y `TestEveryTemperamentIsReachableByPlaying` sí jugaba, pero solo
+al jugador **puro**: su caso de `ember` no cierra nada en absoluto, solo `feed` y
+pico alto. La rama parecía viva y no la podía tomar nadie que trabajase.
+
+**El empate de la quimera también se escaló.** Comparaba los tres temperamentos
+en crudo, así que la secreta le tocaba a quien tuviera por casualidad el mismo
+número de commits que de suites — una coincidencia de unidades, no dos formas de
+trabajar que salieron a la par. Ahora empatan en días. Las quimeras ya
+concedidas se quedan: `CheckSecrets` no reescribe una secreta ya puesta.
+
 **Y las tres ramas se pueden tomar.** La impulsiva estuvo muerta: su contador
 solo lo subía *reventar el contexto*, que es la única comida que **resta** XP.
 La aritmética se cerraba sola —cada punto de `impulsive` costaba 15 XP, y toda
@@ -123,11 +230,12 @@ El reventón (`overflow`) ya no alimenta ningún hábito: es lo que siempre debi
 ser, un castigo de −15 XP que además rompe las rachas limpias.
 
 **Cuidado con el empate.** Una sesión de más de 90 minutos con el pico arriba
-sube `ctx_maxed` *y* `long_sessions`, uno cada uno, y quedan empatados para
-siempre; el desempate va al orden del lienzo, así que gana `marathon`. `feral`
-es para quien llena la ventana **rápido**: sesiones cortas al límite. Es la
-distinción que la rama está dibujando, y hay un test que la fija
-(`TestALongSessionAtTheLimitStillGoesToMarathon`).
+sube `ctx_maxed` *y* `long_sessions`, uno cada uno, y los contadores quedan
+empatados para siempre — pero gana `marathon`, porque en un día caben menos
+sesiones largas que sesiones, y una sesión larga es por tanto más día de trabajo
+que una al límite. `feral` es para quien llena la ventana **rápido**: sesiones
+cortas al límite. Es la distinción que la rama está dibujando, y hay un test que
+la fija (`TestALongSessionAtTheLimitStillGoesToMarathon`).
 
 **Los nombres del árbol son ids, no texto.** `spark`, `bughunter` o `exterminator`
 son lo que hay escrito en `pet.json` desde la versión en Python, y renombrarlos
@@ -214,6 +322,33 @@ Las dos son formas de **nivel 5** y esperan a los 2000 XP como cualquier otra. L
 condición se cumple antes —la de la quimera, a nivel 4— y entre una cosa y la
 otra el panel dice a qué aspiras: `488 para quimera`. Entregarla en el acto se
 saltaba el nivel 4 entero y ponía un «nivel 5» al lado de 412 XP.
+
+### Una secreta gana su peldaño, no el de arriba
+
+Y era el final del camino. `walk` devolvía la secreta **antes** de recorrer el
+árbol, así que la mascota se quedaba en el peldaño 5 para siempre: ni marca, ni
+título, y la rama en la que estaba dejaba de significar nada el día que le tocó
+la secreta. Tres cuartos de rama a cambio de una forma bonita. Una quimera es una
+forma de nivel 5, no una lápida.
+
+Ahora el árbol se recorre primero y la secreta solo se pone por encima si el
+árbol devolvió peldaño 5 **o menos**. El título es peldaño 6 y la supera, así que
+sigue siendo algo en lo que una quimera puede convertirse:
+
+| Peldaño que da el árbol | Lo que lleva puesto | Por qué |
+| --- | --- | --- |
+| oficio (3) o marca (5) | la secreta | es más rara, y es su peldaño |
+| título (6) | el título | está por encima, y se paga con el hábito |
+
+Las marcas que se salta por el camino no son una pérdida: la secreta ya ocupa ese
+peldaño, y el título de detrás pide **el mismo hábito**, más cantidad. El hábito
+sigue siendo la puerta; lo que cambia es la forma que llevas mientras la cruzas.
+El panel lo dice —`22/50 para avispa` debajo de `fénix`—, que antes estaba
+correctamente vacío porque no había nada a lo que apuntar.
+
+Y una vez puesto, el título no se devuelve: `tradeOf` de una secreta es `""`,
+que el suelo lee como «no sé de qué rama viene» y por tanto se queda con lo más
+alto que pisó. Una racha que se cae no te baja de avispa a fénix.
 
 ## Una forma no baja de escalón
 
@@ -337,8 +472,9 @@ contadores. **Las 41 evoluciones son alcanzables**: la raíz, los tres
 temperamentos, los siete oficios, las catorce marcas, los catorce títulos y las
 dos secretas. Y siguen siéndolo con la mascota ya crecida, que es lo que
 `TestEveryFormIsReachableFromAVeteran` fija: en cada bifurcación gana el hábito
-que más lejos ha llegado *respecto a lo que pide*, no el primero que cruzó su
-umbral, así que ninguna puerta se cierra a tu espalda.
+que más lejos ha llegado *respecto a lo que pide* —su umbral en el nivel 5, su
+escala en los niveles 2 y 3— y no el primero que cruzó una línea, así que
+ninguna puerta se cierra a tu espalda.
 
 | Contador | Se llena con | Quién lo ve |
 | --- | --- | --- |
@@ -420,13 +556,14 @@ bajo** casi siempre, y ninguna se inventa un hecho que no haya ocurrido.
 ```bash
 pet                    # el panel: nivel, evolución, xp, hambre, racha y la comida de hoy
 pet feed               # +3 xp, hambre −2, uno cada cuatro horas
-pet cuenta <c> [n]     # suma a un contador de comportamiento
+pet count <c> [n]      # suma a un contador de comportamiento
 pet record <c> <v>     # guarda el máximo de un contador
 ```
 
 Instalados como `/pet` y `/feed` desde `scripts/install.sh`.
 
-Para empezar de cero: `rm ~/.claude/pet.json`.
+Para empezar de cero: `rm ~/.claude/pet.json`. Para soltar solo las ramas
+defendidas y dejar que se recalculen: quitar la clave `branch`.
 
 ---
 

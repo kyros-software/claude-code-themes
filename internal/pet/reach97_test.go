@@ -81,8 +81,14 @@ func (g gateTree) derive(base map[string]int) map[string]int {
 	return c
 }
 
-// walk is levels 2 and 3: highest counter wins, ties fall back to list order.
-// Same rule as topBranch, and the canvas keeps it - only level 5 changes.
+// walk is levels 2 and 3 AS THE CANVAS DRAWS THEM: highest raw counter wins,
+// ties fall back to list order.
+//
+// The runtime no longer does this - topBranch divides each counter by its
+// BranchScale first, because half of them count events and half count sessions
+// - and the ninety-seven tree will need the same treatment before it is code.
+// It is left raw here on purpose: this file measures the design as drawn, and
+// swapping in the fix would hide how much of the drawn tree depends on it.
 func (g gateTree) walk(c map[string]int) (string, string) {
 	temper := g.Temperaments[0]
 	for _, cand := range g.Temperaments[1:] {

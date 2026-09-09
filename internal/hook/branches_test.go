@@ -50,6 +50,38 @@ func play(t *testing.T, meals []string, peak float64, mins int) (string, *pet.St
 	return playTo(t, 2, meals, peak, mins)
 }
 
+// playDays runs the same day a fixed number of times instead of stopping at a
+// level. A fork is defended now - see pet.BranchMargin - so "how long until the
+// branch turns over" is a question about DAYS of habit, and levelling up is no
+// longer the moment anything is settled.
+func playDays(t *testing.T, days int, meals []string, peak float64, mins int) (string, *pet.State) {
+	t.Helper()
+	home := t.TempDir()
+	statePath := filepath.Join(home, "pet.json")
+	start := time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)
+
+	for d := 0; d < days; d++ {
+		s := pet.Load(statePath)
+		at := start.AddDate(0, 0, d)
+		for i, m := range meals {
+			pet.Feed(s, m, "", at.Add(time.Duration(i)*90*time.Minute))
+		}
+		pet.Save(s, statePath)
+
+		facts := filepath.Join(t.TempDir(), "facts.json")
+		raw, _ := json.Marshal(map[string]any{
+			"label": "x", "peak": peak, "t0": at.Unix(),
+			"repo": "r", "structured": true})
+		if err := os.WriteFile(facts, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		CloseSession(facts, statePath, at.Add(time.Duration(mins)*time.Minute))
+	}
+	s := pet.Load(statePath)
+	form, _ := pet.CurrentForm(s)
+	return form, s
+}
+
 func TestEveryTemperamentIsReachableByPlaying(t *testing.T) {
 	// Three branches leave the larva. If one of them cannot be taken by any
 	// way of working, a third of the tree is decoration.
@@ -74,6 +106,71 @@ func TestEveryTemperamentIsReachableByPlaying(t *testing.T) {
 				s.Counters["methodical"], s.Counters["inquisitive"],
 				s.Counters["impulsive"])
 		}
+	}
+}
+
+// The case the old rule could not see: somebody who works at the limit AND
+// gets ordinary work done.
+//
+// TestEveryTemperamentIsReachableByPlaying only ever proved the PURE player -
+// its ember case closes nothing at all, feeding `feed` and nothing else - so
+// `ember` looked reachable while being reachable by nobody. The counters are
+// not the same kind of number: `methodical` bumps once per commit with no cap
+// and `impulsive` bumps at most once per session, so two commits a day beat
+// every session of the week. Measured on a real pet.json after three weeks of
+// exactly this way of working: methodical 39, impulsive 2, and the pet was a
+// `pattern`.
+//
+// Both directions are pinned here, because the fix must not hand `ember` out
+// for free either: dividing by the scale is meant to make the fork a race
+// between habits, not to put a thumb on the ember side of it.
+//
+// It is measured in DAYS and not in levels because the fork is defended: the
+// pet crosses level 2 on day 2 wearing whichever branch happened to be a
+// nose ahead at that moment, and the ember player only takes the fork off it
+// once the lead is a full day of habit - here, +0.133 days a day, so around
+// the eighth. That slowness is the feature, and it is why the pet stopped
+// changing sprite twice an afternoon.
+func TestTheEmberBranchSurvivesANormalDayOfWork(t *testing.T) {
+	for _, c := range []struct {
+		want  string
+		how   string
+		meals []string
+		peak  float64
+	}{
+		{"ember", "at the limit every session, a couple of commits and a suite a day",
+			[]string{"commit", "commit", "tests"}, 92},
+		{"pattern", "at the limit too, but committing all day long",
+			[]string{"commit", "commit", "commit", "commit", "commit",
+				"commit", "commit", "commit", "commit", "commit"}, 92},
+	} {
+		// Ten days is past level 3, so the visible form is the TRADE. The
+		// fork under test is the one above it, and it is written down now,
+		// so ask it directly rather than reading it back out of a name.
+		form, s := playDays(t, 10, c.meals, c.peak, 300)
+		if got := s.Branch[pet.Root]; got != c.want {
+			t.Errorf("%s (%s) tomó %q, y lleva puesto %q  [m %d / i %d / imp %d]",
+				c.want, c.how, got, form, s.Counters["methodical"],
+				s.Counters["inquisitive"], s.Counters["impulsive"])
+		}
+	}
+}
+
+// The fork does not turn over on the day the counters cross. Same player as
+// above, stopped early: the branch it took on the way past level 2 is still
+// the one it is wearing, even though the ember habit is already ahead.
+//
+// This is the whole trade the margin buys, so it is worth having in writing
+// rather than discovering it as a bug report.
+func TestADefendedForkTakesDaysToTurnOver(t *testing.T) {
+	form, s := playDays(t, 3, []string{"commit", "commit", "tests"}, 92, 300)
+	if form != "pattern" {
+		t.Errorf("a los 3 días sale %q, se esperaba que la rama aguantase  [m %d / imp %d]",
+			form, s.Counters["methodical"], s.Counters["impulsive"])
+	}
+	// And the habit it is holding out against really is ahead already.
+	if got, want := float64(s.Counters["impulsive"])/3, float64(s.Counters["methodical"])/10; got <= want {
+		t.Fatalf("el caso no prueba nada: impulsivo %.2f no va por delante de metódico %.2f", got, want)
 	}
 }
 
@@ -225,9 +322,10 @@ func TestEveryTradeOffTheEmberBranchIsReachableByPlaying(t *testing.T) {
 func TestALongSessionAtTheLimitStillGoesToMarathon(t *testing.T) {
 	// Worth pinning down, because it is not obvious and it is easy to read as
 	// a bug: a session over 90 minutes at 95%+ feeds long_sessions AND
-	// ctx_maxed, one each. They stay tied forever, and topBranch breaks a tie
-	// on the order the design lists the siblings in - sprinter, marathon,
-	// feral - so marathon takes it.
+	// ctx_maxed, one each. The two counters stay tied forever, and marathon
+	// still takes it - a day holds fewer long sessions than sessions, so
+	// long_sessions is scaled against the smaller number and one of them is
+	// more of a day's work than one of the other. See BranchScale.
 	//
 	// feral is for filling the window FAST. If you want it, the sessions have
 	// to be the short kind, which is the distinction the branch is drawing.
