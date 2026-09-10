@@ -207,7 +207,6 @@ oleada 21 · ♥ ████████ · puntos 4860 · cazabugs n4 rastread
                               ╽
 
               ╿ ╿
-                       ▗▟███▙▖
                       ▐█ > < █▌
                        ▝▝▀▀▀▘▘
 

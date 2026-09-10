@@ -36,9 +36,16 @@ lines, guarded on tmux being present, and never a dependency.
 
 ## The creature is small, and it is at the bottom
 
-It is `pet.DrawCompact`: three rows of nine cells, the same small form the
-statusline uses. The five-row card is the pet's portrait; this is its cannon, and
-a cannon that took a quarter of the screen would leave nowhere to dodge to.
+It is `pet.DrawCompact` with its top row left off: **two rows of nine cells**.
+The five-row card is the pet's portrait; this is its cannon, and a cannon that
+took a quarter of the screen would leave nowhere to dodge to.
+
+The row dropped is the dome. What is kept is the face and the feet, which the
+design canvas says is what tells one form from another - *"la marca de arriba y
+el numero de patas"* - and the mark is carried by the colour instead, which is
+the same trade `DrawCompact` itself makes to get from five rows to three. Beside
+invaders that are a single cell, three rows was still the tallest thing on the
+field.
 
 Everything else follows from the block having to fit above it. The floor is
 **60x18**, and inside it:
