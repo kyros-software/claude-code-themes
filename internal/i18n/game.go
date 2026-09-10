@@ -24,6 +24,7 @@ type Game struct {
 	RivalArrives   string // takes the rival's name
 	BossDown       string // takes the rival's name
 	Revived        string
+	Landed         string
 	GameOver       string // takes the wave it ended on
 	// LostALevel is the one line that has to land. The run is a game and the
 	// pet is not: a player who does not understand that dying cost the creature
@@ -68,9 +69,10 @@ var spanishGame = Game{
 	PausedByClaude: "en pausa: Claude ha terminado de responder",
 	Resume:         "p para seguir",
 	WaveCleared:    "oleada %d limpia",
-	RivalArrives:   "%s te corta el paso",
+	RivalArrives:   "baja %s",
 	BossDown:       "%s cae · vida al máximo",
 	Revived:        "el fénix te levanta, una sola vez",
+	Landed:         "han aterrizado. se acabó",
 	GameOver:       "fin de la partida en la oleada %d",
 	LostALevel:     "tu bicho baja al nivel %d",
 	Records:        "mejor oleada %d · mejores puntos %d · partidas %d",
@@ -79,7 +81,7 @@ var spanishGame = Game{
 	NoTTY:    "invade necesita un terminal de verdad, no una tubería",
 	NoTmux:   "no hay tmux: abre otra pestaña y lanza ccpet invade ahí",
 
-	Help: "↑↓ mover · espacio habilidad · p pausa · q salir",
+	Help: "←→ mover · espacio disparar · x habilidad · p pausa · q salir",
 
 	Families: map[string]string{
 		"single":   "único",
@@ -117,9 +119,10 @@ var englishGame = Game{
 	PausedByClaude: "paused: Claude has finished answering",
 	Resume:         "p to resume",
 	WaveCleared:    "wave %d cleared",
-	RivalArrives:   "%s bars the way",
+	RivalArrives:   "%s is coming down",
 	BossDown:       "%s down · life full",
 	Revived:        "the phoenix picks you up, once and once only",
+	Landed:         "they have landed. that is that",
 	GameOver:       "game over on wave %d",
 	LostALevel:     "your creature drops to level %d",
 	Records:        "best wave %d · best score %d · runs %d",
@@ -128,7 +131,7 @@ var englishGame = Game{
 	NoTTY:    "invade needs a real terminal, not a pipe",
 	NoTmux:   "no tmux here: open another tab and run ccpet invade in it",
 
-	Help: "↑↓ move · space ability · p pause · q quit",
+	Help: "←→ move · space fire · x ability · p pause · q quit",
 
 	Families: map[string]string{
 		"single":   "single",

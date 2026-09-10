@@ -181,36 +181,29 @@ func TestATerminalTooSmallIsRefusedAndNothingIsDrawn(t *testing.T) {
 	}
 }
 
-// A window that shrinks must not leave the ship or the swarm in rows that no
-// longer exist. Everything is pulled back into the lanes rather than the game
-// refusing to continue.
-func TestAResizeThatShrinksTheFieldKeepsTheShipInTheLanes(t *testing.T) {
-	big, _ := FieldFor(120, 50)
+// A window that shrinks must not leave the creature off the floor or the block
+// hanging outside the walls. A member that cannot be drawn cannot be shot, and
+// one that cannot be shot lands on you.
+func TestAResizeThatShrinksTheFieldKeepsEverythingOnScreen(t *testing.T) {
+	big, _ := FieldFor(120, 40)
 	small, _ := FieldFor(60, 18)
 	g := NewGame(big, "wasp", 6, Save{Wave: 7, Seed: 2})
-	g = drive(g, None, 300)
-	g.Ship = big.ShipRowMax()
+	for i := 0; i < 300; i++ {
+		g = Tick(g, Right)
+	}
 
 	g = reflow(g, small)
 
-	if g.Ship > small.ShipRowMax() {
-		t.Errorf("the ship is on row %d of a field %d tall", g.Ship, small.Rows)
+	if g.Ship > small.ShipColMax() {
+		t.Errorf("the creature is at column %d of a field %d wide", g.Ship, small.Cols)
 	}
-	first, last := small.Lanes()
-	for _, e := range g.Enemies {
-		if e.Boss() {
-			continue
+	for _, m := range g.Squad.Members {
+		x, y := g.Squad.At(m)
+		if x < 0 || x+TroopCols > small.Cols {
+			t.Errorf("a member spans %d..%d of %d columns", x, x+TroopCols, small.Cols)
 		}
-		if e.Row < first || e.Row > last {
-			t.Errorf("an enemy is in row %d, lanes are %d..%d", e.Row, first, last)
-		}
-		if e.X > float64(small.Cols) {
-			t.Errorf("an enemy is at x=%v, off the right of a %d wide field", e.X, small.Cols)
-		}
-	}
-	for _, line := range Render(g, small.Cols) {
-		if len(line) == 0 && false {
-			t.Fatal("unreachable")
+		if y < 0 {
+			t.Errorf("a member is at row %d", y)
 		}
 	}
 	if got := len(Render(g, small.Cols)); got != small.Rows+HUDRows+HelpRows {
@@ -257,7 +250,7 @@ func TestTheAlternateScreenIsAlwaysGivenBack(t *testing.T) {
 		t.Error("it leaves the alternate screen before it enters it")
 	}
 
-	src := mustRead(t, "run.go")
+	src := readSource(t, "run.go")
 	if !strings.Contains(src, "defer giveBack()") {
 		t.Error("the screen is not given back on a panic")
 	}

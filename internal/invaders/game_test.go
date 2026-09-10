@@ -5,28 +5,13 @@ import (
 	"testing"
 )
 
-func aGame(t *testing.T, form string, level int) Game {
-	t.Helper()
-	return NewGame(aField(t, 80, 24), form, level, Save{Wave: 1, Seed: 0xA11CE})
-}
-
-// drive runs n ticks with the same key, which is most of what a test needs.
-func drive(g Game, in Key, n int) Game {
-	for i := 0; i < n; i++ {
-		g = Tick(g, in)
-	}
-	return g
-}
-
 // Everything else in this package leans on this. Two runs from one seed and one
-// key sequence have to end up in the same state, or none of the wave, life or
-// boss tests are testing anything repeatable - and a resumed run would play a
-// different game from the one it was saved in.
+// key sequence have to end up in the same state.
 func TestTheTickIsDeterministicGivenASeed(t *testing.T) {
-	keys := []Key{None, Up, None, None, Fire, Down, None, Pause, Pause, None, Up}
+	keys := []Key{None, Left, Fire, None, Right, Fire, Ability, Pause, Pause, None}
 	play := func() Game {
 		g := aGame(t, "bughunter", 4)
-		for i := 0; i < 5000; i++ {
+		for i := 0; i < 6000; i++ {
 			g = Tick(g, keys[i%len(keys)])
 		}
 		return g
@@ -36,154 +21,157 @@ func TestTheTickIsDeterministicGivenASeed(t *testing.T) {
 	if a.Rand != b.Rand || a.Frame != b.Frame || a.HP != b.HP || a.Score != b.Score {
 		t.Fatalf("two runs of one seed diverged:\n%+v\n%+v", a, b)
 	}
-	if len(a.Enemies) != len(b.Enemies) {
-		t.Fatalf("%d enemies against %d", len(a.Enemies), len(b.Enemies))
-	}
-	for i := range a.Enemies {
-		if a.Enemies[i] != b.Enemies[i] {
-			t.Fatalf("enemy %d:\n%+v\n%+v", i, a.Enemies[i], b.Enemies[i])
-		}
+	if len(a.Squad.Members) != len(b.Squad.Members) || a.Squad.X != b.Squad.X {
+		t.Fatalf("the blocks diverged: %d at %v against %d at %v",
+			len(a.Squad.Members), a.Squad.X, len(b.Squad.Members), b.Squad.X)
 	}
 }
 
 // Tick takes a value and returns one. If it wrote through the slices it was
-// handed, holding a state and ticking it twice would give two different answers,
-// and every test in this file that keeps a state around would be lying.
+// handed, holding a state and ticking it twice would give two different answers.
 func TestTickingTheSameStateTwiceGivesTheSameAnswer(t *testing.T) {
-	g := drive(aGame(t, "marathon", 3), None, 400)
+	g := drive(aGame(t, "marathon", 3), Fire, 400)
 	a, b := Tick(g, Fire), Tick(g, Fire)
 
-	if len(a.Enemies) != len(b.Enemies) || len(a.Shots) != len(b.Shots) {
+	if len(a.Squad.Members) != len(b.Squad.Members) || len(a.Shots) != len(b.Shots) {
 		t.Fatalf("the same state ticked twice gave %d/%d and %d/%d",
-			len(a.Enemies), len(a.Shots), len(b.Enemies), len(b.Shots))
-	}
-	for i := range a.Enemies {
-		if a.Enemies[i] != b.Enemies[i] {
-			t.Errorf("enemy %d differs between two ticks of one state", i)
-		}
+			len(a.Squad.Members), len(a.Shots), len(b.Squad.Members), len(b.Shots))
 	}
 	if a.HP != b.HP || a.Score != b.Score || a.Rand != b.Rand {
 		t.Error("two ticks of one state disagree on hp, score or the seed")
 	}
 }
 
-// It is not killed by arriving. It costs a life and leaves, which is the whole
-// difference between a shmup and a lane defender.
-func TestAnEnemyReachingTheLeftEdgeCostsExactlyOneHpAndLeaves(t *testing.T) {
-	g := aGame(t, "spark", 1)
-	g.Ship = 0
-	// Hold the squad back so the only enemy in the field is the planted one;
-	// otherwise the wave's own first squad arrives on the same tick.
-	g.NextSquad = 9999
-	g.Enemies = []Enemy{{Body: Mote, X: 0.5, Row: g.Face() + 3, HP: 99, Speed: 1}}
-	was := g.HP
-
-	g = Tick(g, None)
-	if len(g.Enemies) != 0 {
-		t.Fatalf("it is still there: %+v", g.Enemies)
-	}
-	if g.HP != was-1 {
-		t.Errorf("it cost %d hp, want 1", was-g.HP)
-	}
-	if g.Kills != 0 {
-		t.Error("getting past you counted as a kill")
-	}
-}
-
-// The crest and the feet are cosmetic. An enemy passes through them; only the
-// middle three rows of the five are the ship. This is what lets the ship be the
-// creature rather than a block.
-func TestTheCrestAndTheFeetAreNotPartOfTheShip(t *testing.T) {
-	for _, c := range []struct {
-		name string
-		row  int
-		hurt bool
-	}{
-		{"the crest", 0, false},
-		{"the upper body", HitTop, true},
-		{"the face", HitTop + 1, true},
-		{"the lower body", HitBottom, true},
-		{"the feet", ShipRows - 1, false},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			g := aGame(t, "spark", 1)
-			g.Ship = 5
-			g.Enemies = []Enemy{{Body: Mote, X: 4, Row: g.Ship + c.row, HP: 99, Speed: 0.1}}
-			was := g.HP
-
-			g = Tick(g, None)
-			if hurt := g.HP < was; hurt != c.hurt {
-				t.Errorf("hit on %s: hp went %d -> %d, want hurt = %v",
-					c.name, was, g.HP, c.hurt)
-			}
-		})
-	}
-}
-
-// A rival's shot costs two, which is what makes a boss wave a duel worth
-// respecting rather than a bigger pile of the same thing.
-func TestABossShotCostsTwo(t *testing.T) {
+// The gun is yours. The first draft fired by itself and aimed by itself, which
+// left the player one verb and nothing to be good at.
+func TestTheGunOnlyFiresWhenYouPressIt(t *testing.T) {
 	g := aGame(t, "spark", 3)
-	g.Ship = 4
-	g.Bolts = []Bolt{{X: float64(ShipCols) - 1, Row: g.Ship + HitTop + 1}}
+	if quiet := drive(g, None, 400); len(quiet.Shots) != 0 {
+		t.Errorf("it fired %d shots on its own", len(quiet.Shots))
+	}
+	if firing := drive(g, Fire, 40); len(firing.Shots) == 0 {
+		t.Error("it did not fire when told to")
+	}
+}
+
+// And it does not aim. A shot leaves the middle of the creature and goes
+// straight up: lining the creature up IS the game.
+func TestAShotLeavesTheCreatureAndGoesStraightUp(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Ship = 20
+	g = Tick(g, Fire)
+	if len(g.Shots) != 1 {
+		t.Fatalf("it fired %d shots", len(g.Shots))
+	}
+	s := g.Shots[0]
+	if s.X < float64(g.Ship) || s.X > float64(g.Ship+ShipCols) {
+		t.Errorf("the shot left from column %v and the creature is at %d", s.X, g.Ship)
+	}
+	was := s.X
+	for i := 0; i < 5; i++ {
+		g = Tick(g, None)
+	}
+	if len(g.Shots) > 0 && g.Shots[0].X != was {
+		t.Errorf("the shot drifted from %v to %v without homing", was, g.Shots[0].X)
+	}
+	if len(g.Shots) > 0 && g.Shots[0].Y >= float64(g.Field.ShipRow()) {
+		t.Error("the shot is not travelling up")
+	}
+}
+
+// The rule that makes it a game rather than a hose. Miss, and you wait for the
+// shot to reach the top before you may try again.
+//
+// Measured: without it a level-six title cleared forty-five waves in three
+// minutes, four seconds a wave, because nothing limited how much lead was in the
+// air. With it the same creature takes ten seconds a wave.
+func TestOnlySoManyOfYourShotsMayBeInTheAirAtOnce(t *testing.T) {
+	for _, form := range []string{"spark", "weaver", "wasp", "sprinter"} {
+		g := NewGame(aField(t, 80, 24), form, 6, Save{Wave: 1, Seed: 3})
+		cap := g.Kit.InFlight()
+		if cap < 2 || cap > 6 {
+			t.Errorf("%s may have %d shots in the air", form, cap)
+		}
+		for i := 0; i < 600; i++ {
+			g = Tick(g, Fire)
+			if len(g.Shots) > cap {
+				t.Fatalf("%s: %d shots in the air, cap is %d", form, len(g.Shots), cap)
+			}
+		}
+	}
+}
+
+// Moving is left and right along the floor, and it stops at the walls.
+func TestTheCreatureRunsAlongTheFloorAndStopsAtTheWalls(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	if left := drive(g, Left, 500); left.Ship != 0 {
+		t.Errorf("running left ended at column %d", left.Ship)
+	}
+	right := drive(g, Right, 500)
+	if right.Ship != g.Field.ShipColMax() {
+		t.Errorf("running right ended at column %d of %d", right.Ship, g.Field.ShipColMax())
+	}
+	if right.Field.ShipRow() != g.Field.ShipRow() {
+		t.Error("the creature left the floor")
+	}
+}
+
+// A bomb costs life. It is the slow way to lose, and the one you can dodge.
+func TestABombThatReachesYouCostsLife(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Ship = 10
+	g.Bombs = []Bomb{{X: float64(g.Ship + 4), Y: float64(g.Field.ShipRow()) - 0.2, Hurt: 1}}
 	was := g.HP
 
 	g = Tick(g, None)
-	if g.HP != was-boltDrop {
-		t.Errorf("a bolt cost %d hp, want %d", was-g.HP, boltDrop)
+	if g.HP != was-1 {
+		t.Errorf("a bomb cost %d life, want 1", was-g.HP)
 	}
-	if len(g.Bolts) != 0 {
-		t.Error("the bolt went through and kept going")
-	}
-}
-
-// A rival never crosses into the left of the field. It does not leak past you:
-// it duels you, and a duel you can walk away from is not one.
-func TestABossNeverCrossesIntoTheLeftThird(t *testing.T) {
-	f := aField(t, 80, 24)
-	left, _ := f.BossBounds()
-	g := NewGame(f, "spark", 1, Save{Wave: 5, Seed: 7})
-	if len(g.Enemies) != 1 || !g.Enemies[0].Boss() {
-		t.Fatalf("wave 5 did not start with a rival: %+v", g.Enemies)
-	}
-	for i := 0; i < 4000; i++ {
-		g = Tick(g, Key(i%3))
-		for _, e := range g.Enemies {
-			if e.Boss() && e.X < left {
-				t.Fatalf("tick %d: the rival reached x=%v, the bound is %v", i, e.X, left)
-			}
-		}
-		if g.Phase == Over {
-			break
+	for _, b := range g.Bombs {
+		if b.Y >= float64(g.Field.ShipRow()) && b.X >= float64(g.Ship) && b.X < float64(g.Ship+ShipCols) {
+			t.Error("the bomb went through and kept going")
 		}
 	}
 }
 
-// Life never goes over what the kit allows, whatever pays it: regen between
-// waves, a cleared rival, or a save file that claims more than the form can hold.
-func TestHpNeverGoesAboveTheKitsMaximum(t *testing.T) {
-	g := NewGame(aField(t, 80, 24), "gardener", 6, Save{Wave: 1, HP: 9999, Seed: 3})
-	if g.HP > g.Kit.MaxHP {
-		t.Fatalf("it started with %d of %d hp", g.HP, g.Kit.MaxHP)
-	}
-	for i := 0; i < 20000 && g.Phase != Over; i++ {
-		g = Tick(g, Fire)
-		if g.HP > g.Kit.MaxHP {
-			t.Fatalf("tick %d: %d of %d hp", i, g.HP, g.Kit.MaxHP)
-		}
+// A bomb that misses does not. Standing still is a choice, not a sentence.
+func TestABombThatMissesCostsNothing(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Ship = 10
+	g.Bombs = []Bomb{{X: 60, Y: float64(g.Field.ShipRow()) - 0.2, Hurt: 1}}
+	was := g.HP
+	if g = Tick(g, None); g.HP != was {
+		t.Errorf("a bomb three metres away cost %d life", was-g.HP)
 	}
 }
 
-// A clean wave pays for a sloppy one. Without regen the only way life ever comes
-// back is a boss every fifth wave, and the four in between are a slow bleed.
-func TestACleanWavePaysForASloppyOne(t *testing.T) {
+// They land on you. This is the other way to lose and the one the arcade is
+// famous for: bombs whittle you down, but the block arriving is over whatever
+// life you had left. It is also what stops a slow gun from waiting a wave out.
+func TestWhenTheBlockLandsTheRunIsOver(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Squad.Y = float64(g.Field.ShipRow())
+	g = Tick(g, None)
+
+	if g.Phase != Over {
+		t.Errorf("the block landed and the run is in %v", g.Phase)
+	}
+	if g.Banner != BannerLanded {
+		t.Errorf("the banner is %q, want the one that says they landed", g.Banner)
+	}
+	if g.HP != 0 {
+		t.Errorf("it left %d life", g.HP)
+	}
+}
+
+// Clearing the block clears the wave, and a clean one pays for a sloppy one.
+func TestClearingTheBlockClearsTheWave(t *testing.T) {
 	g := aGame(t, "monk", 3)
 	if g.Kit.Regen < 1 {
 		t.Fatal("a monk is the regen mark and has none")
 	}
 	g.HP = 2
-	g.Enemies = nil
-	g.Released = g.Wave.Count
+	g.Squad.Members = nil
 
 	g = Tick(g, None)
 	if g.Phase != Cleared {
@@ -194,274 +182,181 @@ func TestACleanWavePaysForASloppyOne(t *testing.T) {
 	}
 }
 
-// A cleared rival heals you to full. That is what makes every fifth wave a
-// rhythm rather than a countdown, and it is the run's checkpoint.
+// A cleared boss heals you to full: that is what makes every fifth wave a
+// rhythm rather than a countdown.
 func TestABossClearedHealsToFull(t *testing.T) {
 	f := aField(t, 80, 24)
 	g := NewGame(f, "sprinter", 4, Save{Wave: 5, Seed: 11})
+	if !g.Boss.Alive {
+		t.Fatal("wave 5 has no boss")
+	}
 	g.HP = 1
-	g.Enemies = nil
+	g.Boss.Alive = false
 
 	g = Tick(g, None)
 	if g.HP != g.Kit.MaxHP {
-		t.Errorf("a cleared rival left %d of %d hp", g.HP, g.Kit.MaxHP)
+		t.Errorf("a cleared boss left %d of %d life", g.HP, g.Kit.MaxHP)
 	}
 	if g.Banner != BannerBossOff {
 		t.Errorf("the banner is %q", g.Banner)
 	}
 }
 
-// The phoenix gets one second life. One: the flag rides in the save file so
-// quitting and coming back does not buy another.
+// A boss is one big sprite off the canvas, it shoots, and it comes down.
+func TestTheBossShootsAndDescends(t *testing.T) {
+	f := aField(t, 80, 24)
+	g := NewGame(f, "spark", 3, Save{Wave: 5, Seed: 7})
+	startY, startX := g.Boss.Y, g.Boss.X
+
+	bombs, moved := false, false
+	for i := 0; i < 3000 && g.Phase == Playing; i++ {
+		g = Tick(g, None)
+		if len(g.Bombs) > 0 {
+			bombs = true
+		}
+		if g.Boss.X != startX {
+			moved = true
+		}
+	}
+	if !bombs {
+		t.Error("the boss never fired")
+	}
+	if !moved {
+		t.Error("the boss never moved")
+	}
+	if g.Boss.Alive && g.Boss.Y <= startY {
+		t.Error("the boss never came down")
+	}
+}
+
+// The phoenix gets one second life. One.
 func TestPhoenixRevivesOnceAndOnlyOnce(t *testing.T) {
 	g := aGame(t, "phoenix", 5)
 	if !g.Kit.Revive {
 		t.Fatal("the phoenix does not carry the revival")
 	}
-
-	g.HP = 1
-	g = g.wound(99)
-	if g.Phase == Over {
+	if g = g.wound(99); g.Phase == Over {
 		t.Fatal("it died the first time")
 	}
 	if !g.Revived || g.HP < 1 {
-		t.Errorf("it came back as %+v", struct {
-			Revived bool
-			HP      int
-		}{g.Revived, g.HP})
+		t.Error("it did not come back")
 	}
-
-	g = g.wound(99)
-	if g.Phase != Over {
+	if g = g.wound(99); g.Phase != Over {
 		t.Error("it came back twice")
 	}
 
-	// And nothing else comes back at all.
 	other := aGame(t, "wasp", 6)
 	if other = other.wound(9999); other.Phase != Over {
 		t.Error("a form with no revival came back anyway")
 	}
 }
 
-// At zero the run ends, the records keep the wave you got to, and the next run
-// starts over. There is no wave that ends the game, so this is the only ending.
-func TestAtZeroHpTheRunEndsAndTheRecordsKeepTheBestWave(t *testing.T) {
-	g := aGame(t, "spark", 1)
-	g.Wave = WaveFor(23, g.Field)
-	g = g.wound(9999)
+// Splash goes sideways, along the row. A formation is three rows deep and eleven
+// wide, so a vertical splash is either nothing at all or the whole column.
+func TestSplashTakesTheNeighboursAlongTheRow(t *testing.T) {
+	g := aGame(t, "exterminator", 5)
+	if g.Kit.Splash < 1 {
+		t.Fatal("the exterminator is the splash mark and has none")
+	}
+	before := len(g.Squad.Members)
 
-	if g.Phase != Over || g.HP != 0 {
-		t.Fatalf("it is in %v with %d hp", g.Phase, g.HP)
+	// A shot placed exactly on the second member of the top row.
+	m := g.Squad.Members[1]
+	x, y := g.Squad.At(m)
+	g.Shots = []Shot{{X: float64(x) + 2, Y: float64(y) + 1, Damage: 99, Splash: g.Kit.Splash}}
+	g = g.resolveHits()
+
+	killed := before - len(g.Squad.Members)
+	if killed < 2 {
+		t.Errorf("a splash shot killed %d, want it to take neighbours too", killed)
 	}
-	got := g.ToSave(Save{Wave: 23, BestWave: 10, BestScore: 100, Runs: 2})
-	if got.BestWave != 23 {
-		t.Errorf("best wave = %d, want the 23 it reached", got.BestWave)
+	rows := map[int]bool{}
+	for _, left := range g.Squad.Members {
+		rows[left.Row] = true
 	}
-	if got.Wave != 1 || got.HP != g.Kit.MaxHP {
-		t.Errorf("the next run starts at wave %d with %d hp", got.Wave, got.HP)
-	}
-	if got.Runs != 3 {
-		t.Errorf("runs = %d, want 3", got.Runs)
-	}
-	if got.Revived {
-		t.Error("the next run starts already revived")
+	if len(rows) < 2 {
+		t.Error("the splash cleared whole rows, which is a screen-clear and not a splash")
 	}
 }
 
-// Nothing moves while it is paused, and the same key lets it go again. The
-// auto-pause leans on this: Claude finishing must not cost you the wave.
+// Nothing moves while it is paused, and the same key lets it go again.
 func TestAPausedGameDoesNotMoveAnything(t *testing.T) {
-	g := drive(aGame(t, "ember", 3), None, 300)
+	g := drive(aGame(t, "ember", 3), Fire, 300)
 	g = Tick(g, Pause)
 	if g.Phase != Paused {
 		t.Fatalf("it is in %v", g.Phase)
 	}
 	frozen := g
 
-	g = drive(g, None, 200)
-	if g.Frame != frozen.Frame || g.HP != frozen.HP || len(g.Enemies) != len(frozen.Enemies) {
+	g = drive(g, Fire, 200)
+	if g.Frame != frozen.Frame || g.HP != frozen.HP || g.Squad.X != frozen.Squad.X {
 		t.Error("something moved while it was paused")
 	}
-	for i := range g.Enemies {
-		if g.Enemies[i] != frozen.Enemies[i] {
-			t.Fatalf("enemy %d moved while paused", i)
-		}
+	if len(g.Shots) != len(frozen.Shots) {
+		t.Error("it kept firing while paused")
 	}
-
-	g = Tick(g, Pause)
-	if g.Phase != Playing {
+	if g = Tick(g, Pause); g.Phase != Playing {
 		t.Errorf("it would not resume: %v", g.Phase)
 	}
 }
 
-// Resuming is at the top of a wave with the life you had, which is the only
-// granularity the save has and the reason the auto-pause is cheap to get right.
+// Resuming is at the top of a wave with the life you had.
 func TestTheRunResumesAtTheTopOfTheWaveWithTheHpItHad(t *testing.T) {
 	f := aField(t, 80, 24)
 	g := NewGame(f, "oracle", 5, Save{Wave: 12, HP: 4, Score: 800, Kills: 40, Seed: 5})
 
 	if g.Wave.N != 12 || g.HP != 4 {
-		t.Errorf("it resumed on wave %d with %d hp", g.Wave.N, g.HP)
+		t.Errorf("it resumed on wave %d with %d life", g.Wave.N, g.HP)
 	}
 	if g.Score != 800 || g.Kills != 40 {
 		t.Errorf("it forgot the score: %d/%d", g.Score, g.Kills)
 	}
-	if g.Released != 0 || len(g.Enemies) != 0 {
+	if len(g.Squad.Members) != g.Started || g.Started == 0 {
 		t.Error("it resumed mid-wave rather than at the top of one")
 	}
-
-	got := drive(g, None, 100).ToSave(Save{Wave: 12, BestWave: 12})
-	if got.Wave != 12 {
-		t.Errorf("saving mid-wave stored wave %d, want the top of the one it is on", got.Wave)
-	}
 }
 
-// The one place the bestiary and the kits meet. Plate holds a shot to a single
-// point unless it pierces, which is what the cannon family and the sniper mark
-// are for - and without it plate is either useless or unbeatable.
-func TestOnlyAPiercingShotGetsThroughPlate(t *testing.T) {
-	plated := Enemy{Trait: Plated, HP: 20}
-	for _, c := range []struct {
-		name string
-		shot Shot
-		want int
-	}{
-		{"a heavy shot is held to one", Shot{Damage: 9}, 1},
-		{"a piercing shot lands in full", Shot{Damage: 9, Pierce: 2}, 9},
-		{"a shot doing one is unaffected", Shot{Damage: 1}, 1},
-	} {
-		if got := plateAdjusted(plated, c.shot); got != c.want {
-			t.Errorf("%s: %d, want %d", c.name, got, c.want)
-		}
-	}
-	bare := Enemy{Trait: Plain, HP: 20}
-	if got := plateAdjusted(bare, Shot{Damage: 9}); got != 9 {
-		t.Errorf("an unplated enemy took %d of 9", got)
-	}
-}
-
-// A splitter that dies to a shot has to leave its children in the field the
-// shot resolution is rebuilding. The first draft appended them to the slice it
-// was about to overwrite, so a splitter split into nothing.
-func TestASplitterKilledByAShotActuallyLeavesChildren(t *testing.T) {
+// At zero the run ends and the records keep the wave you got to.
+func TestAtZeroHpTheRunEndsAndTheRecordsKeepTheBestWave(t *testing.T) {
 	g := aGame(t, "spark", 1)
-	g.Ship = 3
-	row := g.Face()
-	g.Enemies = []Enemy{{Body: Mote, Trait: Splitter, X: 30, Row: row, HP: 1, Speed: 0}}
-	g.Shots = []Shot{{X: 30, Row: row, Damage: 5}}
+	g.Wave = WaveFor(23, g.Field)
+	g = g.wound(9999)
 
-	g = g.resolveHits()
-	if len(g.Enemies) != 2 {
-		t.Fatalf("a splitter left %d behind, want two", len(g.Enemies))
+	if g.Phase != Over || g.HP != 0 {
+		t.Fatalf("it is in %v with %d life", g.Phase, g.HP)
 	}
-	for _, e := range g.Enemies {
-		if !e.Split {
-			t.Error("a child is not marked as one")
-		}
+	got := g.ToSave(Save{Wave: 23, BestWave: 10, BestScore: 100, Runs: 2})
+	if got.BestWave != 23 {
+		t.Errorf("best wave = %d, want the 23 it reached", got.BestWave)
+	}
+	if got.Wave != 1 || got.HP != g.Kit.MaxHP {
+		t.Errorf("the next run starts at wave %d with %d life", got.Wave, got.HP)
+	}
+	if got.Runs != 3 {
+		t.Errorf("runs = %d, want 3", got.Runs)
 	}
 }
 
-// The feral branch's passive: the closer to death, the harder it hits. It is the
-// one kit whose damage is not a constant, so it gets its own assertion.
-func TestTheOverloadBranchHitsHarderTheCloserItIsToDying(t *testing.T) {
-	g := aGame(t, "feral", 3)
-	if !g.Kit.Overload {
-		t.Fatal("the feral branch does not carry the overload")
-	}
-	g.HP = g.Kit.MaxHP
-	full := g.damageFor()
-	g.HP = 1
-	hurt := g.damageFor()
-	if hurt <= full {
-		t.Errorf("at full it does %d and at one hp it does %d", full, hurt)
-	}
+// What a kill is worth is what its stage is worth, off the canvas.
+func TestAKillIsWorthWhatItsStageIsWorth(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	m := g.Squad.Members[0]
+	want := Stages[Troops[m.Species].Stage-1].Points
 
-	other := aGame(t, "marathon", 3)
-	other.HP = other.Kit.MaxHP
-	a := other.damageFor()
-	other.HP = 1
-	if b := other.damageFor(); b != a {
-		t.Errorf("a form without the overload changed damage with hp: %d then %d", a, b)
+	after := g.killMember(m)
+	if got := after.Score - g.Score; got != want {
+		t.Errorf("a %s is worth %d, scored %d", Troops[m.Species].Name, want, got)
 	}
-}
-
-// The mole's ability is the only thing that refuses damage outright, and it has
-// to refuse all of it - a partial invulnerability is just a discount nobody can
-// feel through a terminal.
-func TestTheMolesAbilityRefusesEverythingWhileItLasts(t *testing.T) {
-	g := aGame(t, "mole", 5)
-	if g.Kit.Special != AbilityInvuln {
-		t.Fatalf("a mole's ability is %q", g.Kit.Special)
+	if after.Kills != g.Kills+1 {
+		t.Error("the kill was not counted")
 	}
-	g = Tick(g, Fire)
-	if g.Invuln <= 0 {
-		t.Fatal("the ability did not come up")
-	}
-	was := g.HP
-	g = g.wound(5)
-	if g.HP != was {
-		t.Errorf("it took %d damage through the ability", was-g.HP)
-	}
-}
-
-// The run has to end. There is no last wave any more, so if a dumb autopilot can
-// survive for ever then the ladder does not climb and the game has no ending at
-// all - which is the failure mode that replaced "nobody reaches wave 99".
-//
-// This is also the headless proof that the whole tick runs: no tty, one seed,
-// thousands of waves' worth of frames.
-func TestARunPlaysItselfUntilTheLadderOutgrowsIt(t *testing.T) {
-	g := NewGame(aField(t, 80, 24), "wasp", 6, Save{Wave: 1, Seed: 0xBEEF})
-	best := 0
-	ticks := 0
-	for ; ticks < 4_000_000 && g.Phase != Over; ticks++ {
-		// Chase the nearest enemy's lane and lean on the ability.
-		in := None
-		if row, ok := g.nearestEnemy(); ok {
-			switch {
-			case row < g.Face():
-				in = Up
-			case row > g.Face():
-				in = Down
-			}
-		}
-		if g.Ready == 0 {
-			in = Fire
-		}
-		g = Tick(g, in)
-
-		if g.Wave.N > best {
-			best = g.Wave.N
-		}
-		if g.HP < 0 || g.HP > g.Kit.MaxHP {
-			t.Fatalf("tick %d: %d of %d hp", ticks, g.HP, g.Kit.MaxHP)
-		}
-		if g.Score < 0 || g.Kills < 0 {
-			t.Fatalf("tick %d: score %d, kills %d", ticks, g.Score, g.Kills)
-		}
-		for _, e := range g.Enemies {
-			if e.X != e.X || e.Row < 0 || e.Row >= g.Field.Rows {
-				t.Fatalf("tick %d: an enemy at row %d, x %v", ticks, e.Row, e.X)
-			}
-		}
-	}
-	if g.Phase != Over {
-		t.Fatalf("it was still alive on wave %d after %d ticks: the ladder does not climb",
-			g.Wave.N, ticks)
-	}
-	if best < 5 {
-		t.Errorf("the autopilot died on wave %d, which says the game is unplayable, not hard", best)
-	}
-	t.Logf("the autopilot got to wave %d in %d ticks (%d minutes of play)",
-		best, ticks, ticks/TicksPerSecond/60)
 }
 
 // The tick is where the game's rules live and it may touch nothing outside
 // itself. Above all it may not reach pet.json: a run does cost the creature a
-// level, but that happens once, in run.go, when the run is over - a tick that
-// could reach the pet would punish it twenty times a second.
+// level, but that happens once, in run.go, when the run is over.
 func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
-	src := mustRead(t, "game.go")
+	src := readSource(t, "game.go")
 	for _, forbidden := range []string{
 		"pet.Update(", "pet.Save(", "pet.Setback(",
 		"os.", "syscall.", "\\033", "fmt.Print", "time.",
@@ -470,7 +365,6 @@ func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
 			t.Errorf("game.go reaches for %q", forbidden)
 		}
 	}
-	// It is allowed exactly one thing out of internal/pet, and it is read-only.
 	for _, allowed := range []string{"pet.Vital", "pet.StateFor"} {
 		if !strings.Contains(src, allowed) {
 			t.Errorf("game.go no longer uses %q; check this list is still right", allowed)

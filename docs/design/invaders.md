@@ -1,8 +1,15 @@
 # `ccpet invade`
 
-A shmup played with the pet you already have. Your current form is the ship, its
-trade decides the weapon, its mark refines it and its level scales it. Waves come
-in from the right, a rival stands at every fifth one, and there is no last one.
+Space Invaders played with the pet you already have. The creature sits at the
+bottom of the screen and runs along the floor; the swarm comes down from the top
+in a block that walks sideways and steps down at the walls. Your form decides the
+weapon, its mark refines it and its level scales it. A boss stands at every fifth
+wave, and there is no last one.
+
+You aim it and you fire it. The first draft did neither - the gun fired by
+itself and tracked the nearest enemy, and the player's only verb was to move -
+which left nothing to be good at. Now moving IS the aiming: a shot leaves the
+middle of the creature and goes straight up.
 
 ## Why this is not the statusline
 
@@ -27,29 +34,44 @@ emulator's own tab key, because the two own different terminals. Inside tmux it
 can be one keystroke instead, which is what `ccpet invade --split` is for - ten
 lines, guarded on tmux being present, and never a dependency.
 
-## The ship is the creature, so the field had to grow
+## The creature is small, and it is at the bottom
 
-The ship is `pet.Draw`'s five rows, the real sprite with the real ramp, not a
-glyph that looks like one. Its hitbox is the **middle three** of those five: the
-crest and the feet are cosmetic and things pass through them, which is what lets
-a creature-shaped ship be a fair one.
+It is `pet.DrawCompact`: three rows of nine cells, the same small form the
+statusline uses. The five-row card is the pet's portrait; this is its cannon, and
+a cannon that took a quarter of the screen would leave nowhere to dodge to.
 
-That is what killed the 60x14 field the design started with:
+Everything else follows from the block having to fit above it. The floor is
+**60x18**, and inside it:
 
-| rows | field | places the ship can stand | lanes | share the ship's body blocks |
-| --- | --- | --- | --- | --- |
-| 14 | 12 | 8 | 8 | **37%** |
-| 18 | 16 | 12 | 12 | 25% |
+| | how it is derived | at 80x24 |
+| --- | --- | --- |
+| formation columns | `(cols-2)/6`, clamped to 4..11 | 11, the arcade's number |
+| formation rows | `(rows-ship-4)/4`, clamped to 2..5 | 3 |
+| the creature | three rows on the floor, nine wide | 3x9 |
 
-At 14 rows the player is standing in more than a third of the playfield with
-nowhere to go when three lanes fire at once. **The floor is 60x18**, which still
-fits inside a 24x80 terminal with room for a shell prompt. Below it the game
-refuses and says both pairs of numbers, rather than drawing a mess.
+Both are derived rather than fixed so that the game is the same shape of problem
+in a narrow window as in a wide one, and so the block always starts clear of the
+creature. Below the floor it refuses and says both pairs of numbers rather than
+drawing a mess.
 
-One more rule falls out of the same arithmetic: **enemies only ever spawn in
-lanes the ship's face can reach**. An enemy one row above the topmost face
-position is unkillable, and unkillable means a life gone every wave for ever -
-a bleed no amount of skill touches.
+## Two ways to lose, and the second one is the clock
+
+Bombs whittle you down: one life each, two from a boss, and you can dodge them.
+That is the slow way.
+
+The fast way is that **they land**. When the block reaches the creature's row the
+run is over, whatever life you had left. It is the arcade's own rule and it is
+what stops a slow gun from simply waiting a wave out - without it, a patient
+player with a weak kit could clear any wave eventually, and the descent would be
+scenery.
+
+The block walks sideways at the wave's own pace and steps down a row every time
+it reaches a wall, and it **quickens as it empties**: the last three come down
+fast. That is the arcade's most famous accident, kept on purpose, because an
+almost-cleared screen must not be a slow one. Clearing a flank also widens the
+block's runway, since the edges are taken from the members that are still alive -
+which is what makes shooting the outside columns first a tactic rather than a
+habit.
 
 ## There is no last wave
 
@@ -69,52 +91,53 @@ no ending.
 That asymmetry is the whole of the difficulty design.
 
 ```
-Seconds(n)  = min(15 + 3*(n-1), 180)         // 15 s at wave 1, +3 s each, flat at 3 min from wave 56
-Squad(n)    = min(1 + n/10, lanes) * lanes/12 // how many arrive together
-SquadEvery  = 40 ticks (2 s)
-Count(n)    = Squad * Seconds * 20 / SquadEvery
-HP(n)       = 1 + (n-1)/8                    // no ceiling
-Speed(n)    = min(0.45 + 0.006*(n-1), 0.75)  // cells per tick
-Boss(n)     = n % 5 == 0
-BossHP(n)   = 40 + 25*(n/5)                  // no ceiling
+Stage(n)   = min(1 + (n-1)/4, 8)          // which of the canvas's eight it draws from
+HP(n)      = 1 + (n-1)/10                 // hit points per member; no ceiling
+Step(n)    = clamp(26 - n/2, 5, 40)       // ticks between sideways steps
+Drop(n)    = clamp(70 - n, 14, 70)        // ticks between bombs
+Boss(n)    = n % 5 == 0
+BossHP(n)  = 30 + 20*(n/5)                // no ceiling
 ```
 
-**Capped**: the length, because a half-hour wave is not a wave; the speed,
-because faster than three quarters of a cell per tick is not harder, it is
-unreactable; and how many arrive at once, because a squad places at most one
-enemy per lane and that is what keeps every allocation in the package bounded by
-the size of the terminal rather than by a number read off disk.
+**Capped**: how fast the block walks and how often it bombs, because past a point
+faster is not harder, it is unreactable; and the size of the block, which is the
+terminal's business and not the wave's.
 
-**Uncapped**: the HP of the swarm and of the rivals. A kit tops out at level 6,
-so there comes a wave your damage cannot clear, and that is the ending.
+**Uncapped**: the hit points of a member and of a boss. A kit tops out at level
+6, so there comes a wave your damage cannot clear before the block lands. That is
+the ending, at a point nobody typed.
 
-The duration is the primary dial and the count follows from it. Deriving it the
-other way round - which is what the design did - gave 20 seconds at wave 1 and 52
-at wave 99: one length with a rounding error, not short-to-long.
+## The rule that makes it a game rather than a hose
 
-### The number that was wrong, and how it was found
+Only two of your presses may be in the air at once.
 
-The base speed was 0.18 cells a tick. At that speed one of the swarm takes
-**twenty-two seconds** to cross eighty columns - longer than the whole of wave
-one - so they piled up thirty-three deep before the first wave had finished
-arriving. Playing all forty-one forms with an autopilot said every single-lane
-family died before wave 3 whatever its level, which would have made most of the
-tree unplayable.
+The arcade allowed exactly one shot on the screen, and that is what turns every
+press into a decision: miss, and you wait for it to reach the top before you may
+try again. Two is the concession to a terminal, where a frame is fifty
+milliseconds and one would feel like lag rather than like discipline.
 
-At 0.45 the crossing is nine seconds and wave one holds four or five at a time.
-Measured after the change, with an autopilot that dodges:
+It is not a detail. Measured with an autopilot, without any cap at all a
+level-six title cleared **forty-five waves in three minutes** - four seconds a
+wave - because nothing limited how much lead was in the air. With it the same
+creature takes ten to fifteen seconds a wave, and a run is a session:
 
-| form | level | wave reached |
-| --- | --- | --- |
-| `spark` | 1 | 5 |
-| `bughunter` | 4 | 10 |
-| `chimera` | 5 | 12 |
-| `phoenix` | 5 | 31 |
-| `wasp` | 6 | 33 |
+| form | level | wave reached | seconds per wave |
+| --- | --- | --- | --- |
+| `spark` | 1 | 5 | 40 |
+| `refactor` | 3 | 10 | 35 |
+| `bughunter` | 4 | 25 | 29 |
+| `marathon` | 4 | 50 | 16 |
+| `wasp` | 6 | 65 | 14 |
+| `phoenix` | 5 | 160 | 10 |
 
-A person plays better than the autopilot, so these are floors. Two tests keep
-them honest: every one of the forty-one has to reach wave 3 at its own tier's
-level, and a grown creature has to get more than twice as far as a larva.
+A person plays better than the autopilot, so these are floors. The spread across
+forms is the point: `marathon` is the cannon family, and a shot that pierces
+three deep is worth more against a block eleven wide than a faster gun is.
+
+One volley always fits under the cap whatever the ceiling says, and that is not
+pedantry: a `loom` at level six fires seven projectiles at a time, and with a
+flat cap of six it could never fire at all - every press refused, for the length
+of the run. Its own playability test caught it.
 
 ## One kit per form, and how that is proved
 
@@ -148,61 +171,50 @@ because the space bar is the only thing the player times: the weapon is automati
 on purpose, since terminal key repeat is uneven across emulators and holding a
 key to shoot feels broken through no fault of ours.
 
-## Seven bodies by five traits, not thirty-five enemies
+## Forty off the canvas, mixed by stage
 
-An enemy is composed the way a form is: a **body** gives the silhouette, the
-width and the multipliers, and a **trait** gives one behaviour.
+The bestiary is not invented here. It comes off the design canvas as
+`Bichitos por Stage`: **forty troop sprites in eight stages**, three rows of five
+cells with two leg frames, plus a seven-tone ramp and a points value per stage.
+The bigger ones come from `Sprites Marcianitos v2`: **thirty-five in five ranks**,
+five rows of nine cells, the last four of which the canvas calls *jefes*.
 
-| body | glyph | width | hp | speed | | trait | what it does |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `mote` | `▪` | 1 | x1 | x1.0 | | `plain` | straight |
-| `dart` | `»` | 1 | x1 | x1.6 | | `weaver` | drifts a lane up and down |
-| `shard` | `◆` | 1 | x2 | x1.3 | | `darter` | lunges when it gets close |
-| `spore` | `∘` | 1 | x1 | x1.2 | | `plated` | one point a hit unless the shot pierces |
-| `husk` | `▚▚` | 2 | x2 | x1.0 | | `splitter` | leaves two motes behind |
-| `slab` | `▰▰` | 2 | x3 | x0.7 | | | |
-| `crawler` | `▬▬▬` | 3 | x4 | x0.5 | | | |
+They are drawn the way the canvas says to draw them: the body in the stage's own
+tone and the three cells of eyes in the light one. That is the only thing that
+breaks the flat colour, and it is what makes a screen of thirty-three readable at
+a glance.
 
-Thirty-five kinds. The glyph says the body and the colour says the trait, so they
-are told apart at a glance with no legend. Writing thirty-five out by hand would
-have given thirty-five unrelated cases that cannot be balanced and cannot be
-proved distinct; this can, and is.
+A wave is **not** a stage, though the canvas groups them that way. It mixes the
+stages up to the one it has reached, deepest at the top and one shallower each
+row down, so a later wave looks like an army rather than like a colour swatch.
+The line-up is deterministic in the wave number and not in the seed, which means
+wave twelve is the same twelve every time you reach it - and a wave you can learn
+is worth more than a wave that is fresh.
 
-They arrive progressively, like the length: a body every three waves and a trait
-every eight, so wave one is one mote going in a straight line and by the thirties
-the whole zoo is out.
+A guard test measures every one of the seventy-five sprites: each row exactly as
+many cells wide as its grid claims, eyes on every one of them, and two leg frames
+that differ. They arrive as pipe-separated strings pasted out of a canvas, which
+is a format that loses a character quietly.
 
-Two details that bite. `plated` against `Pierce` is the only place the bestiary
-and the kits meet, and it is what gives the `cannon` family and the `sniper` mark
-a reason to exist. And **a splitter's children never split**, or one lucky wave
-is an allocation with no bound.
+## The bosses climb with the stages
 
-## The bosses are the creatures you did not become
+A boss is one of the thirty-five, and which one is tied to the **stage the troops
+have reached** rather than to a count of bosses. Walking the roster in order
+spends nine bosses - forty-five waves - on the rank the canvas calls larvae, and
+almost nobody gets that far, so the four called *jefes* would never be seen. Tied
+to the stage they turn up around wave thirty, while a run is still going:
 
-A rival is not a bigger enemy with a different glyph. It is **one of the
-forty-one forms you are not**, drawn with `pet.Draw` using its own sprite and its
-own ramp, facing you.
+| wave | stage | rank | boss |
+| --- | --- | --- | --- |
+| 5 | 2 | 1 | mota |
+| 10 | 3 | 2 | orbe |
+| 20 | 5 | 3 | lancero |
+| 25 | 7 | 4 | acechador |
+| 30 | 8 | 5 | reina |
 
-| what a rival needs | where it comes from |
-| --- | --- |
-| its silhouette and colour | `pet.Draw` and `pet.RampOf` |
-| its attack pattern | `KitFor(rival, level)` - forty-one behaviours already proved distinct |
-| its phases | `pet.StateFor`: the seven vital states. It droops, its head goes down, and at zero it lies down |
-| its name | `pet.NameIn` |
-
-Forty-one bosses with their own identity, and no new drawing or behaviour code
-for any of them. The phases come free and are legible: when the rival is worn
-down its head drops and its cadence quickens, driven by the same `Vital` the
-statusline has used since the beginning. Its hitbox is the middle three of its
-five rows, like yours - symmetric, and one sentence to explain.
-
-The roster is the seven trades, then the fourteen marks, then the fourteen
-titles, and the two secrets last, which is what makes them rare. It is built by
-walking `pet.Tree` in slice order rather than ranging over a map, so it is the
-same in every process. It never sends the form you are flying: you do not fight
-yourself. Thirty-seven rivals means the roster comes round every hundred and
-eighty-five waves, and a rival that comes back comes back with the HP of the
-wave it is standing on.
+It moves side to side, quickens as it is worn down, leans a row lower every few
+seconds, and fires three bombs at a time. Clearing it heals you to full, which is
+what makes every fifth wave a rhythm rather than a countdown.
 
 ## Losing takes a level, and that is the one rule this breaks
 
@@ -295,9 +307,14 @@ The alternate screen and the cursor come back on every path, including a panic
 and a signal. A game that leaves your terminal with no cursor is worse than one
 that crashes.
 
-The frame counter is divided by eight before it reaches `pet.Draw`, because the
-walk cycle is `step%12 < 4`, calibrated for a statusline that refreshes once a
-second. Handed a raw twenty-a-second counter, the feet strobe.
+The frame counter is divided by eight before it reaches `pet.DrawCompact`,
+because the walk cycle is `step%12 < 4`, calibrated for a statusline that
+refreshes once a second. Handed a raw twenty-a-second counter, the feet strobe.
+
+The creature is the one thing not painted cell by cell: `pet.DrawCompact` hands
+back a whole painted row, so it claims nine columns of the grid and the assembly
+steps over them. Re-implementing its painter to get cells would be a second copy
+of the one thing `internal/pet` is for.
 
 One bug here is worth recording because three width tests all passed over it.
 `theme.Truncate` counts the bytes of an escape sequence as visible width and cuts

@@ -84,10 +84,10 @@ func TestSplitAsksTmuxForAPaneWhenItIsInOne(t *testing.T) {
 // way: the moment it needs a change anywhere else it stops being the ten-line
 // convenience it was agreed as.
 func TestSplitStaysTenLinesAndOneGuard(t *testing.T) {
-	if got := strings.Count(mustRead(t, "run.go"), "split("); got != 1 {
+	if got := strings.Count(readSource(t, "run.go"), "split("); got != 1 {
 		t.Errorf("run.go mentions split %d times, want the one guard", got)
 	}
-	src := mustRead(t, "split.go")
+	src := readSource(t, "split.go")
 	if strings.Contains(src, "pet.") || strings.Contains(src, "Game") {
 		t.Error("split.go has grown into the game")
 	}

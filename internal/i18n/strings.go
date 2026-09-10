@@ -169,7 +169,7 @@ var spanish = Strings{
   ccpet setup on|off|status   enciende o apaga la statusline en settings.json
   ccpet setup install         instalación sin plugin (install-hooks incluye los hooks)
   ccpet setup uninstall       deshacerlo
-  ccpet invade                el shmup: tu mascota es la nave
+  ccpet invade                marcianitos: tu mascota es el cañón
   ccpet version               imprime la versión
   ccpet help                  esta ayuda (también -h y --help)
 `,
@@ -249,7 +249,7 @@ var english = Strings{
   ccpet setup on|off|status   turn the statusline on or off in settings.json
   ccpet setup install         install without the plugin (install-hooks adds the hooks)
   ccpet setup uninstall       undo it
-  ccpet invade                the shmup: your pet is the ship
+  ccpet invade                space invaders: your pet is the cannon
   ccpet version               print the version
   ccpet help                  this help (also -h and --help)
 `,

@@ -14,9 +14,9 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 		in   string
 		want Key
 	}{
-		{"\033[A", Up}, {"\033OA", Up}, {"k", Up}, {"w", Up}, {"K", Up},
-		{"\033[B", Down}, {"\033OB", Down}, {"j", Down}, {"s", Down}, {"S", Down},
-		{" ", Fire},
+		{"\033[D", Left}, {"\033OD", Left}, {"a", Left}, {"h", Left}, {"A", Left},
+		{"\033[C", Right}, {"\033OC", Right}, {"d", Right}, {"l", Right}, {"L", Right},
+		{" ", Fire}, {"x", Ability}, {"z", Ability},
 		{"p", Pause}, {"P", Pause},
 		{"q", Quit}, {"Q", Quit}, {"\003", Quit},
 	} {
@@ -36,7 +36,7 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 // up arrow into an escape, a bracket and an A, and in a game whose only controls
 // are up and down that is a ship jumping across the field.
 func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
-	full := []byte("\033[A")
+	full := []byte("\033[D")
 	for cut := 1; cut < len(full); cut++ {
 		head, tail := full[:cut], full[cut:]
 
@@ -49,7 +49,7 @@ func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
 		}
 
 		keys, rest = DecodeAll(append(rest, tail...))
-		if len(keys) != 1 || keys[0] != Up {
+		if len(keys) != 1 || keys[0] != Left {
 			t.Errorf("cut at %d: the two halves decoded to %v", cut, keys)
 		}
 		if len(rest) != 0 {
@@ -61,8 +61,8 @@ func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
 // A whole burst decodes to the keys it holds, in order, which is what the reader
 // goroutine hands the loop.
 func TestABurstOfKeysDecodesInOrder(t *testing.T) {
-	keys, rest := DecodeAll([]byte("kk\033[Bp q"))
-	want := []Key{Up, Up, Down, Pause, Fire, Quit}
+	keys, rest := DecodeAll([]byte("aa\033[Cp q"))
+	want := []Key{Left, Left, Right, Pause, Fire, Quit}
 	if len(rest) != 0 {
 		t.Errorf("%q was left over", rest)
 	}
@@ -126,7 +126,7 @@ func TestCtrlCQuitsBecauseIsigIsOff(t *testing.T) {
 	if k, _ := Decode([]byte{0x03}); k != Quit {
 		t.Errorf("ctrl-c decoded to %d, want quit", k)
 	}
-	src := mustRead(t, "term_unix.go")
+	src := readSource(t, "term_unix.go")
 	if !contains(src, "syscall.ISIG") {
 		t.Error("raw mode does not clear ISIG, so ctrl-c never reaches Decode")
 	}

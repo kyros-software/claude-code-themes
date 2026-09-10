@@ -195,3 +195,14 @@ func TestAFreshRunKeepsTheRecordsAndCountsItself(t *testing.T) {
 		t.Errorf("seed = %d, want the one it was handed", got.Seed)
 	}
 }
+
+// readSource reads a file of this package, for the guards that assert on what
+// the source does and does not reach for.
+func readSource(t *testing.T, name string) string {
+	t.Helper()
+	raw, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}

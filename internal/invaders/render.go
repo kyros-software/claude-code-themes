@@ -9,21 +9,9 @@ import (
 	"github.com/kyros-software/claude-code-themes/internal/theme"
 )
 
-// Grid to painted lines. Everything that emits colour in here goes through
-// internal/theme, and the creatures - yours and the rival's - are drawn by
-// internal/pet, whose own tests already guarantee every row is nine cells wide
-// in every state.
-
-// traitInk is the colour a trait is drawn in. The glyph says which body it is
-// and the colour says which trait, so thirty-five kinds are legible at a glance
-// without anybody reading a legend.
-var traitInk = [traitCount]theme.Colour{
-	Plain:    theme.Dim,
-	Weaver:   theme.PaleTeal,
-	Darter:   theme.Bad,
-	Plated:   theme.Grey,
-	Splitter: theme.Quota,
-}
+// Grid to painted lines. Everything that emits colour goes through
+// internal/theme, and the creature at the bottom is drawn by internal/pet, whose
+// own tests already guarantee every row is nine cells wide in every state.
 
 // Render is the whole screen: one HUD row, the field, one help row.
 //
@@ -36,7 +24,6 @@ func Render(g Game, cols int) []string {
 	return append(out, help(g, cols))
 }
 
-// hud is the one row above the field.
 func hud(g Game, cols int) string {
 	w := i18n.G()
 	parts := []string{
@@ -51,8 +38,6 @@ func hud(g Game, cols int) string {
 		ability(g, w),
 	}
 	if g.Wave.Boss {
-		// Straight after the life, because it is the one thing that changes how
-		// you should be playing.
 		parts = append(parts[:2:2],
 			append([]string{theme.Fg(theme.Bad) + theme.Bold + w.HUDBoss + theme.Reset},
 				parts[2:]...)...)
@@ -60,26 +45,6 @@ func hud(g Game, cols int) string {
 	return joinFit(parts, cols)
 }
 
-// joinFit joins the parts it can afford, most important first, and drops the
-// rest.
-//
-// Not a truncation: theme.Truncate counts the bytes of an escape sequence as
-// visible width and will happily cut inside one, which puts a literal "[38" on
-// screen. It is right for the plain text the statusline hands it and wrong for
-// anything already painted. Dropping whole parts is also the better answer for a
-// player: a HUD that loses the score at sixty columns still reads, one that ends
-// mid-word does not.
-func joinFit(parts []string, cols int) string {
-	sep := theme.Fg(theme.Rule) + " · " + theme.Reset
-	for n := len(parts); n > 0; n-- {
-		if line := strings.Join(parts[:n], sep); theme.Width(line) <= cols {
-			return line
-		}
-	}
-	return ""
-}
-
-// familyName is what the HUD calls the weapon.
 func familyName(k Kit) string {
 	if name := i18n.G().Families[k.Family]; name != "" {
 		return name
@@ -96,94 +61,166 @@ func ability(g Game, w i18n.Game) string {
 		theme.Bar(left, 1, 6, theme.Emph, theme.Empty)
 }
 
-// field paints the playfield.
+// joinFit joins the parts it can afford, most important first, and drops the
+// rest.
 //
-// The creatures are opaque: their nine columns on their five rows are the
-// sprite's own painted cells and nothing is drawn behind them. pet.Draw hands
-// back whole painted rows rather than cells, and re-implementing its painter so
-// an enemy could show through a crest would be a second copy of the one thing
-// internal/pet exists for.
-func field(g Game, cols int) []string {
-	rows := make([][]string, g.Field.Rows)
-	blocks := make([]map[int]string, g.Field.Rows)
-	for i := range rows {
-		rows[i] = make([]string, cols)
-		blocks[i] = map[int]string{}
-	}
-
-	put := func(row, x int, s string) {
-		if row < 0 || row >= len(rows) || x < 0 || x >= cols {
-			return
+// Not a truncation: theme.Truncate counts the bytes of an escape sequence as
+// visible width and will happily cut inside one, which puts a literal "[38" on
+// screen. Dropping whole parts is also the better answer for a player: a HUD
+// that loses the score at sixty columns still reads, one that ends mid-word does
+// not.
+func joinFit(parts []string, cols int) string {
+	sep := theme.Fg(theme.Rule) + " · " + theme.Reset
+	for n := len(parts); n > 0; n-- {
+		if line := strings.Join(parts[:n], sep); theme.Width(line) <= cols {
+			return line
 		}
-		rows[row][x] = s
 	}
+	return ""
+}
 
-	for _, t := range g.Turrets {
-		put(t.Row, ShipCols+1, theme.Fg(theme.Ident)+"╫"+theme.Reset)
-	}
-	for _, b := range g.Bolts {
-		put(b.Row, int(b.X), theme.Fg(theme.Bad)+"◄"+theme.Reset)
-	}
-	for _, s := range g.Shots {
-		put(s.Row, int(s.X), theme.Fg(theme.Emph)+"·"+theme.Reset)
-	}
+// grid is the field as painted cells, plus the whole painted rows that
+// internal/pet hands back for the creature.
+//
+// The blocks are separate because pet.DrawCompact returns a row at a time, not a
+// cell at a time - it is the only painter in the repo that knows how to draw the
+// creature and re-implementing it here to get cells would be a second copy of
+// the one thing internal/pet is for. So a block claims nine columns of its row
+// and the assembly steps over them.
+type grid struct {
+	cells  [][]string
+	blocks []map[int]string
+	cols   int
+}
 
-	for _, e := range g.Enemies {
-		if e.Boss() {
-			drawCreature(blocks, e.Rival, e.Vital(), g.Frame/8, false, e.Row, int(e.X), cols)
+func newGrid(rows, cols int) grid {
+	g := grid{cells: make([][]string, rows), blocks: make([]map[int]string, rows), cols: cols}
+	for i := range g.cells {
+		g.cells[i] = make([]string, cols)
+		g.blocks[i] = map[int]string{}
+	}
+	return g
+}
+
+// block lays an already-painted nine-cell row of the creature into the grid.
+func (g grid) block(row, col int, painted string) {
+	if row < 0 || row >= len(g.blocks) || col < 0 || col+ShipCols > g.cols {
+		return
+	}
+	g.blocks[row][col] = painted
+}
+
+// put writes one painted glyph, ignoring anything off the field.
+func (g grid) put(row, col int, painted string) {
+	if row < 0 || row >= len(g.cells) || col < 0 || col >= g.cols {
+		return
+	}
+	g.cells[row][col] = painted
+}
+
+// blit writes a row of a sprite, one glyph at a time, in one colour. A blank in
+// the art is transparent: the sprites are drawn on a grid and their corners are
+// spaces, and painting those would rub out whatever is behind them.
+func (g grid) blit(row, col int, art, ink string) {
+	for i, r := range []rune(art) {
+		if r == ' ' {
 			continue
 		}
-		ink := theme.Fg(traitInk[e.Trait])
-		for i, r := range []rune(e.Glyph()) {
-			put(e.Row, int(e.X)+i, ink+string(r)+theme.Reset)
-		}
+		g.put(row, col+i, ink+string(r)+theme.Reset)
 	}
+}
 
-	// The ship goes on last so nothing is ever painted over the creature.
-	drawCreature(blocks, g.Form, g.Vital(), g.Frame/8, g.Ready > 0, g.Ship, 0, cols)
-
-	out := make([]string, len(rows))
-	for i := range rows {
-		out[i] = assemble(rows[i], blocks[i], cols)
+func (g grid) lines() []string {
+	out := make([]string, len(g.cells))
+	for i, row := range g.cells {
+		var b strings.Builder
+		for x := 0; x < len(row); x++ {
+			if painted, ok := g.blocks[i][x]; ok {
+				b.WriteString(painted)
+				x += ShipCols - 1
+				continue
+			}
+			if row[x] == "" {
+				b.WriteByte(' ')
+				continue
+			}
+			b.WriteString(row[x])
+		}
+		out[i] = b.String()
 	}
 	return out
 }
 
-// drawCreature lays a five-row sprite into the row blocks.
-//
-// step is the frame count divided down. pet.Draw's walk cycle is step%12 < 4,
-// calibrated for a statusline that refreshes once a second; handed a raw
-// twenty-per-second frame counter the feet strobe.
-func drawCreature(blocks []map[int]string, form string, v pet.Vital, step int, dim bool, top, x, cols int) {
-	if x < 0 || x+ShipCols > cols {
-		return
+// field paints the playfield: the block at the top, the creature at the bottom,
+// and whatever is in the air between them.
+func field(g Game, cols int) []string {
+	gr := newGrid(g.Field.Rows, cols)
+
+	drawSquad(gr, g)
+	drawBoss(gr, g)
+
+	for _, t := range g.Turrets {
+		gr.put(g.Field.ShipRow()-1, t.Col, theme.Fg(theme.Ident)+"╫"+theme.Reset)
 	}
-	sprite := pet.Draw(form, v, step, dim)
-	for i, line := range sprite {
-		row := top + i
-		if row < 0 || row >= len(blocks) {
-			continue
-		}
-		blocks[row][x] = line
+	for _, b := range g.Bombs {
+		gr.put(int(b.Y), int(b.X), theme.Fg(theme.Bad)+"╽"+theme.Reset)
+	}
+	for _, s := range g.Shots {
+		gr.put(int(s.Y), int(s.X), theme.Fg(theme.Emph)+"╿"+theme.Reset)
+	}
+
+	// The creature is opaque on its nine columns, and it goes in last so
+	// nothing is ever painted over it.
+	sprite := pet.DrawCompact(g.Form, g.Vital(), g.Frame/8, g.Ready > 0)
+	for i, row := range sprite {
+		gr.block(g.Field.ShipRow()+i, g.Ship, row)
+	}
+	return gr.lines()
+}
+
+// drawSquad paints the block: every living member in its stage's tone, with the
+// three cells of eyes in the light one.
+func drawSquad(gr grid, g Game) {
+	frame := g.Squad.Frame()
+	for _, m := range g.Squad.Members {
+		t := Troops[m.Species]
+		pal := Stages[t.Stage-1]
+		// A member that has taken a hit and lived shows it by sinking down the
+		// ramp, which is the same trick the pet uses for its own seven states.
+		tone := pal.Tones[clamp(g.Wave.HP-m.HP, 0, len(pal.Tones)-1)]
+		ink, eye := theme.Fg(tone), theme.Fg(pal.Eye)
+
+		x, y := g.Squad.At(m)
+		gr.blit(y, x, t.Top, ink)
+		gr.blit(y+1, x, t.Left, ink)
+		gr.blit(y+1, x+1, t.Eyes, eye)
+		gr.blit(y+1, x+4, t.Right, ink)
+		gr.blit(y+2, x, t.Legs[frame], ink)
 	}
 }
 
-// assemble turns a row of cells and its sprite blocks into one painted line.
-func assemble(cells []string, blocks map[int]string, cols int) string {
-	var b strings.Builder
-	for x := 0; x < cols; x++ {
-		if block, ok := blocks[x]; ok {
-			b.WriteString(block)
-			x += ShipCols - 1
-			continue
-		}
-		if cells[x] == "" {
-			b.WriteByte(' ')
-			continue
-		}
-		b.WriteString(cells[x])
+// drawBoss paints the one big sprite, worn down through its own ramp.
+func drawBoss(gr grid, g Game) {
+	if !g.Boss.Alive {
+		return
 	}
-	return b.String()
+	b := Bosses[g.Boss.Of]
+	pal := Ranks[b.Rank-1]
+	hurt := 0
+	if g.Boss.MaxHP > 0 {
+		hurt = (g.Boss.MaxHP - g.Boss.HP) * len(pal.Ramp) / (g.Boss.MaxHP + 1)
+	}
+	ink := theme.Fg(pal.Ramp[clamp(hurt, 0, len(pal.Ramp)-1)])
+	eye := theme.Fg(pal.Eye)
+
+	x, y := int(g.Boss.X), int(g.Boss.Y)
+	gr.blit(y, x, b.Top, ink)
+	gr.blit(y+1, x, b.Upper, ink)
+	gr.blit(y+2, x, b.Left, ink)
+	gr.blit(y+2, x+3, b.Eyes, eye)
+	gr.blit(y+2, x+6, b.Right, ink)
+	gr.blit(y+3, x, b.Lower, ink)
+	gr.blit(y+4, x, b.Legs[(g.Frame/10)%2], ink)
 }
 
 // help is the key row, or the banner when there is one to show.
@@ -194,8 +231,6 @@ func help(g Game, cols int) string {
 	return paint(theme.Dim, theme.Truncate(i18n.G().Help, cols), "")
 }
 
-// paint colours plain text. The truncation happens BEFORE the escapes go on, so
-// there is never a cut inside one.
 func paint(col theme.Colour, plain, weight string) string {
 	return theme.Fg(col) + weight + plain + theme.Reset
 }
@@ -208,11 +243,13 @@ func Banner(g Game) string {
 	case BannerCleared:
 		return fmt.Sprintf(w.WaveCleared, g.Wave.N)
 	case BannerBoss:
-		return fmt.Sprintf(w.RivalArrives, rivalName(g))
+		return fmt.Sprintf(w.RivalArrives, bossName(g))
 	case BannerBossOff:
-		return fmt.Sprintf(w.BossDown, rivalName(g))
+		return fmt.Sprintf(w.BossDown, bossName(g))
 	case BannerRevived:
 		return w.Revived
+	case BannerLanded:
+		return w.Landed
 	case BannerOver:
 		return fmt.Sprintf(w.GameOver, g.Wave.N)
 	case BannerClaude:
@@ -223,24 +260,15 @@ func Banner(g Game) string {
 	return ""
 }
 
-// rivalName is what to call the rival a wave is holding, falling back to the one
-// the wave would have if it has already been beaten.
-func rivalName(g Game) string {
-	for _, e := range g.Enemies {
-		if e.Boss() {
-			return pet.NameIn(i18n.Current(), e.Rival)
-		}
-	}
-	return pet.NameIn(i18n.Current(), RivalFor(g.Wave.N, g.Form))
-}
+// bossName is what the wave's boss is called, off the canvas.
+func bossName(g Game) string { return Bosses[clamp(g.Wave.BossOf, 0, len(Bosses)-1)].Name }
 
 // Records is the line printed when a run ends.
 func Records(s Save) string {
 	return fmt.Sprintf(i18n.G().Records, s.BestWave, s.BestScore, s.Runs)
 }
 
-// TooSmall is the refusal, with both pairs of numbers in it so the player can
-// see how far off they are rather than guessing.
+// TooSmall is the refusal, with both pairs of numbers in it.
 func TooSmall(cols, rows int) string {
 	return fmt.Sprintf(i18n.G().TooSmall, MinCols, MinRows, cols, rows)
 }

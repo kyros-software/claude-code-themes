@@ -225,47 +225,43 @@ func waitForAKey(sc screen, g Game) (Game, int) {
 }
 
 // reflow fits a running game into a field that has changed size, keeping the
-// ship and everything in it inside the lanes.
+// creature on the floor and the block inside the walls.
 func reflow(g Game, f Field) Game {
 	if f == g.Field {
 		return g
 	}
+	old := g.Field
 	g.Field = f
 	g.Wave = WaveFor(g.Wave.N, f)
-	if g.Ship > f.ShipRowMax() {
-		g.Ship = f.ShipRowMax()
+
+	if g.Ship > f.ShipColMax() {
+		g.Ship = f.ShipColMax()
 	}
-	first, last := f.Lanes()
-	next := make([]Enemy, 0, len(g.Enemies))
-	for _, e := range g.Enemies {
-		if e.Boss() {
-			left, right := f.BossBounds()
-			if e.X < left {
-				e.X = left
+
+	// The formation is a grid, so a narrower window can leave columns off the
+	// right of the screen. They are dropped rather than squeezed: a member that
+	// cannot be drawn cannot be shot, and one that cannot be shot lands on you.
+	if len(g.Squad.Members) > 0 {
+		if g.Squad.X+float64(f.BlockCols()) > float64(f.Cols) {
+			g.Squad.X = float64(max(f.Cols-f.BlockCols(), 0))
+		}
+		cols := f.FormationCols()
+		next := make([]Member, 0, len(g.Squad.Members))
+		for _, m := range g.Squad.Members {
+			if m.Col < cols {
+				next = append(next, m)
 			}
-			if e.X > right {
-				e.X = right
-			}
-			if e.Row > f.ShipRowMax() {
-				e.Row = f.ShipRowMax()
-			}
-			next = append(next, e)
-			continue
 		}
-		if e.Row < first {
-			e.Row = first
+		g.Squad.Members = next
+		if g.Started > len(g.Squad.Members) && old.Cols > f.Cols {
+			g.Started = len(g.Squad.Members)
 		}
-		if e.Row > last {
-			e.Row = last
-		}
-		if e.X > float64(f.Cols) {
-			e.X = float64(f.Cols)
-		}
-		next = append(next, e)
 	}
-	g.Enemies = next
+	if g.Boss.Alive && g.Boss.X > float64(f.Cols-BossCols) {
+		g.Boss.X = float64(max(f.Cols-BossCols, 0))
+	}
 	g.Shots = nil
-	g.Bolts = nil
+	g.Bombs = nil
 	return g
 }
 

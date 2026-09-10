@@ -8,8 +8,8 @@ package invaders
 // It returns n == 0 when the buffer holds the beginning of an escape sequence
 // and not yet all of it, so the caller keeps the bytes and reads more. Raw mode
 // is set with VMIN=0 and VTIME=1, which means a read can and does return half of
-// an arrow key - and three bytes of garbage in a game where up and down are the
-// only controls is a ship that jumps across the field.
+// an arrow key - and three bytes of garbage in a game steered with two keys is a
+// creature that jumps across the screen.
 func Decode(buf []byte) (k Key, n int) {
 	if len(buf) == 0 {
 		return None, 0
@@ -17,27 +17,31 @@ func Decode(buf []byte) (k Key, n int) {
 	switch buf[0] {
 	case 0x1b: // ESC
 		if len(buf) < 3 {
-			// Either the rest is still in flight, or it is a bare Escape and
-			// the timeout will hand it back with nothing after it. Waiting is
-			// the safe half: the caller drops what it cannot decode.
 			return None, 0
 		}
 		if buf[1] != '[' && buf[1] != 'O' {
 			return None, 2
 		}
 		switch buf[2] {
-		case 'A':
-			return Up, 3
-		case 'B':
-			return Down, 3
+		case 'D':
+			return Left, 3
+		case 'C':
+			return Right, 3
+		case 'A', 'B':
+			// Up and down steer nothing here: the creature runs along the
+			// floor. Swallowed rather than ignored so they cannot be mistaken
+			// for a bare Escape followed by letters.
+			return None, 3
 		}
 		return None, 3
-	case 'k', 'w', 'K', 'W':
-		return Up, 1
-	case 'j', 's', 'J', 'S':
-		return Down, 1
+	case 'a', 'A', 'h', 'H':
+		return Left, 1
+	case 'd', 'D', 'l', 'L':
+		return Right, 1
 	case ' ':
 		return Fire, 1
+	case 'x', 'X', 'z', 'Z':
+		return Ability, 1
 	case 'p', 'P':
 		return Pause, 1
 	case 'q', 'Q', 0x03: // q and Ctrl-C

@@ -187,28 +187,40 @@ somewhere you can still get to.
 
 ### `ccpet invade`
 
-A shmup where the ship is **the creature you have right now**. Its trade decides
-the weapon, its mark refines it, its level scales it - so feeding the pet is how
-you get a better gun, and the forty-one forms all play differently.
+Space Invaders, where the cannon is **the creature you have right now**. Its
+trade decides the weapon, its mark refines it, its level scales it - so feeding
+the pet is how you get a better gun, and the forty-one forms all play
+differently.
 
 ```
-oleada 12 · ♥ ██████░░ · puntos 8400 · cazabugs n4 rastreador · habilidad ████░░
+oleada 12 · ♥ ██████░░ · puntos 580 · cazabugs n4 rastreador · habilidad lista
 
- ▚╲   ╱▞                       ▪            ▰▰
- ▗▟███▙▖      ·        »              ·
-▐█ > < █▌  ·         ·           ◆          ▬▬▬
- ▝▀▀▀▀▀▘      ·                             ▪
- ▝▝   ▘▘                  ∘
+  ═███═ ═███═ ═███═ ═███═ ═███═       ═███═       ═███═
+  ▐> <▌ ▐> <▌ ▐> <▌ ▐> <▌ ▐> <▌       ▐> <▌       ▐> <▌
+  ▘   ▝ ▘   ▝ ▘   ▝ ▘   ▝ ▘   ▝       ▘   ▝       ▘   ▝
 
-↑↓ mover · espacio habilidad · p pausa · q salir
+        ◈███◈ ◈███◈       ◈███◈ ◈███◈       ◈███◈
+        ▐> <▌ ▐> <▌       ▐> <▌ ▐> <▌       ▐> <▌
+         ▘ ▝   ▘ ▝         ▘ ▝   ▘ ▝         ▘ ▝
+     ╽
+                          ╿
+
+                       ▗▟███▙▖
+                      ▐█ > < █▌
+                       ▘▘▀▀▀▝▝
+
+←→ mover · espacio disparar · x habilidad · p pausa · q salir
 ```
 
-The gun is automatic and the **ability** is what you time - terminal key repeat
-is too uneven across emulators for holding a key to feel like anything. Every
-fifth wave a **rival** turns up: one of the forty-one forms you are not, drawn
-with its own sprite and firing the kit that form would fly. There is no last
-wave; a run ends when the swarm outgrows your kit, and the record is how far you
-got.
+You move and you shoot, and **only two of your shots may be in the air at once** -
+so a miss costs you the time it takes to reach the top. The swarm walks sideways,
+steps down at the walls and comes down faster as you empty it. Bombs cost you
+life; the block landing on you ends the run.
+
+The forty enemies and the thirty-five bosses come off the design canvas, in eight
+stages and five ranks. A wave mixes the stages up to the one it has reached,
+deepest row on top, and it is the same line-up every time you reach it. Every
+fifth wave a boss, climbing the ranks as the stages climb.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
 a second and cannot read a keypress. Inside tmux, `ccpet invade --split` opens it
@@ -327,9 +339,9 @@ are no longer read, and are now `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
   what is not, and why `pet.json` is the same file in both
 - [runtime.md](docs/design/runtime.md) — why Go, where the time goes, the
   `pet.json` lock and why the binaries are in the repo
-- [invaders.md](docs/design/invaders.md) — `ccpet invade`: why the ship is the
-  creature you already have, one kit per form, thirty-five enemies composed from
-  seven bodies and five traits, and the one rule the game breaks
+- [invaders.md](docs/design/invaders.md) — `ccpet invade`: why the cannon is the
+  creature you already have, one kit per form, the seventy-five sprites off the
+  canvas, and the one rule the game breaks
 - [audit-log.md](docs/audit-log.md) — history: the audit of the Python version
 - [thresholds.md](docs/design/thresholds.md) — **unimplemented**: the design
   canvas's 97-form tree, why its rule puts 27 of the 42 marks out of reach, and
