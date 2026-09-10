@@ -130,15 +130,18 @@ Measured with the autopilot, which is a poor player on purpose - it does not
 dodge, it does not pick off what is about to land, and it spends its ability the
 moment it is ready:
 
-| form | level | waves reached |
-| --- | --- | --- |
-| `spark` | 1 | 5 |
-| `pattern` | 2 | 5 |
-| `bughunter` | 4 | 12-13 |
-| `architect` | 4 | 15-18 |
-| `marathon` | 5 | 13-14 |
-| `wasp` | 6 | 13-18 |
-| `leviathan` | 6 | 22-23 |
+| form | level | waves reached | minutes |
+| --- | --- | --- | --- |
+| `spark` | 1 | 9 | 4:25 |
+| `bughunter` | 4 | 20 | 8:00 |
+| `architect` | 4 | 23 | 8:47 |
+| `wasp` | 6 | 28 | 9:21 |
+| `leviathan` | 6 | 29 | 9:15 |
+
+Measured again after the frame rate doubled and the ship's speed with it; before
+that the same pilot reached 5, 13, 18, 18 and 23. Half of what a pilot with one
+gun does is line up, so a ship that strafes twice as fast is a pilot that hits
+twice as often.
 
 Two things to read off that table. The pet's level is worth roughly four waves a
 rung, which is what makes feeding it worth doing; and the first boss is a real
@@ -149,8 +152,8 @@ gate at level one, which is intended - a larva is meant to lose to it.
 Something has to make a press cost something, or the game is a hose.
 
 The arcade's answer was **one shot on the screen at a time**: miss, and you wait
-for it to reach the top. This had it as two - fifty milliseconds a frame makes one
-feel like lag rather than like discipline - counted in projectiles so that a
+for it to reach the top. This had it as two - a frame is twenty-five milliseconds,
+and one shot on screen feels like lag rather than like discipline - counted in projectiles so that a
 seven-shot volley still fits.
 
 The reference's answer is a **magazine**, and for a fleet it is the better one.
@@ -299,60 +302,73 @@ The other half is still tested from the outside:
 `TestAShotHitsTheShipItPassesThrough` fires at every one of the ten and fails if
 any of them can be shot through.
 
-## Moving and firing at once, which a terminal does not want to allow
+## Holding an arrow, which took three goes
 
-The creature **latches**: an arrow sets it going and it keeps going until you
-point it the other way or press down to stop.
+A terminal has no key-up event. Nothing in the stream says a key was released,
+and nothing says two keys are down at once. What it does have is the operating
+system's **autorepeat**: while a key is held, the same byte sequence arrives over
+and over. So "holding" is a stream of presses and "letting go" is that stream
+stopping, and every version of this has been an argument about how to read that.
 
-This is not how the cabinet felt and it is the only thing that works. A terminal
-has no key-up event and no way to say two keys are down at once. Hold left and
-the operating system streams left; press fire and it starts repeating *that*
-instead, and the left never comes back until you let go and press it again. So
-the first version stopped dead the moment you shot.
+**One: momentum.** Keep sliding for three tenths of a second after the last
+arrow. It fails the moment you hold the fire key, because X repeats only the most
+recently pressed key: the arrow's stream stops, the slide runs out, and the ship
+halts. Reported twice, from play, before the shape of the problem was clear.
 
-Momentum was tried next - keep sliding for three tenths of a second after the
-last arrow - and it is not enough either: hold the fire key and you coast to a
-halt just the same. Reported twice, from actual play, before the shape of the
-problem was clear.
+**Two: latching.** One press sets the ship going and it keeps going until you
+point it the other way or press the brake. Perfectly smooth, needs no autorepeat
+at all, survives anything the keyboard does - and it is not what an arrow key
+means. *"Presionar una flecha y que vaya solo: es que esto no lo quiero."*
 
-Latching costs precision, so there is a brake, and a wall is a stop - leaving the
-ship latched against one would mean the next key you press is a key you did not
-know you had to press. And draining the key channel prefers an action over a
-direction, for the same reason: a dropped direction costs nothing because the
-latch carries it, while a dropped shot is a press the game ignored.
+**Three: a tap is a tap, a hold glides.** What is running now:
 
-### Two axes, and where the brake went
+| | |
+| --- | --- |
+| one press | exactly one cell, and it stays there |
+| a press while the last one is still recent (≤ 8 ticks) | the key is being held: start the glide |
+| every press in the stream | refresh the leash to twice the gap it just measured, 2..8 ticks |
+| the stream stops | the leash runs out and the ship stops, within a frame or two |
 
-The ship moves up and down as well now, and each axis latches on its own: press
-left, press up, and it goes up and left until you say otherwise. That is the only
-way a diagonal exists at all down a pipe that reports one key at a time.
+The leash is measured rather than fixed because desktops repeat at anything from
+ten a second to fifty, and a fixed leash is either a stutter on the slow ones or a
+skid on the fast ones. At this desktop's 33 a second it is two ticks, which is
+fifty milliseconds of glide after the last press: two columns.
 
-The brake used to be the down arrow - the one arrow a ship on the floor had no
-use for. It cannot be that any more, so it is `s`, which is the single key where
-the two sets people already have in their fingers disagree: wasd wants it for
-down, hjkl has nothing there. Down is the arrow and `j`, up is the arrow and `w`
-and `k`, and `s` stops both axes at once.
+### The half-second nobody could play through
 
-Climbing is three times slower than strafing. A terminal cell is about twice as
-tall as it is wide, so a row a tick reads as roughly double the speed of a column
-a tick, and at the same cadence the ship crossed its half of the field before you
-could let go of the key.
+That left one thing, and it was the whole of what "va a tirones" meant. X's
+default autorepeat **delay** is 500ms - `xset q` says so - so holding an arrow
+gave one column, half a second of nothing, and then a smooth glide. The tap and
+the hold were both right; the gap between them was unplayable.
 
-**Half the field, not all of it.** `Field.ShipRoof` is `Rows/2`. The reference
-gives its player the whole screen and can afford to, because its enemies come
-from everywhere; ours all spawn on row zero and come down, so a ship that could
-reach the top would sit on the spawn line and shoot each one before it had drawn a
-frame. That is not a harder game or an easier one - it is a game with no descent
-in it. Half is nine rows in an eighty-by-twenty-four terminal: room to climb over
-a bomb, to meet something before it reaches the floor, or to back away from a
-boss.
+So the game borrows the setting: `xset r rate 80 40` while it has the focus, and
+the desktop's own numbers back the moment it loses it. Which is why the alternate
+screen also turns on **focus reporting** (`CSI ?1004h`): the terminal then sends
+`CSI I` when the window is focused and `CSI O` when it is not, `loop` takes those
+out of the key stream before the tick ever sees them - the tick has no idea what a
+window is - and hands them to `keyboard.quicken` and `keyboard.restore`.
 
-Three things had to follow the ship up: the hitbox, the muzzle and the ram. The
-first two are the same expression with `g.Row` in place of the floor. The third is
-new - flying into one of theirs now costs the two life a landing on your head used
-to, wherever on the field you did it - and it is what stops climbing from being a
-way of taking the fleet out of play. Turrets keep the row they were dropped at,
-because a turret that followed the ship would not be a turret.
+Scoping it to the focus is not politeness, it is the difference between a usable
+feature and one that has to be reverted: the arena runs the game while you work,
+and a desktop-wide 80ms repeat delay would follow you into the editor you alt-tab
+to. Every path out restores it - a quit, a signal, the window being closed
+(SIGHUP is caught for exactly this), a panic in the tick - and it does nothing at
+all where there is no `DISPLAY`, no `xset`, or a `CCPET_NO_XSET` in the
+environment. There it degrades to whatever the desktop is set to: the tap still
+taps and the hold still glides, with a pause before the glide starts.
+
+### What is still the terminal's fault
+
+X repeats the most recently pressed key and only that one, so **holding** fire
+while holding an arrow starves the arrow's stream and the ship coasts to a stop.
+Tapping fire does not: the leash covers the gaps between taps, which is what
+`TestFiringNeverStopsYouMoving` drives - one tick of arrow, one of fire, a hundred
+and twenty times, and the ship has to have crossed twenty columns with shots in
+the air.
+
+A wall is a stop, and the brake (`s`) is kept even though letting go now stops
+you: a stream that jams, or a terminal that repeats a key after it was released,
+is otherwise a ship nobody can park.
 
 ## The bosses climb with the stages
 
@@ -443,7 +459,7 @@ panel's lookup instead.
 `Tick(g Game, in Key) Game` takes a value and returns one. No terminal, no files,
 no clock, and no `pet.json`: a run does cost a level, but that happens once, in
 `run.go`, when the run is over. A tick that could reach the pet would punish it
-twenty times a second. A source scan asserts it.
+forty times a second. A source scan asserts it.
 
 Randomness is splitmix64 over a `uint64` in the state rather than `math/rand`,
 because a `*rand.Rand` is a pointer to mutable state and two copies of a game
@@ -596,19 +612,60 @@ reader tolerates a budget of empty reads before it gives up, so getting the
 termios wrong again is a game that keeps playing rather than one nobody can
 steer. And both are regression tests that fail against the old code.
 
+## Forty frames a second, and what that cost
+
+It ran at twenty. From the outside: *"va a tirones cada vez que se mueve"* - it
+lurches every time it moves.
+
+Twenty a second is fifty milliseconds a frame, and in a character grid a thing
+that moves slowly does not move smoothly: position is quantised to whole cells, so
+a ship falling at one row a second changes row once every twenty frames and the
+eye reads a slideshow. There is no sub-cell to interpolate into. Two things fix
+it, and only two: draw more often, and move faster.
+
+Both were done. `TicksPerSecond` is forty, and a gliding ship is a **column a
+tick** - forty columns a second, eighty of them crossed in two seconds - which is
+as smooth as a grid can be, because the position changes on every frame that is
+drawn. It was a column every other frame before, and worse than that in the code:
+the wait was decremented and then tested in the same tick, so a wait of one never
+waited at all and the constant said something the game did not do.
+
+Doubling the frame rate meant halving every distance-per-tick and doubling every
+count-of-ticks in the package, in one commit, because a tick is the only clock
+this game has:
+
+| | at 20/s | at 40/s |
+| --- | --- | --- |
+| shot | 1.1 rows a tick | 0.55 |
+| bomb | 0.42 | 0.21 |
+| the fleet's fall | 0.04 - 0.13 | 0.02 - 0.065 |
+| a gun's cadence | 8 - 20 ticks | 16 - 40 |
+| a wave's releases | every 12 - 60 | 24 - 120 |
+| a boss's step down | every 90 | 180 |
+
+What did NOT scale is the ship, deliberately: it went from twenty columns a second
+to forty. That is a real change to the difficulty and it shows - the autopilot
+gets four to eleven waves further than it did, because lining up is half of what
+it does. The table above the fleet's arithmetic has the new numbers.
+
+The vertical is ten rows a second and not forty. A row reads as twice the distance
+of a column, the ship's half of the field is nine rows against forty-odd columns,
+and at a row a tick it crossed the whole of it before a finger could leave the key.
+It is the one axis where precision beats smoothness.
+
 ## Drawing
 
 Full-frame repaint, one buffer, one flush, one write. Cursor home and an
 erase-to-end on every row, never `\033[2J` - that is the flash. The
 synchronised-output pair around it is ignored by terminals that lack it. No
-diffing: sixty by eighteen is about ten kilobytes a frame and two hundred a
-second, which is nothing, and a shadow buffer buys a whole class of stale-cell
+diffing: sixty by eighteen is about ten kilobytes a frame and four hundred a
+second at forty frames, which is still nothing on a local terminal, and a shadow buffer buys a whole class of stale-cell
 bugs for no measurable gain.
 
 Colour is emitted per RUN and not per cell. A sky of forty stars is one colour and
-forty glyphs; wrapping each of them cost about ten kilobytes a frame and two
-hundred a second, which is fine on a local terminal and is not fine down an ssh
-connection.
+forty glyphs; wrapping each of them would double the frame, and at forty frames a
+second that is the difference between fine on a local terminal and not fine down
+an ssh connection.
 
 The alternate screen and the cursor come back on every path, including a panic
 and a signal. A game that leaves your terminal with no cursor is worse than one

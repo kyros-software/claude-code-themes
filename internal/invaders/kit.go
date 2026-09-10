@@ -50,6 +50,11 @@ type Kit struct {
 	Reload int // ticks to fill it
 }
 
+// minCadence is the fastest any gun may fire: one shot every four ticks, which
+// is ten a second. Any lower and a magazine is gone before a finger has left the
+// key.
+const minCadence = 4
+
 // The abilities. Every kit has one, because the space bar is the only thing the
 // player times and a form that ignores it is a form that plays itself.
 const (
@@ -73,25 +78,25 @@ const (
 // first draft subtracted, and a bolt at level 6 came out identical to a bare
 // sprinter because both had hit the floor.
 var families = map[string]Kit{
-	pet.Root:    {Family: "single", Cadence: 14, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 100, MaxHP: 8, Regen: 1},
-	"pattern":   {Family: "steady", Cadence: 18, Damage: 3, Shots: 1, Special: AbilityVolley, Cooldown: 100, MaxHP: 10, Regen: 1},
-	"probe":     {Family: "seeker", Cadence: 15, Damage: 1, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 100, MaxHP: 9, Regen: 1},
-	"ember":     {Family: "rapid", Cadence: 9, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 100, MaxHP: 8, Regen: 1},
-	"refactor":  {Family: "twin", Cadence: 16, Damage: 2, Shots: 2, Special: AbilityVolley, Cooldown: 100, MaxHP: 10, Regen: 1},
-	"tidy":      {Family: "sweep", Cadence: 17, Damage: 2, Shots: 1, Special: AbilitySweep, Cooldown: 120, MaxHP: 11, Regen: 2},
-	"bughunter": {Family: "homing", Cadence: 15, Damage: 2, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 100, MaxHP: 10, Regen: 1},
-	"architect": {Family: "turret", Cadence: 17, Damage: 2, Shots: 1, Special: AbilityTurret, Cooldown: 140, MaxHP: 11, Regen: 1},
-	"sprinter":  {Family: "burst", Cadence: 8, Damage: 1, Shots: 2, Special: AbilityVolley, Cooldown: 90, MaxHP: 8, Regen: 1},
-	"marathon":  {Family: "cannon", Cadence: 20, Damage: 3, Shots: 1, Pierce: 3, Special: AbilityVolley, Cooldown: 110, MaxHP: 12, Regen: 2},
-	"feral":     {Family: "overload", Cadence: 12, Damage: 2, Shots: 1, Overload: true, Special: AbilityVolley, Cooldown: 100, MaxHP: 9},
+	pet.Root:    {Family: "single", Cadence: 28, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 8, Regen: 1},
+	"pattern":   {Family: "steady", Cadence: 36, Damage: 3, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
+	"probe":     {Family: "seeker", Cadence: 30, Damage: 1, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 9, Regen: 1},
+	"ember":     {Family: "rapid", Cadence: 18, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 8, Regen: 1},
+	"refactor":  {Family: "twin", Cadence: 32, Damage: 2, Shots: 2, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
+	"tidy":      {Family: "sweep", Cadence: 34, Damage: 2, Shots: 1, Special: AbilitySweep, Cooldown: 240, MaxHP: 11, Regen: 2},
+	"bughunter": {Family: "homing", Cadence: 30, Damage: 2, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
+	"architect": {Family: "turret", Cadence: 34, Damage: 2, Shots: 1, Special: AbilityTurret, Cooldown: 280, MaxHP: 11, Regen: 1},
+	"sprinter":  {Family: "burst", Cadence: 16, Damage: 1, Shots: 2, Special: AbilityVolley, Cooldown: 180, MaxHP: 8, Regen: 1},
+	"marathon":  {Family: "cannon", Cadence: 40, Damage: 3, Shots: 1, Pierce: 3, Special: AbilityVolley, Cooldown: 220, MaxHP: 12, Regen: 2},
+	"feral":     {Family: "overload", Cadence: 24, Damage: 2, Shots: 1, Overload: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 9},
 
 	// The two that are not on the tree. A phoenix gets the revival its name is
 	// for; a chimera carries both of its parents' families at once, which is
 	// exactly what a chimera is - and since it has no Parent entry the pair is
 	// written down here rather than read off the pet: twin, from the most
 	// disciplined branch, welded to overload from the least.
-	"phoenix": {Family: "phoenix", Cadence: 13, Damage: 3, Shots: 2, Pierce: 1, Homing: true, Revive: true, Special: AbilityBlast, Cooldown: 200, MaxHP: 10, Regen: 2},
-	"chimera": {Family: "chimera", Cadence: 14, Damage: 3, Shots: 2, Overload: true, Special: AbilityChimera, Cooldown: 90, MaxHP: 10, Regen: 1},
+	"phoenix": {Family: "phoenix", Cadence: 26, Damage: 3, Shots: 2, Pierce: 1, Homing: true, Revive: true, Special: AbilityBlast, Cooldown: 400, MaxHP: 10, Regen: 2},
+	"chimera": {Family: "chimera", Cadence: 28, Damage: 3, Shots: 2, Overload: true, Special: AbilityChimera, Cooldown: 180, MaxHP: 10, Regen: 1},
 }
 
 // marks is one modifier per mark, applied to whatever family it hangs off. The
@@ -232,8 +237,8 @@ func down(n int) int {
 func scale(k Kit, level int) Kit {
 	k.Damage += level
 	k.Cadence = k.Cadence * (12 - level) / 12
-	if k.Cadence < 2 {
-		k.Cadence = 2
+	if k.Cadence < minCadence {
+		k.Cadence = minCadence
 	}
 	if level >= 4 {
 		k.Shots++
@@ -263,7 +268,7 @@ func scale(k Kit, level int) Kit {
 	// magazine than the level below it. Six times the cadence has neither
 	// problem - it falls with the cadence and it does not depend on the
 	// capacity, so more rounds is always more rounds.
-	k.Reload = clamp(6*k.Cadence, 20, 70)
+	k.Reload = clamp(6*k.Cadence, 40, 140)
 	return k
 }
 

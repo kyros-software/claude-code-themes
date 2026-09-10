@@ -58,34 +58,34 @@ type Craft struct {
 // colours, except now the shapes change too.
 var Fleet = []Craft{
 	{Name: "zángano", Desc: "el que llega primero, y el que menos vale", Stage: 1,
-		W: 3, H: 2, HP: 1, Fall: 0.06, Drift: 0.12, Cadence: 90, Points: 10,
+		W: 3, H: 2, HP: 1, Fall: 0.03, Drift: 0.06, Cadence: 180, Points: 10,
 		Rows: []string{"_^_", "<o>"}},
 	{Name: "avispa", Desc: "rápida de lado, no aguanta nada", Stage: 1,
-		W: 5, H: 2, HP: 1, Fall: 0.09, Drift: 0.25, Cadence: 80, Points: 15,
+		W: 5, H: 2, HP: 1, Fall: 0.045, Drift: 0.125, Cadence: 160, Points: 15,
 		Rows: []string{"\\_ _/", "<ooo>"}},
 	{Name: "lanza", Desc: "baja recta y deprisa", Stage: 2,
-		W: 3, H: 3, HP: 2, Fall: 0.13, Drift: 0.04, Cadence: 70, Points: 20,
+		W: 3, H: 3, HP: 2, Fall: 0.065, Drift: 0.02, Cadence: 140, Points: 20,
 		Rows: []string{" ^ ", "/o\\", " v "}},
 	{Name: "arpía", Desc: "cruza mientras cae", Stage: 3,
-		W: 5, H: 3, HP: 2, Fall: 0.07, Drift: 0.30, Cadence: 60, Points: 25,
+		W: 5, H: 3, HP: 2, Fall: 0.035, Drift: 0.15, Cadence: 120, Points: 25,
 		Rows: []string{" ^^^ ", "<-o->", " v v "}},
 	{Name: "tejedora", Desc: "la que no está donde apuntaste", Stage: 4,
-		W: 5, H: 3, HP: 3, Fall: 0.06, Drift: 0.36, Cadence: 65, Points: 30,
+		W: 5, H: 3, HP: 3, Fall: 0.03, Drift: 0.18, Cadence: 130, Points: 30,
 		Rows: []string{"/\\ /\\", "(-o-)", "\\/ \\/"}},
 	{Name: "cazador", Desc: "dispara más que ninguno de su tamaño", Stage: 5,
-		W: 7, H: 3, HP: 3, Fall: 0.08, Drift: 0.20, Cadence: 50, Points: 35,
+		W: 7, H: 3, HP: 3, Fall: 0.04, Drift: 0.1, Cadence: 100, Points: 35,
 		Rows: []string{"\\__ __/", "-<ooo>-", "/  v  \\"}},
 	{Name: "yunque", Desc: "lento y duro: hay que dedicarle tiempo", Stage: 5,
-		W: 7, H: 3, HP: 5, Fall: 0.04, Drift: 0.10, Cadence: 75, Points: 40,
+		W: 7, H: 3, HP: 5, Fall: 0.02, Drift: 0.05, Cadence: 150, Points: 40,
 		Rows: []string{".-----.", "|o-o-o|", "'--v--'"}},
 	{Name: "mantis", Desc: "cae a plomo y dispara al caer", Stage: 6,
-		W: 5, H: 4, HP: 5, Fall: 0.10, Drift: 0.22, Cadence: 45, Points: 45,
+		W: 5, H: 4, HP: 5, Fall: 0.05, Drift: 0.11, Cadence: 90, Points: 45,
 		Rows: []string{" ^ ^ ", "\\o o/", " \\_/ ", "  v  "}},
 	{Name: "coraza", Desc: "seis impactos, y ni se despeina", Stage: 7,
-		W: 7, H: 4, HP: 6, Fall: 0.05, Drift: 0.12, Cadence: 55, Points: 55,
+		W: 7, H: 4, HP: 6, Fall: 0.025, Drift: 0.06, Cadence: 110, Points: 55,
 		Rows: []string{"___ ___", "[o-o-o]", "'-|-|-'", "  v v  "}},
 	{Name: "abisal", Desc: "el más grande que no es un jefe", Stage: 8,
-		W: 9, H: 4, HP: 8, Fall: 0.04, Drift: 0.16, Cadence: 40, Points: 80,
+		W: 9, H: 4, HP: 8, Fall: 0.02, Drift: 0.08, Cadence: 80, Points: 80,
 		Rows: []string{"/^\\   /^\\", "<-o---o->", " \\_|_|_/ ", "   v v   "}},
 }
 
@@ -97,7 +97,7 @@ var Fleet = []Craft{
 // field that is not on anybody's side.
 var Rock = Craft{
 	Name: "roca", Desc: "no dispara, pero al romperse reparte",
-	W: 5, H: 3, HP: 4, Fall: 0.05, Drift: 0.08, Points: 25,
+	W: 5, H: 3, HP: 4, Fall: 0.025, Drift: 0.04, Points: 25,
 	Rows: []string{" .-. ", "(o o)", " '-' "},
 }
 

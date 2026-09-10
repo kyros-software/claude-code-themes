@@ -29,6 +29,11 @@ const (
 	Three
 	Pause
 	Quit
+	// The terminal's own two: the window took or lost the focus. They never
+	// reach the tick - loop takes them out of the stream - because what they
+	// steer is the keyboard's autorepeat and not the ship. See keyboard.go.
+	FocusIn
+	FocusOut
 )
 
 // Phase is what the run is doing.
@@ -46,17 +51,47 @@ const (
 )
 
 const (
-	// moveWait is ticks between one column of movement and the next, and
-	// climbWait ticks between one row and the next.
+	// streamFor is how long a direction keeps going on its own after a keypress,
+	// in ticks, and repeatWindow is how close together two presses have to be to
+	// count as one key being held down.
 	//
-	// Climbing is three times slower on purpose. A terminal cell is about twice
-	// as tall as it is wide, so a row a tick reads as roughly twice the speed of
-	// a column a tick, and at the same cadence the ship crossed its own half of
-	// the field vertically before you could let go of the key. It also keeps the
-	// vertical a considered move rather than a twitch: the field is nine rows
-	// tall for you and forty-odd columns wide.
-	moveWait  = 1
-	climbWait = 3
+	// This is what "hold the arrow" means in a terminal, and it is worth being
+	// exact about because the first version was wrong. A terminal is never told
+	// that a key went UP: what arrives while you hold one is the operating
+	// system's autorepeat, a stream of presses. So a press on its own moves ONE
+	// cell and stops - a tap is a tap - and a press that arrives while the last
+	// one is still recent is a key being held, which starts the glide. The glide
+	// is on a short leash refreshed by every press in the stream, so it ends
+	// within a couple of frames of you letting go.
+	//
+	// The leash is twice the gap it just measured, between two and eight ticks,
+	// rather than a fixed number: desktops repeat at anything from ten to fifty a
+	// second and a fixed leash is either a stutter on the slow ones or a skid on
+	// the fast ones.
+	//
+	// The version before this LATCHED - one press and it went until you said
+	// otherwise - which is smooth, needs no autorepeat at all, and is not what
+	// anybody expects from an arrow key.
+	streamFor    = 2
+	streamMax    = 8
+	repeatWindow = 8
+
+	// moveEvery and climbEvery are TICKS PER CELL: one column every tick, one row
+	// every four.
+	//
+	// A column a tick is as smooth as a character grid can be - the position
+	// changes on every frame that is drawn - and at forty a second it crosses
+	// eighty columns in two seconds, which is a shooter rather than a barge. It
+	// used to be a column every other frame and it was the first thing that
+	// looked wrong from the outside.
+	//
+	// Climbing is four times slower, which is ten rows a second. A terminal cell
+	// is about twice as tall as it is wide, so a row reads as twice the distance
+	// of a column, and the field is nine rows tall for the ship against forty-odd
+	// columns wide: the same cadence on both axes had the ship crossing its own
+	// half of the field before you could let go of the key.
+	moveEvery  = 1
+	climbEvery = 4
 
 	// The ship LATCHES: an arrow sets it going and it keeps going until you
 	// point it the other way or tell it to stop.
@@ -71,18 +106,19 @@ const (
 	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a good
 	// margin: you are meant to be able to shoot your way out of one.
 	//
-	// A shot crosses more than a row a tick, which used to mean it could step
-	// clean over a one-row target - the bug that made the top row of the old
-	// block unkillable. It cannot happen to a fleet: every craft in it is at
-	// least two rows tall, so a step of 1.1 always lands inside one.
-	shotSpeed = 1.1
-	bombSpeed = 0.42
+	// A shot crosses half a row a tick and a bomb a fifth of one, which is what
+	// forty frames a second bought: the same speed through the air in steps half
+	// as big. Nothing in the fleet is under two rows tall, so a shot still cannot
+	// step clean over one - the bug that made the top row of the old block
+	// unkillable.
+	shotSpeed = 0.55
+	bombSpeed = 0.21
 
-	clearedFor = 40
-	invulnFor  = 50
+	clearedFor = 80
+	invulnFor  = 100
 
-	turretLife    = 240
-	turretCadence = 14
+	turretLife    = 480
+	turretCadence = 28
 
 	sweepDamage = 8
 
@@ -102,8 +138,8 @@ const (
 
 	// sparkLife is an explosion, moteLife a meteoroid: one is decoration and
 	// gone in half a second, the other crosses the field hurting things.
-	sparkLife = 8
-	moteLife  = 30
+	sparkLife = 16
+	moteLife  = 60
 
 	// upStep is the score between one level-up offer and the next, and it grows
 	// with the number already taken.
@@ -152,6 +188,66 @@ type Alien struct {
 	Vx        float64
 	HP, MaxHP int
 	Fire      int
+}
+
+// Axis is one direction of travel under a key that may or may not still be down.
+type Axis struct {
+	// Way is the way the last press pointed, and so the way it is travelling
+	// while Hold lasts. It outlives the glide on purpose: it is what tells the
+	// next press whether it is the same key repeating or a new tap.
+	Way   int // -1, 0 or 1
+	Hold  int // ticks it may keep going without another press
+	Since int // ticks since the last press, capped
+	Wait  int // ticks until the next cell, which is what sets the speed
+}
+
+// Moving says whether this axis is carrying the ship along right now, which is
+// not the same as which way it last pointed.
+func (a Axis) Moving() bool { return a.Way != 0 && a.Hold > 0 }
+
+// press is a key arriving on this axis: a tap if the last one was long ago, a
+// repeat - and so a key being held - if it was not.
+func (a Axis) press(way, every int) Axis {
+	repeat := a.Way == way && a.Since <= repeatWindow
+	a.Way = way
+	if repeat {
+		a.Hold = clamp(2*a.Since, streamFor, streamMax)
+	} else {
+		// A tap: one cell, now, and then nothing until another press.
+		a.Hold = 0
+		a.Wait = 0
+	}
+	a.Since = 0
+	return a
+}
+
+// tick is a frame going by with no key on this axis.
+func (a Axis) tick() Axis {
+	if a.Since < repeatWindow+1 {
+		a.Since++
+	}
+	if a.Hold > 0 {
+		a.Hold--
+	}
+	if a.Wait > 0 {
+		a.Wait--
+	}
+	return a
+}
+
+// steps says whether the ship moves this tick, and takes the step.
+func (a Axis) steps(every int) (Axis, bool) {
+	if a.Way == 0 || a.Wait > 0 {
+		return a, false
+	}
+	a.Wait = every - 1
+	return a, true
+}
+
+// stop is the brake, and a wall.
+func (a Axis) stop() Axis {
+	a.Way, a.Hold = 0, 0
+	return a
 }
 
 // Craft is the kind of ship this is.
@@ -209,20 +305,22 @@ type Game struct {
 	Frame int
 	Rand  uint64
 
-	Ship      int // the leftmost column of the ship
-	Row       int // the top row of the ship: the floor to start with, and up to Field.ShipRoof
-	MoveWait  int
-	ClimbWait int
-	Drift     int // -1, 0 or 1: the way it is going sideways, until told otherwise
-	Climb     int // the same for up and down
-	HP        int
-	Ammo      int // rounds in the magazine
-	Loading   int // ticks left of a reload, 0 when loaded
-	Cool      int // ticks until the gun may fire again
-	Ready     int // ticks until the ability is ready; 0 is ready
-	Invuln    int
-	Revived   bool
-	Kits      int // health kits in the hold
+	Ship int // the leftmost column of the ship
+	Row  int // the top row of the ship: the floor to start with, and up to Field.ShipRoof
+
+	// The two axes. Each one remembers which way it is going, how long it may
+	// keep going without another press, and how long since the last one - which
+	// is what tells a tap from a key being held.
+	Side    Axis
+	Rise    Axis
+	HP      int
+	Ammo    int // rounds in the magazine
+	Loading int // ticks left of a reload, 0 when loaded
+	Cool    int // ticks until the gun may fire again
+	Ready   int // ticks until the ability is ready; 0 is ready
+	Invuln  int
+	Revived bool
+	Kits    int // health kits in the hold
 
 	Score int
 	Kills int
@@ -328,7 +426,7 @@ func sky(f Field, rand *uint64) []Star {
 		stars = append(stars, Star{
 			X: float64(roll(rand, f.Cols)),
 			Y: float64(roll(rand, f.Rows)),
-			V: []float64{0.06, 0.14, 0.26}[roll(rand, 3)],
+			V: []float64{0.03, 0.07, 0.13}[roll(rand, 3)],
 		})
 	}
 	return stars
@@ -521,58 +619,76 @@ func (g Game) offerUpgrade() Game {
 	return g
 }
 
-// moveShip steers both axes. Each one latches on its own and the brake stops
-// both, which is what makes a diagonal possible at all down a pipe that reports
-// one key at a time: press left, press up, and the ship is going up and left
-// until you say otherwise.
+// moveShip steers both axes: a press moves one cell, a key held down glides, and
+// letting go stops within a frame or two.
 //
-// The brake used to be the down arrow, and it cannot be any more. It is `s` now -
-// and `s` rather than a letter nobody would guess because the two things a
-// terminal offers are the arrows and the two key sets people already have in
-// their fingers, wasd and hjkl, which disagree about `s` and agree about
-// everything else.
+// It reads a stream of presses and never a release, because a terminal has no
+// such thing. See the comment on streamFor for what that costs and why the glide
+// is on a leash rather than latched.
 func (g Game) moveShip(in Key) Game {
 	switch in {
 	case Left:
-		g.Drift = -1
+		g.Side = g.Side.press(-1, moveEvery)
 	case Right:
-		g.Drift = 1
+		g.Side = g.Side.press(1, moveEvery)
 	case Up:
-		g.Climb = -1
+		g.Rise = g.Rise.press(-1, climbEvery)
 	case Down:
-		g.Climb = 1
+		g.Rise = g.Rise.press(1, climbEvery)
 	case Stop:
-		g.Drift, g.Climb = 0, 0
+		g.Side, g.Rise = g.Side.stop(), g.Rise.stop()
 	}
 
-	if g.MoveWait > 0 {
-		g.MoveWait--
+	// The frame goes by for whichever axis this key was not.
+	if in != Left && in != Right {
+		g.Side = g.Side.tick()
 	}
-	if g.ClimbWait > 0 {
-		g.ClimbWait--
+	if in != Up && in != Down {
+		g.Rise = g.Rise.tick()
+	}
+	// And a key that arrived spends its own tick too, once the press has been
+	// read: the wait between cells is a wait either way.
+	if in == Left || in == Right {
+		g.Side.Wait = spend(g.Side.Wait)
+	}
+	if in == Up || in == Down {
+		g.Rise.Wait = spend(g.Rise.Wait)
 	}
 
-	if g.Drift != 0 && g.MoveWait == 0 {
-		next := g.Ship + g.Drift
+	if moved, step := g.Side.steps(moveEvery); step && g.holding(g.Side, in, Left, Right) {
+		next := g.Ship + moved.Way
 		if next < 0 || next > g.Field.ShipColMax() {
 			// A wall is a stop. Leaving it pressed against one would mean the
 			// next thing you press is a key you did not know you had to press.
-			g.Drift = 0
+			g.Side = g.Side.stop()
 		} else {
 			g.Ship = next
-			g.MoveWait = moveWait
+			g.Side = moved
 		}
 	}
-	if g.Climb != 0 && g.ClimbWait == 0 {
-		next := g.Row + g.Climb
+	if moved, step := g.Rise.steps(climbEvery); step && g.holding(g.Rise, in, Up, Down) {
+		next := g.Row + moved.Way
 		if next < g.Field.ShipRoof() || next > g.Field.ShipRow() {
-			g.Climb = 0
+			g.Rise = g.Rise.stop()
 		} else {
 			g.Row = next
-			g.ClimbWait = climbWait
+			g.Rise = moved
 		}
 	}
 	return g
+}
+
+// holding says whether an axis may move this tick: because a key for it just
+// arrived, or because it is still inside the leash a held key left it.
+func (g Game) holding(a Axis, in, low, high Key) bool {
+	return in == low || in == high || a.Hold > 0
+}
+
+func spend(wait int) int {
+	if wait > 0 {
+		return wait - 1
+	}
+	return 0
 }
 
 // tickWeapon is the gun: a magazine, a cadence and a reload.
@@ -988,7 +1104,7 @@ func (g Game) moveBoss() Game {
 	if !g.Boss.Alive {
 		return g
 	}
-	speed := 0.25 + 0.35*float64(g.Boss.MaxHP-g.Boss.HP)/float64(max(g.Boss.MaxHP, 1))
+	speed := 0.125 + 0.175*float64(g.Boss.MaxHP-g.Boss.HP)/float64(max(g.Boss.MaxHP, 1))
 	g.Boss.X += speed * float64(g.Boss.Dir)
 	if g.Boss.X < 0 {
 		g.Boss.X, g.Boss.Dir = 0, 1
@@ -997,14 +1113,14 @@ func (g Game) moveBoss() Game {
 		g.Boss.X, g.Boss.Dir = float64(g.Field.Cols-BossCols), -1
 	}
 	// It leans down as it is worn, so a long fight is a closing one.
-	if g.Frame%90 == 0 && int(g.Boss.Y)+BossRows < g.Field.Rows-1 {
+	if g.Frame%180 == 0 && int(g.Boss.Y)+BossRows < g.Field.Rows-1 {
 		g.Boss.Y++
 	}
 	if g.Boss.Fire > 0 {
 		g.Boss.Fire--
 		return g
 	}
-	g.Boss.Fire = clamp(40-g.Wave.N/2, 8, 60)
+	g.Boss.Fire = clamp(80-g.Wave.N, 16, 120)
 	bombs := append([]Bomb{}, g.Bombs...)
 	for _, dx := range [3]float64{1, BossCols / 2, BossCols - 2} {
 		bombs = append(bombs, Bomb{X: g.Boss.X + dx, Y: g.Boss.Y + BossRows, Hurt: bossDrop})
@@ -1074,7 +1190,7 @@ func (g Game) moveMotes() Game {
 func (g Game) moveDrops() Game {
 	next := make([]Drop, 0, len(g.Drops))
 	for _, d := range g.Drops {
-		d.Y += 0.12
+		d.Y += 0.06
 		if d.Y >= float64(g.Field.Rows) {
 			continue
 		}
@@ -1285,8 +1401,8 @@ func (g Game) burst(x, y float64, hurt int) Game {
 	for i := 0; i < n; i++ {
 		motes = append(motes, Mote{
 			X: x, Y: y,
-			Vx:   (float64(roll(&g.Rand, 9)) - 4) / 10,
-			Vy:   (float64(roll(&g.Rand, 9)) - 4) / 10,
+			Vx:   (float64(roll(&g.Rand, 9)) - 4) / 20,
+			Vy:   (float64(roll(&g.Rand, 9)) - 4) / 20,
 			Life: life - roll(&g.Rand, 3),
 			Hurt: hurt,
 		})

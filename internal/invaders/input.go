@@ -31,6 +31,12 @@ func Decode(buf []byte) (k Key, n int) {
 			return Down, 3
 		case 'A':
 			return Up, 3
+		case 'I':
+			// The window took the focus, and the terminal is telling us because
+			// run.go asked it to. It is not a key and it never reaches the tick.
+			return FocusIn, 3
+		case 'O':
+			return FocusOut, 3
 		}
 		return None, 3
 	case 'a', 'A', 'h', 'H':

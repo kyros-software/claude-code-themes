@@ -238,16 +238,24 @@ it, `e` spends one. And an asteroid, which is on nobody's side - break it and it
 throws meteoroids that hurt whatever they touch, including whatever of theirs was
 underneath.
 
-**You fly, not just strafe.** All four arrows, and each axis latches on its own:
-press left, press up, and the ship goes up and left until you say otherwise, which
-is the only way a diagonal exists down a pipe that reports one key at a time. `s`
-is the brake. You get half the field - the other half is where the fleet comes
-from, and a ship that could reach the spawn line would shoot everything before it
-had drawn a frame. Climbing is slower than strafing, because a terminal cell is
-twice as tall as it is wide.
+**You fly, not just strafe.** All four arrows. A tap moves one cell; hold the key
+and it glides; let go and it stops. You get half the field - the other half is
+where the fleet comes from, and a ship that could reach the spawn line would shoot
+everything before it had drawn a frame.
 
-That latch is also the only way a terminal will let you fire and move at once,
-since it cannot report two keys held at the same time.
+A terminal is never told that a key was released, so "holding" is really the
+operating system repeating the key and "letting go" is that stream stopping. The
+delay before a held key starts repeating is half a second on a default desktop,
+which is half a second of a ship that looks broken - so while its window has the
+focus the game shortens it (`xset r rate 80 40`) and puts your setting back the
+instant it loses focus, on every way out, including the window being closed.
+`CCPET_NO_XSET=1` turns that off; the game still plays, with a pause before a hold
+gets going.
+
+It runs at **forty frames a second** and a gliding ship moves a column on every
+one of them - eighty columns crossed in two seconds, which is as smooth as a
+character grid gets. Climbing is ten rows a second, because a row reads as twice
+the distance and there are only nine of them to aim at.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
 a second and cannot read a keypress. `ccpet arena on` opens it for you while

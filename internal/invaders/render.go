@@ -228,9 +228,9 @@ func drawStars(gr grid, g Game) {
 	for _, s := range g.Stars {
 		which := 0
 		switch {
-		case s.V > 0.2:
-			which = 2
 		case s.V > 0.1:
+			which = 2
+		case s.V > 0.05:
 			which = 1
 		}
 		gr.put(int(s.Y), int(s.X), glyphs[which], ink)
@@ -319,7 +319,7 @@ func drawBoss(gr grid, g Game) {
 	gr.blit(y+2, x+3, b.Eyes, eye)
 	gr.blit(y+2, x+6, b.Right, ink)
 	gr.blit(y+3, x, b.Lower, ink)
-	gr.blit(y+4, x, b.Legs[(g.Frame/10)%2], ink)
+	gr.blit(y+4, x, b.Legs[(g.Frame/20)%2], ink)
 }
 
 // drawShip paints the representation of the creature: the family's silhouette,

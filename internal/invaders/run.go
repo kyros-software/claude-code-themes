@@ -18,13 +18,14 @@ import (
 // one that is allowed to write the pet.
 
 const (
-	// frameEvery is the wall clock between ticks. Twenty a second.
+	// frameEvery is the wall clock between ticks: forty a second, twenty-five
+	// milliseconds apart.
 	frameEvery = time.Second / TicksPerSecond
 
 	// pauseEvery is how often the pause file is checked, in ticks. Four times a
 	// second: at ten the banner could be half a second late, which is long
 	// enough to lose the wave you were meant to be let out of.
-	pauseEvery = 5
+	pauseEvery = TicksPerSecond / 4
 
 	// emptyReadsBeforeGivingUp is how many reads may come back with nothing
 	// before the key reader decides the terminal has gone.
@@ -50,9 +51,13 @@ const (
 // A struct of functions rather than an interface with a mock: the fake is nine
 // lines in a test, and this way the loop has no idea whether it is driving a tty.
 type screen struct {
-	Size  func() (cols, rows int)
-	Keys  <-chan Key
-	Out   io.Writer
+	Size func() (cols, rows int)
+	Keys <-chan Key
+	Out  io.Writer
+	// Focus is the window taking or losing the focus, which is not a game event
+	// at all: it is when the keyboard's autorepeat is borrowed and given back.
+	// See keyboard.go.
+	Focus func(has bool)
 	Close func()
 }
 
@@ -113,8 +118,17 @@ func Run(args []string, stdout, stderr io.Writer, petPath, savePath string, now 
 	defer giveBack()
 
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	// SIGHUP as well as the other two: closing the window is how a game in the
+	// arena usually ends, and it has to give the keyboard back like every other
+	// way out.
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(signals)
+
+	// The autorepeat, borrowed for as long as this window has the focus. Nothing
+	// happens here on a desktop with no xset, no DISPLAY, or a CCPET_NO_XSET in
+	// the environment.
+	kb := borrowKeyboard()
+	defer kb.restore()
 
 	state := LoadSave(savePath)
 	form, level := pet.CurrentForm(pet.Load(petPath))
@@ -124,9 +138,16 @@ func Run(args []string, stdout, stderr io.Writer, petPath, savePath string, now 
 	}
 
 	sc := screen{
-		Size:  tm.size,
-		Keys:  keys,
-		Out:   out,
+		Size: tm.size,
+		Keys: keys,
+		Out:  out,
+		Focus: func(has bool) {
+			if has {
+				kb.quicken()
+				return
+			}
+			kb.restore()
+		},
 		Close: func() { close(stop) },
 	}
 	state, final, deaths, code := series(sc, g, state, petPath, savePath, signals, now, time.Now)
@@ -279,6 +300,14 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 		for drained := false; !drained; {
 			select {
 			case k := <-sc.Keys:
+				if k == FocusIn || k == FocusOut {
+					// Not a key: the window's own news, and the tick has no
+					// business hearing it.
+					if sc.Focus != nil {
+						sc.Focus(k == FocusIn)
+					}
+					continue
+				}
 				if k == Quit {
 					return g, 0
 				}
@@ -421,8 +450,17 @@ func frame(w *bufio.Writer, lines []string) {
 // a terminal whose windows all belong to one server. It is given back on the way
 // out with an empty title, which is how a terminal is told to go back to
 // deciding its own.
-func enter(w io.Writer) { io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l") }
-func leave(w io.Writer) { io.WriteString(w, theme.Reset+"\033[?25h\033[?1049l\033]0;\007") }
+// The 1004 in there is focus reporting: the terminal sends CSI I when the window
+// takes the focus and CSI O when it loses it. It is the only way the game can
+// know it is being played rather than merely open, and it is what scopes the
+// borrowed autorepeat to this window.
+func enter(w io.Writer) {
+	io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l\033[?1004h")
+}
+
+func leave(w io.Writer) {
+	io.WriteString(w, theme.Reset+"\033[?1004l\033[?25h\033[?1049l\033]0;\007")
+}
 
 // beating keeps the heartbeat fresh for as long as the game is on screen.
 func beating(stop <-chan struct{}) {

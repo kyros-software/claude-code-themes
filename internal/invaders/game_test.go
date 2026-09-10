@@ -178,53 +178,98 @@ func TestTheShipRunsAlongTheFloorAndStopsAtTheWalls(t *testing.T) {
 	}
 }
 
-// The arrows latch: one press sets it going and it keeps going. It is the only
-// way to fire and move at once down a pipe that reports one key at a time.
-func TestOneArrowKeepsItGoing(t *testing.T) {
+// A tap is a tap: one press, one cell, and then it stays where you put it.
+//
+// This is the whole of what changed from the version before. That one latched -
+// one press and the ship went until you said otherwise - which is smooth and is
+// not what an arrow key means.
+func TestATapMovesExactlyOneCellAndStops(t *testing.T) {
 	g := aGame(t, "spark", 1)
-	was := g.Ship
+	col := g.Ship
 	g = Tick(g, Left)
-	g = drive(g, None, 20)
-	if g.Ship >= was {
-		t.Errorf("one press of left moved it from %d to %d", was, g.Ship)
+	if g.Ship != col-1 {
+		t.Errorf("one press moved it %d columns, want one", col-g.Ship)
+	}
+	g = drive(g, None, 60)
+	if g.Ship != col-1 {
+		t.Errorf("it drifted on to column %d after the key was let go", g.Ship)
 	}
 }
 
-func TestTheDownArrowStopsIt(t *testing.T) {
-	g := drive(Tick(aGame(t, "spark", 1), Left), None, 10)
-	g = Tick(g, Stop)
-	parked := g.Ship
-	g = drive(g, None, 20)
-	if g.Ship != parked {
-		t.Errorf("after the brake it drifted from %d to %d", parked, g.Ship)
+// A key held down is a STREAM of presses - a terminal has no other way to say it
+// - and that is what glides. Letting go stops it within a frame or two.
+func TestHoldingAnArrowGlidesAndLettingGoStops(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g.Ship = 40
+
+	held := g
+	for i := 0; i < 20; i++ { // the autorepeat, arriving every tick
+		held = Tick(held, Left)
+	}
+	if moved := 40 - held.Ship; moved < 18 {
+		t.Errorf("twenty ticks of a held arrow moved %d columns", moved)
+	}
+
+	parked := held.Ship
+	held = drive(held, None, 40)
+	if skid := parked - held.Ship; skid > streamMax {
+		t.Errorf("it skidded %d columns after the key was let go", skid)
+	}
+	if held.Side.Moving() {
+		t.Error("it is still travelling with nothing pressed")
 	}
 }
 
-func TestTheOtherArrowReversesItAtOnce(t *testing.T) {
-	g := drive(Tick(aGame(t, "spark", 1), Left), None, 10)
+// And two taps far apart are two taps, not a hold: the glide only starts when a
+// press arrives while the last one is still recent.
+func TestTwoTapsFarApartAreNotAHold(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	col := g.Ship
+	g = Tick(g, Left)
+	g = drive(g, None, repeatWindow+4)
+	g = Tick(g, Left)
+	g = drive(g, None, 40)
+	if g.Ship != col-2 {
+		t.Errorf("two taps moved %d columns, want two", col-g.Ship)
+	}
+}
+
+// The other arrow turns it round at once, without having to stop first.
+func TestTheOtherArrowTurnsItRoundAtOnce(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g.Ship = 40
+	for i := 0; i < 10; i++ {
+		g = Tick(g, Left)
+	}
 	low := g.Ship
-	g = drive(Tick(g, Right), None, 10)
+	for i := 0; i < 10; i++ {
+		g = Tick(g, Right)
+	}
 	if g.Ship <= low {
-		t.Errorf("reversing left it at %d, having been at %d", g.Ship, low)
+		t.Errorf("it turned round and reached column %d, having been at %d", g.Ship, low)
 	}
 }
 
-// Firing must never stop you moving. This is the bug the user reported twice,
-// and the reason movement latches at all.
+// Firing must never stop you moving. This is the bug the user reported twice, and
+// the reason the glide is on a leash rather than needing a key every single tick:
+// the stream and the shots interleave, and the ship keeps going between them.
 func TestFiringNeverStopsYouMoving(t *testing.T) {
 	g := aGame(t, "bughunter", 4)
 	g.Ship = 40
-	g = Tick(g, Left)
-	shots := 0
-	for i := 0; i < 200; i++ {
+	shots, col := 0, g.Ship
+	for i := 0; i < 120; i++ {
 		before := len(g.Shots)
-		g = Tick(g, Fire)
+		in := Left
+		if i%2 == 1 {
+			in = Fire
+		}
+		g = Tick(g, in)
 		if len(g.Shots) > before {
 			shots++
 		}
 	}
-	if g.Ship > 20 {
-		t.Errorf("two hundred ticks of firing and it only reached column %d", g.Ship)
+	if moved := col - g.Ship; moved < 20 {
+		t.Errorf("a hundred and twenty ticks of moving and firing moved %d columns", moved)
 	}
 	if shots == 0 {
 		t.Error("it moved and never fired")
@@ -348,7 +393,9 @@ func TestTheBossShootsAndDescends(t *testing.T) {
 	g := aGame(t, "wasp", 6)
 	g = g.startWave(5)
 	y, x := g.Boss.Y, g.Boss.X
-	g = drive(g, None, 120)
+	// A boss leans down a row every hundred and eighty ticks, which is four and a
+	// half seconds at forty a second.
+	g = drive(g, None, 200)
 	if g.Boss.Y <= y {
 		t.Errorf("the boss is still at row %g", g.Boss.Y)
 	}
@@ -681,31 +728,40 @@ func TestTheShipClimbsAsFarAsTheRoofAndNoFurther(t *testing.T) {
 		t.Fatalf("a run starts at row %d and the floor is %d", g.Row, g.Field.ShipRow())
 	}
 
-	g = drive(Tick(g, Up), None, 400)
+	for i := 0; i < 200; i++ {
+		g = Tick(g, Up)
+	}
 	if g.Row != g.Field.ShipRoof() {
 		t.Errorf("all the way up is row %d, want the roof at %d", g.Row, g.Field.ShipRoof())
 	}
-	if g.Climb != 0 {
+	if g.Rise.Moving() {
 		t.Error("it is still trying to climb through the roof")
 	}
 	if g.Field.ShipRoof() <= 0 {
 		t.Error("the roof is the top of the field, so there is no descent left")
 	}
 
-	g = drive(Tick(g, Down), None, 400)
+	for i := 0; i < 200; i++ {
+		g = Tick(g, Down)
+	}
 	if g.Row != g.Field.ShipRow() {
 		t.Errorf("all the way down is row %d, want the floor at %d", g.Row, g.Field.ShipRow())
 	}
 }
 
-// Both axes latch, so a diagonal is two presses and stays a diagonal - which is
-// the only way to have one at all down a pipe that reports a single key.
-func TestTwoPressesMakeADiagonalAndItKeepsGoing(t *testing.T) {
+// A diagonal is two keys held at once, which a terminal cannot report - so what
+// arrives is the two streams interleaved, and each axis has to keep its glide
+// through the other one's presses.
+func TestTwoStreamsInterleavedMakeADiagonal(t *testing.T) {
 	g := aGame(t, "bughunter", 4)
 	col, row := g.Ship, g.Row
-	g = Tick(g, Left)
-	g = Tick(g, Up)
-	g = drive(g, Fire, 30)
+	for i := 0; i < 60; i++ {
+		in := Left
+		if i%2 == 1 {
+			in = Up
+		}
+		g = Tick(g, in)
+	}
 	if g.Ship >= col {
 		t.Errorf("it went from column %d to %d", col, g.Ship)
 	}
@@ -714,21 +770,26 @@ func TestTwoPressesMakeADiagonalAndItKeepsGoing(t *testing.T) {
 	}
 }
 
-// And the brake stops both at once. It used to be the down arrow, which is a key
-// that means something else now.
+// The brake stops both axes at once. It is nearly redundant now that letting go
+// stops you, and it is kept because a stream that jams - or a terminal that
+// repeats a key after it was released - is a ship nobody can park.
 func TestTheBrakeStopsBothAxes(t *testing.T) {
 	g := aGame(t, "bughunter", 4)
-	g = Tick(g, Left)
-	g = Tick(g, Up)
-	g = drive(g, None, 12)
+	for i := 0; i < 20; i++ {
+		in := Left
+		if i%2 == 1 {
+			in = Up
+		}
+		g = Tick(g, in)
+	}
 	g = Tick(g, Stop)
 	col, row := g.Ship, g.Row
 	g = drive(g, None, 40)
 	if g.Ship != col || g.Row != row {
 		t.Errorf("after the brake it drifted from %d,%d to %d,%d", col, row, g.Ship, g.Row)
 	}
-	if g.Drift != 0 || g.Climb != 0 {
-		t.Errorf("the brake left drift %d and climb %d", g.Drift, g.Climb)
+	if g.Side.Moving() || g.Rise.Moving() {
+		t.Errorf("the brake left it going %d,%d", g.Side.Way, g.Rise.Way)
 	}
 }
 
@@ -737,10 +798,13 @@ func TestTheBrakeStopsBothAxes(t *testing.T) {
 func TestClimbingIsSlowerThanStrafing(t *testing.T) {
 	g := aGame(t, "spark", 1)
 	g.Ship = 30
-	across := drive(Tick(g, Left), None, 30)
-	up := drive(Tick(g, Up), None, 30)
+	across, up := g, g
+	for i := 0; i < 40; i++ {
+		across = Tick(across, Left)
+		up = Tick(up, Up)
+	}
 	if cols, rows := 30-across.Ship, g.Row-up.Row; rows >= cols {
-		t.Errorf("in thirty ticks it moved %d columns and %d rows", cols, rows)
+		t.Errorf("in forty ticks it moved %d columns and %d rows", cols, rows)
 	}
 }
 
@@ -797,7 +861,7 @@ func TestClimbingIntoAShipIsARamWhereverItHappens(t *testing.T) {
 // changes size under a run.
 func TestTheShipStaysBetweenTheRoofAndTheFloorForAWholeRun(t *testing.T) {
 	g := aGame(t, "wasp", 6)
-	keys := []Key{Up, Fire, Up, Left, Fire, Down, Down, Fire, Right, Stop, Up, Fire}
+	keys := []Key{Up, Up, Fire, Left, Left, Fire, Down, Down, Fire, Right, Stop, Up, Fire}
 	for i := 0; i < 6000 && g.Phase != Over; i++ {
 		g = Tick(g, keys[i%len(keys)])
 		if g.Row < g.Field.ShipRoof() || g.Row > g.Field.ShipRow() {

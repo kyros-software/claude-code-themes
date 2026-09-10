@@ -486,7 +486,9 @@ func TestAResizeKeepsTheShipBetweenItsRoofAndItsFloor(t *testing.T) {
 	big, _ := FieldFor(120, 40)
 	small, _ := FieldFor(60, 18)
 	g := NewGame(big, "wasp", 6, Save{Wave: 3, Seed: 5})
-	g = drive(Tick(g, Up), None, 200)
+	for i := 0; i < 200; i++ { // a held arrow, which is a stream of presses
+		g = Tick(g, Up)
+	}
 	if g.Row != big.ShipRoof() {
 		t.Fatalf("it did not climb: row %d of a roof at %d", g.Row, big.ShipRoof())
 	}

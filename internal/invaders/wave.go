@@ -27,7 +27,16 @@ const (
 	BossCols = 9
 	BossRows = 5
 
-	TicksPerSecond = 20
+	// TicksPerSecond is the frame rate, and forty rather than twenty.
+	//
+	// Everything below and in game.go is expressed in ticks, so doubling this
+	// meant halving every distance-per-tick and doubling every count-of-ticks in
+	// the package, kept in one commit on purpose. It is worth it: at twenty a
+	// frame is fifty milliseconds, and a ship crossing one column per frame was
+	// as smooth as the grid can be while everything else - a fleet falling at a
+	// row a second, a bomb at two - moved in visible lurches. Forty halves the
+	// step everything takes without changing how fast anything travels.
+	TicksPerSecond = 40
 
 	// Stages is the deepest the colour ladder goes; the fleet is unlocked
 	// against the same number.
@@ -40,7 +49,7 @@ const (
 	// harder, it is unreadable; the count is capped because Spawn cannot ask for
 	// memory without a limit off a wave number that came from a file. What is
 	// NOT capped is the toughness, and that is the wall a run ends against.
-	releaseFloor = 12
+	releaseFloor = 24
 	countCap     = 30
 	hasteCap     = 2.0
 )
@@ -112,7 +121,7 @@ func WaveFor(n int, f Field) Wave {
 		Boss:  n%5 == 0,
 		Stage: stage,
 		Count: clamp(6+n, 6, countCap),
-		Every: clamp(60-2*n, releaseFloor, 60),
+		Every: clamp(120-4*n, releaseFloor, 120),
 		Pack:  clamp(1+n/12, 1, 3),
 		Tough: (n - 1) / 6,
 		Haste: 1 + float64(n)/50,

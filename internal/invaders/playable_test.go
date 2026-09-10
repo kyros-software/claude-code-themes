@@ -59,10 +59,8 @@ func pilot(g Game) Key {
 	case target > muzzle+0.5:
 		return Right
 	}
-	// Lined up: stop drifting past it, then shoot.
-	if g.Drift != 0 {
-		return Stop
-	}
+	// Lined up, and nothing to stop: not pressing anything IS letting go, so the
+	// ship parks itself.
 	return Fire
 }
 
