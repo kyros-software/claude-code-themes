@@ -44,6 +44,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/ccpet-run\" ]; then exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/ccpet-run\" hook; fi; exec \"${CLAUDE_PLUGIN_ROOT}/bin/ccpet\" hook",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

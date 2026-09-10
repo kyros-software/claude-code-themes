@@ -64,3 +64,20 @@ func TestSetupSpeaksEnglish(t *testing.T) {
 		}
 	}
 }
+
+// The line that reports what was wired names the events one by one, in both
+// languages, so it goes stale the moment a fourth is added - and it did, the day
+// Stop arrived for the game's auto-pause. Driven off hookEvents so it cannot
+// drift again.
+func TestTheHooksWiredLineNamesEveryEventItWired(t *testing.T) {
+	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
+		i18n.Use(lang)
+		line := i18n.S().HooksWired
+		for _, event := range hookEvents {
+			if !strings.Contains(line, event) {
+				t.Errorf("%s: %q does not name %s", lang, line, event)
+			}
+		}
+	}
+	i18n.Use("")
+}

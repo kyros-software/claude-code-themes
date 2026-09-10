@@ -143,7 +143,7 @@ var spanish = Strings{
 	FoodHooks:         "hooks de comida en settings.json: %s\n",
 	PluginHooksNote:   "(si lo instalas como plugin, sus hooks son suyos y no salen aquí)",
 	StatuslineWired:   "  statusLine conectada",
-	HooksWired:        "  hooks conectados: PostToolUse (todas), PreCompact, SessionEnd",
+	HooksWired:        "  hooks conectados: PostToolUse (todas), PreCompact, SessionEnd, Stop",
 	HooksNotInstalled: "  hooks NO instalados (pasa --hooks si los quieres)",
 	SettingsClean:     "  settings.json limpio (el tema no se toca: cámbialo con /theme)",
 
@@ -223,7 +223,7 @@ var english = Strings{
 	FoodHooks:         "food hooks in settings.json: %s\n",
 	PluginHooksNote:   "(installed as a plugin, its hooks are its own and do not show here)",
 	StatuslineWired:   "  statusLine wired",
-	HooksWired:        "  hooks wired: PostToolUse (all), PreCompact, SessionEnd",
+	HooksWired:        "  hooks wired: PostToolUse (all), PreCompact, SessionEnd, Stop",
 	HooksNotInstalled: "  hooks NOT installed (pass --hooks if you want them)",
 	SettingsClean:     "  settings.json clean (the theme is left alone: change it with /theme)",
 

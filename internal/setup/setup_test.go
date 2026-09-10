@@ -240,7 +240,7 @@ func hookCommands(t *testing.T, doc map[string]any, event string) []string {
 	return out
 }
 
-func TestInstallWiresTheThreeEventsAndLeavesForeignHooksAlone(t *testing.T) {
+func TestInstallWiresEveryEventItClaimsAndLeavesForeignHooksAlone(t *testing.T) {
 	config := home(t)
 	path := filepath.Join(config, "settings.json")
 	foreign := "echo not-ours"

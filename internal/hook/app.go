@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kyros-software/claude-code-themes/internal/invaders"
 	"github.com/kyros-software/claude-code-themes/internal/lockfile"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/session"
@@ -212,6 +213,15 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 			pet.Feed(s, "compact", "", now)
 			return true
 		})
+		return 0
+	case "Stop":
+		// Claude has finished answering, so the game in the other terminal
+		// should stop and let you go and read what it did. A touch of one file
+		// and nothing else: no XP, no counters, no session state. A Stop is not
+		// a meal, and the failure is ignored because a game that is not running
+		// is the common case and a hook must never be the reason a turn reports
+		// an error.
+		invaders.Touch(now)
 		return 0
 	case "SessionEnd":
 		if sessionID != "" {
