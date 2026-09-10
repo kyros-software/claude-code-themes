@@ -256,7 +256,7 @@ func WaveFor(n int, f Field) Wave {
 
 	// One squad places at most one enemy per lane, which is what keeps every
 	// allocation in here bounded by the size of the terminal.
-	squad := (3 + n/20) * lanes / baseLanes
+	squad := (1 + n/10) * lanes / baseLanes
 	if squad < 1 {
 		squad = 1
 	}
@@ -264,7 +264,14 @@ func WaveFor(n int, f Field) Wave {
 		squad = lanes
 	}
 
-	speed := 0.18 + 0.006*float64(n-1)
+	// The base speed is what decides how many enemies are on screen at once,
+	// which turned out to matter far more than how many the wave sends. At 0.18
+	// a cell per tick one of the swarm takes twenty-two seconds to cross eighty
+	// columns - longer than the whole of wave one - so they piled up and wave
+	// one held thirty-three of them at a time. Measured with an autopilot: every
+	// single-lane family died before wave 3. At 0.45 the crossing is nine
+	// seconds and wave one holds four or five, which is what it was meant to be.
+	speed := 0.45 + 0.006*float64(n-1)
 	if speed > 0.75 {
 		speed = 0.75
 	}
@@ -273,7 +280,7 @@ func WaveFor(n int, f Field) Wave {
 		N:       n,
 		Boss:    n%5 == 0,
 		Seconds: seconds,
-		Count:   squad * seconds / 2,
+		Count:   squad * seconds * TicksPerSecond / squadEvery,
 		HP:      1 + (n-1)/8,
 		Speed:   speed,
 		Squad:   squad,

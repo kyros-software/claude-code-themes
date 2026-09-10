@@ -218,7 +218,7 @@ func TestEveryAbilityAKitAsksForIsOneThatExists(t *testing.T) {
 	known := map[string]bool{
 		AbilityVolley: true, AbilitySweep: true, AbilityTurret: true,
 		AbilityTurret2: true, AbilityInvuln: true, AbilityThree: true,
-		AbilityRevive: true, AbilityChimera: true,
+		AbilityBlast: true, AbilityChimera: true,
 	}
 	for form := range pet.Sprites {
 		for level := 1; level <= levels(); level++ {
@@ -241,7 +241,7 @@ func TestAKitIsUsableAsAMapKey(t *testing.T) {
 // Nothing else may claim it, or the once-per-run rule has two owners.
 func TestOnlyThePhoenixCarriesTheRevival(t *testing.T) {
 	for form := range pet.Sprites {
-		revives := KitFor(form, 5).Special == AbilityRevive
+		revives := KitFor(form, 5).Revive
 		if revives != (form == "phoenix") {
 			t.Errorf("%s revives = %v", form, revives)
 		}

@@ -24,11 +24,12 @@ type Kit struct {
 	Splash  int  // rows splashed on a hit
 	Spike   int  // percent chance a shot does double damage
 
-	// Overload is the feral branch's passive: damage climbs as HP falls. A flag
-	// and not a Special because it is not what the space bar does - a form has
-	// to have both, or the ember branch would be the one branch whose ability
-	// key does nothing.
+	// Overload is the feral branch's passive: damage climbs as HP falls. Revive
+	// is the phoenix's: one second life per run. Flags and not Specials because
+	// neither is what the space bar does, and a form has to have both a passive
+	// and an ability or its ability key does nothing.
 	Overload bool
+	Revive   bool
 
 	Special  string // what the ability does
 	Cooldown int    // ticks before the ability is ready again
@@ -46,8 +47,8 @@ const (
 	AbilityTurret2 = "turret2"  // two of them
 	AbilityInvuln  = "invuln"   // brief invulnerability
 	AbilityThree   = "threerow" // strikes three rows at once
-	AbilityRevive  = "revive"   // the phoenix: one revival per run
-	AbilityChimera = "chimera"  // both of its parents' families at once
+	AbilityBlast   = "blast"    // the phoenix: everything on screen, and a long wait
+	AbilityChimera = "chimera"  // a volley and a sweep at once, being two things
 )
 
 // families is one weapon per family, keyed by the ANCHOR form it hangs off: the
@@ -77,7 +78,7 @@ var families = map[string]Kit{
 	// exactly what a chimera is - and since it has no Parent entry the pair is
 	// written down here rather than read off the pet: twin, from the most
 	// disciplined branch, welded to overload from the least.
-	"phoenix": {Family: "phoenix", Cadence: 13, Damage: 3, Shots: 2, Pierce: 1, Homing: true, Special: AbilityRevive, Cooldown: 80, MaxHP: 10, Regen: 2},
+	"phoenix": {Family: "phoenix", Cadence: 13, Damage: 3, Shots: 2, Pierce: 1, Homing: true, Revive: true, Special: AbilityBlast, Cooldown: 200, MaxHP: 10, Regen: 2},
 	"chimera": {Family: "chimera", Cadence: 14, Damage: 3, Shots: 2, Overload: true, Special: AbilityChimera, Cooldown: 90, MaxHP: 10, Regen: 1},
 }
 
@@ -238,7 +239,7 @@ func scale(k Kit, level int) Kit {
 // form off as different from one it flies exactly like.
 type shape struct {
 	Cadence, Damage, Shots, Pierce, Splash, Spike, Cooldown, MaxHP, Regen int
-	Homing, Overload                                                      bool
+	Homing, Overload, Revive                                              bool
 	Special                                                               string
 }
 
@@ -247,6 +248,6 @@ func (k Kit) shape() shape {
 		Cadence: k.Cadence, Damage: k.Damage, Shots: k.Shots, Pierce: k.Pierce,
 		Splash: k.Splash, Spike: k.Spike, Cooldown: k.Cooldown,
 		MaxHP: k.MaxHP, Regen: k.Regen,
-		Homing: k.Homing, Overload: k.Overload, Special: k.Special,
+		Homing: k.Homing, Overload: k.Overload, Revive: k.Revive, Special: k.Special,
 	}
 }
