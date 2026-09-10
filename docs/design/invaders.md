@@ -399,14 +399,48 @@ all where there is no `DISPLAY`, no `xset`, or a `CCPET_NO_XSET` in the
 environment. There it degrades to whatever the desktop is set to: the tap still
 taps and the hold still glides, with a pause before the glide starts.
 
-### What is still the terminal's fault
+### Shooting used to stop you, and it was X doing it
 
-X repeats the most recently pressed key and only that one, so **holding** fire
-while holding an arrow starves the arrow's stream and the ship coasts to a stop.
-Tapping fire does not: the leash covers the gaps between taps, which is what
-`TestFiringNeverStopsYouMoving` drives - one tick of arrow, one of fire, a hundred
-and twenty times, and the ship has to have crossed twenty columns with shots in
-the air.
+This one outlasted two other attempts at the movement, and it was never the
+game's doing. Measured by holding an arrow with XTEST and logging what a terminal
+actually receives:
+
+```
+2560ms  ESC[D          the press
+3058ms  ESC[D ESC[D…   the autorepeat, every 30ms
+4058ms  space          one tap of the fire key
+        (nothing)      and not one arrow again, with the key still held down
+```
+
+X repeats the last key pressed and only that one, and a press of anything else
+cancels the repeat **for good** - releasing the new key does not bring the old one
+back. So every shot stopped the ship until the player let go of the arrow and
+pressed it again, which is what "sigue habiendo problemas con pararse mientras se
+mueve" was.
+
+The same test with the fire key's own repeat switched off - `xset -r 65`:
+
+```
+4054ms  space
+4083ms  ESC[D ESC[D…   the arrow, back twenty-nine milliseconds later
+```
+
+So the borrowed keyboard borrows one more thing: while the window has the focus,
+the action keys stop repeating. None of them has any use for a repeat - a held
+space bar is not a faster gun, the cadence decides that - and the arrows and the
+letters that steer keep theirs. What each key was doing before is read out of
+xset's per-key table and put back key by key when the focus goes, so a desktop
+that had something switched off on purpose keeps it switched off.
+
+The keycodes are evdev's, which is to say physical positions, and the letters
+among them assume a qwerty-shaped layout. On a layout that moves them the wrong
+keys lose their repeat while the game is focused: harmless, scoped to the focus,
+and no worse than the behaviour it replaces.
+
+`TestFiringNeverStopsYouMoving` still drives the game's own half of it - one tick
+of arrow, one of fire, a hundred and twenty times, and the ship has to have
+crossed twenty columns with shots in the air - because the game must not drop
+either key even when the keyboard delivers both.
 
 A wall is a stop, and the brake (`s`) is kept even though letting go now stops
 you: a stream that jams, or a terminal that repeats a key after it was released,

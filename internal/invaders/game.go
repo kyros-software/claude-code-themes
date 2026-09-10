@@ -136,6 +136,11 @@ const (
 	lanceHit   = 40 // one enormous shot
 	dashDamage = 12
 
+	// What a collision between two of theirs is worth: half a cell of daylight
+	// each, and enough speed to actually leave.
+	bounceStep  = 0.5
+	bounceLeast = 0.08
+
 	// bombDrop is what one of their bombs costs, bossDrop one of a boss's, and
 	// landDrop what it costs to let one reach the floor.
 	bombDrop = 1
@@ -800,17 +805,26 @@ func (g *Game) damageFor() int {
 }
 
 // volley fires n shots, spread across the ship's own width.
-func (g Game) volley(n int) Game {
+func (g Game) volley(n int) Game { return g.volleyFrom(g.Ship, n) }
+
+// volleyFrom is the same volley from any column, which is what the twin branch's
+// second ship needs.
+//
+// It exists because the ghost used to fire its own way: the same number of shots,
+// all from one column, stacked on top of each other. Three shots that look like
+// one, beside a real ship firing three that look like three - "el espejo dispara
+// 3, pero el bicho real solo 1", exactly backwards and exactly right.
+func (g Game) volleyFrom(col, n int) Game {
 	if n < 1 {
 		n = 1
 	}
 	shots := append([]Shot{}, g.Shots...)
 	top := float64(g.Row)
 	for i := 0; i < n; i++ {
-		x := g.Muzzle()
+		x := float64(col) + float64(ShipCols)/2
 		if n > 1 {
 			span := float64(ShipCols - 3)
-			x = float64(g.Ship) + 1 + span*float64(i)/float64(n-1)
+			x = float64(col) + 1 + span*float64(i)/float64(n-1)
 		}
 		shots = append(shots, Shot{
 			X: x, Y: top,
@@ -1036,20 +1050,10 @@ func (g Game) lance() Game {
 	return g
 }
 
-// ghostVolley is the twin branch's second ship firing alongside you. It is drawn
-// beside the real one - see drawShip - and it shoots from there.
-func (g Game) ghostVolley() Game {
-	shots := append([]Shot{}, g.Shots...)
-	for i := 0; i < g.Kit.Shots; i++ {
-		shots = append(shots, Shot{
-			X: float64(g.ghostAt() + 2), Y: float64(g.Row),
-			Damage: g.damageFor(), Pierce: g.Kit.Pierce,
-			Homing: g.Kit.Homing, Splash: g.Kit.Splash,
-		})
-	}
-	g.Shots = shots
-	return g
-}
+// ghostVolley is the twin branch's second ship firing alongside you: the same
+// volley from the column it stands in, which is what makes the two look like two
+// of the same ship.
+func (g Game) ghostVolley() Game { return g.volleyFrom(g.ghostAt(), g.Kit.Shots) }
 
 // ghostAt is the column the second ship stands in: the far side if there is room
 // for it, and the near side if there is not.
@@ -1250,6 +1254,18 @@ func (g Game) moveAliens() Game {
 	return g
 }
 
+// away is a drift's speed, pointing right. A ship with no sideways speed at all
+// still has to leave, or a collision with it is a wall.
+func away(vx float64) float64 {
+	if vx < 0 {
+		vx = -vx
+	}
+	if vx < bounceLeast {
+		return bounceLeast
+	}
+	return vx
+}
+
 // separate pushes two ships apart when they have drifted into each other.
 //
 // They fly on their own clocks and nothing stops two of them arriving at the same
@@ -1272,18 +1288,23 @@ func separate(aliens []Alien, f Field) []Alien {
 			if a.Y+ah <= b.Y || b.Y+bh <= a.Y {
 				continue
 			}
-			if a.X <= b.X {
-				aliens[i].X -= 0.5
-				aliens[j].X += 0.5
-			} else {
-				aliens[i].X += 0.5
-				aliens[j].X -= 0.5
+			// Each one leaves the way it came from: the one on the left goes
+			// left and the one on the right goes right, whatever they were
+			// doing before.
+			//
+			// The first version only turned one of them round when both
+			// happened to be going the same way, which left the other pair of
+			// cases jittering against each other for a second or two - reported
+			// as "un efecto de rebote raro", and it was: two ships taking turns
+			// to push each other rather than one collision and done.
+			leftmost, rightmost := i, j
+			if aliens[j].X < aliens[i].X {
+				leftmost, rightmost = j, i
 			}
-			if aliens[i].Vx*aliens[j].Vx > 0 {
-				// Going the same way, so one of them has to turn or they travel
-				// locked together for the rest of the wave.
-				aliens[j].Vx = -aliens[j].Vx
-			}
+			aliens[leftmost].X -= bounceStep
+			aliens[rightmost].X += bounceStep
+			aliens[leftmost].Vx = -away(aliens[leftmost].Vx)
+			aliens[rightmost].Vx = away(aliens[rightmost].Vx)
 			// The nudge is still inside the walls. Without this the pair by the
 			// left edge walked each other off the field, which the autopilot's
 			// invariant sweep caught at tick 6082 of a run.

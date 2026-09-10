@@ -1048,3 +1048,88 @@ func TestTheLancePassesThroughEverything(t *testing.T) {
 		}
 	}
 }
+
+// Two ships that drift into each other leave in opposite directions, and stay
+// left. The first version turned one of them round only when both happened to be
+// going the same way, which left the other cases pushing each other back and
+// forth for a second or two - "un efecto de rebote raro", and it was.
+func TestTwoShipsThatCollideLeaveInOppositeDirections(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		vx, vy float64
+	}{
+		{"both going right", 0.2, 0.2},
+		{"both going left", -0.2, -0.2},
+		{"head on", 0.2, -0.2},
+		{"neither of them moving", 0, 0},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			g := aGame(t, "spark", 1)
+			g.Released = g.Wave.Count - 1
+			g.Next = 1 << 30
+			g.Aliens = []Alien{
+				{Of: 1, X: 30, Y: 5, Vx: c.vx, HP: 9, MaxHP: 9},
+				{Of: 1, X: 32, Y: 5, Vx: c.vy, HP: 9, MaxHP: 9},
+			}
+
+			g = Tick(g, None)
+			left, right := g.Aliens[0], g.Aliens[1]
+			if left.X > right.X {
+				left, right = right, left
+			}
+			if left.Vx >= 0 {
+				t.Errorf("the left one is going %+g, want away to the left", left.Vx)
+			}
+			if right.Vx <= 0 {
+				t.Errorf("the right one is going %+g, want away to the right", right.Vx)
+			}
+
+			// And a second later they are clear of each other rather than still
+			// arguing about it.
+			g = drive(g, None, TicksPerSecond)
+			a, b := g.Aliens[0], g.Aliens[1]
+			gap := a.X - b.X
+			if gap < 0 {
+				gap = -gap
+			}
+			if gap < float64(Fleet[1].W) {
+				t.Errorf("a second later they are still %g apart", gap)
+			}
+		})
+	}
+}
+
+// The second ship of the twin branch fires the same volley as the first, from
+// where it stands. It used to fire the same NUMBER of shots all from one column:
+// three that look like one, beside three that look like three.
+func TestTheSecondShipFiresTheSameVolleyAsTheFirst(t *testing.T) {
+	g := aGame(t, "refactor", 4)
+	if g.Kit.Shots < 2 {
+		t.Fatalf("a refactor at level 4 fires %d shots, and this test needs more than one", g.Kit.Shots)
+	}
+	g.Ship = 20
+	g = Tick(g, Ability)
+	if g.Mirror == 0 {
+		t.Fatal("the mirror did not go up")
+	}
+	g.Cool = 0
+	g = Tick(g, Fire)
+
+	mine, ghost := map[float64]bool{}, map[float64]bool{}
+	for _, s := range g.Shots {
+		if s.X < float64(g.ghostAt()) {
+			mine[s.X-float64(g.Ship)] = true
+			continue
+		}
+		ghost[s.X-float64(g.ghostAt())] = true
+	}
+	if len(mine) != g.Kit.Shots || len(ghost) != g.Kit.Shots {
+		t.Errorf("the ship fired %d columns and the mirror %d, and both should be %d",
+			len(mine), len(ghost), g.Kit.Shots)
+	}
+	for offset := range mine {
+		if !ghost[offset] {
+			t.Errorf("the ship fires from +%g and the mirror does not", offset)
+		}
+	}
+}

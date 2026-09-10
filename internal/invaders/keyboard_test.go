@@ -2,6 +2,7 @@ package invaders
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -97,5 +98,72 @@ func TestFocusIsNotAKeyAndNeverReachesTheTick(t *testing.T) {
 	}
 	if !strings.Contains(raw, "1004") {
 		t.Error("nothing turns focus reporting on, so the news never arrives")
+	}
+}
+
+// The per-key table is read so it can be put back exactly. What was repeating
+// repeats again, and what was not does not - a desktop that had a key's repeat
+// switched off on purpose keeps it switched off.
+func TestThePerKeyRepeatTableIsReadAndPutBack(t *testing.T) {
+	bits := repeatBits(xsetQ)
+	// Read off that table by hand: the space bar repeats, and the modifiers do
+	// not - which is the desktop's own doing and exactly the kind of thing that
+	// has to survive being borrowed. Keycode 50 is the left shift, 37 the left
+	// control, and the first byte is 00 because X keycodes start at 8.
+	if !bits[65] {
+		t.Error("the space bar reads as not repeating, and in that table it does")
+	}
+	for _, kc := range []int{50, 37, 62} {
+		if bits[kc] {
+			t.Errorf("keycode %d is a modifier and reads as repeating", kc)
+		}
+	}
+	for kc := 0; kc < 8; kc++ {
+		if bits[kc] {
+			t.Errorf("keycode %d does not exist and reads as repeating", kc)
+		}
+	}
+
+	k := &keyboard{delay: 500, rate: 33, ours: true, repeats: map[int]bool{}}
+	for _, kc := range actionKeys {
+		k.repeats[kc] = bits[kc]
+	}
+	args := strings.Join(k.restoreArgs(), " ")
+	if !strings.HasPrefix(args, "r rate 500 33") {
+		t.Errorf("restoring starts with %q", args)
+	}
+	for _, kc := range actionKeys {
+		want := "-r " + strconv.Itoa(kc)
+		if k.repeats[kc] {
+			want = "r " + strconv.Itoa(kc)
+		}
+		if !strings.Contains(args, want) {
+			t.Errorf("restoring does not put keycode %d back: %q", kc, args)
+		}
+	}
+}
+
+// The fire key is in the list, and the arrows are not. That is the whole of the
+// fix: measured on this desktop, one tap of a key that repeats kills the held
+// arrow's stream for good, and with the tap's own repeat switched off the arrow
+// comes back twenty-nine milliseconds later.
+func TestTheActionKeysStopRepeatingAndTheArrowsDoNot(t *testing.T) {
+	in := map[int]bool{}
+	for _, kc := range actionKeys {
+		in[kc] = true
+	}
+	if !in[65] {
+		t.Error("the space bar still repeats, so firing still stops the ship")
+	}
+	for _, arrow := range []int{111, 113, 114, 116} {
+		if in[arrow] {
+			t.Errorf("keycode %d is an arrow and its repeat is being switched off", arrow)
+		}
+	}
+	// The letters that steer are not in there either, for the same reason.
+	for _, mover := range []int{25, 38, 39, 40, 43, 44, 45, 46} {
+		if in[mover] {
+			t.Errorf("keycode %d steers and its repeat is being switched off", mover)
+		}
 	}
 }
