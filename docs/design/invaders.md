@@ -434,8 +434,24 @@ The same test with the fire key's own repeat switched off - `xset -r 65`:
 
 So the borrowed keyboard borrows one more thing: while the window has the focus,
 the action keys stop repeating. None of them has any use for a repeat - a held
-space bar is not a faster gun, the cadence decides that - and the arrows and the
-letters that steer keep theirs. What each key was doing before is read out of
+space bar is not a faster gun, the cadence decides that.
+
+And then the same thing turned up between the arrows themselves: *"estoy apretando
+a la izquierda y, mientras sigo apretando, hago abajo o arriba"*, and the ship
+stops. Measured the same way, holding left and tapping up:
+
+```
+with up repeating      …ESC[D ESC[D ESC[A                  and nothing after it
+without up repeating   …ESC[D ESC[D ESC[A ESC[D ESC[D…     left carries straight on
+```
+
+So **the vertical is a step and the horizontal is a glide**: up and down stop
+repeating too, one row per press, and left and right keep their stream. It is the
+right way round. Strafing is what has to be continuous; the ship's half of the
+field is nine rows against forty-odd columns, so the vertical is a handful of
+deliberate steps rather than a slide; and a step is precise where a glide is not.
+A diagonal is holding a side arrow and tapping up or down, which now works because
+the tap no longer kills the stream. What each key was doing before is read out of
 xset's per-key table and put back key by key when the focus goes, so a desktop
 that had something switched off on purpose keeps it switched off.
 
@@ -736,10 +752,9 @@ to forty. That is a real change to the difficulty and it shows - the autopilot
 gets four to eleven waves further than it did, because lining up is half of what
 it does. The table above the fleet's arithmetic has the new numbers.
 
-The vertical is ten rows a second and not forty. A row reads as twice the distance
-of a column, the ship's half of the field is nine rows against forty-odd columns,
-and at a row a tick it crossed the whole of it before a finger could leave the key.
-It is the one axis where precision beats smoothness.
+The vertical ended up as a step rather than a speed at all - see the keyboard
+section - and for the same reason it was slow before: it is the axis where
+precision beats smoothness.
 
 ## Drawing
 

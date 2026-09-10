@@ -246,8 +246,9 @@ it, `e` spends one. And an asteroid, which is on nobody's side - break it and it
 throws meteoroids that hurt whatever they touch, including whatever of theirs was
 underneath.
 
-**You fly, not just strafe.** All four arrows. A tap moves one cell; hold the key
-and it glides; let go and it stops. You get half the field - the other half is
+**You fly, not just strafe.** Left and right glide while you hold them and stop
+when you let go; up and down are a step each, so you climb by tapping. That split
+is not a whim - see below. You get half the field - the other half is
 where the fleet comes from, and a ship that could reach the spawn line would shoot
 everything before it had drawn a frame.
 
@@ -261,10 +262,16 @@ focus, on every way out, including the window being closed.
 `CCPET_NO_XSET=1` turns that off; the game still plays, with a pause before a hold
 gets going.
 
+A terminal is also never told that two keys are down at once, and X repeats only
+the last key pressed: tapping anything - a shot, or the up arrow - used to kill
+the held arrow's stream for good, which is a ship that stops dead every time you
+do anything. So while its window has the focus the game switches off the repeat
+for the keys that have no use for one (fire, the ability, the reload, the vertical
+arrows), and left and right keep theirs. That is why the vertical is a step.
+
 It runs at **forty frames a second** and a gliding ship moves a column on every
 one of them - eighty columns crossed in two seconds, which is as smooth as a
-character grid gets. Climbing is ten rows a second, because a row reads as twice
-the distance and there are only nine of them to aim at.
+character grid gets.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
 a second and cannot read a keypress. `ccpet arena on` opens it for you while

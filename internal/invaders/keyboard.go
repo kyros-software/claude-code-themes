@@ -44,8 +44,8 @@ const (
 	ourRate  = 40
 )
 
-// actionKeys are the keys that must NOT repeat while the game has the focus, by
-// X keycode.
+// noRepeat are the keys that must NOT repeat while the game has the focus, by X
+// keycode.
 //
 // This is the fix for the complaint that outlasted two others: "sigue habiendo
 // problemas con pararse mientras se mueve". It is not the game's doing, and it is
@@ -68,22 +68,41 @@ const (
 // gun, the cadence decides that - so their repeat is switched off while the
 // window has the focus and switched back exactly as it was when it loses it.
 //
+// The UP AND DOWN ARROWS are in the list too, and that is the second half of the
+// same story. Reported from play: "estoy apretando a la izquierda y, mientras
+// sigo apretando, hago abajo o arriba" - and the ship stops. Measured the same
+// way, holding left and tapping up:
+//
+//	with up repeating      …ESC[D ESC[D ESC[A                 and nothing after it
+//	without up repeating   …ESC[D ESC[D ESC[A ESC[D ESC[D…    left carries straight on
+//
+// So the vertical is a STEP rather than a glide: one row per press, no repeat.
+// That is the trade, and it is the right way round - strafing is what wants to be
+// continuous, the ship's half of the field is nine rows against forty-odd
+// columns, and a step is precise where a glide is not. Left and right keep their
+// repeat, and so do the letters that strafe.
+//
 // The codes are evdev's, which is to say physical positions: right for anybody on
 // a qwerty-shaped layout, which the letters below assume. On a layout that moves
 // them, the wrong keys lose their repeat while the game is focused - harmless,
 // scoped to the focus, and no worse than the behaviour this replaces.
-var actionKeys = []int{
-	65, // space, fire
-	53, // x, ability
-	52, // z, ability
-	27, // r, reload
-	26, // e, health kit
-	41, // f, health kit
-	10, // 1, upgrade
-	11, // 2
-	12, // 3
-	33, // p, pause
-	24, // q, quit
+var noRepeat = []int{
+	65,  // space, fire
+	53,  // x, ability
+	52,  // z, ability
+	27,  // r, reload
+	26,  // e, health kit
+	41,  // f, health kit
+	10,  // 1, upgrade
+	11,  // 2
+	12,  // 3
+	33,  // p, pause
+	24,  // q, quit
+	111, // up
+	116, // down
+	25,  // w, up
+	45,  // k, up
+	44,  // j, down
 }
 
 // noXset switches the whole thing off for anybody who would rather it did not
@@ -122,7 +141,7 @@ func borrowKeyboard() *keyboard {
 	// restoring puts back what was there rather than what we assume was there.
 	k.repeats = map[int]bool{}
 	bits := repeatBits(string(out))
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		k.repeats[kc] = bits[kc]
 	}
 	return k
@@ -191,7 +210,7 @@ func (k *keyboard) quicken() {
 		return
 	}
 	args := []string{"r", "rate", strconv.Itoa(ourDelay), strconv.Itoa(ourRate)}
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		args = append(args, "-r", strconv.Itoa(kc))
 	}
 	if exec.Command("xset", args...).Run() == nil {
@@ -212,7 +231,7 @@ func (k *keyboard) restore() {
 
 func (k *keyboard) restoreArgs() []string {
 	args := []string{"r", "rate", strconv.Itoa(k.delay), strconv.Itoa(k.rate)}
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		if k.repeats[kc] {
 			args = append(args, "r", strconv.Itoa(kc))
 			continue

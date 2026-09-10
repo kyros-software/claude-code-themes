@@ -131,14 +131,14 @@ func TestThePerKeyRepeatTableIsReadAndPutBack(t *testing.T) {
 	}
 
 	k := &keyboard{delay: 500, rate: 33, ours: true, repeats: map[int]bool{}}
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		k.repeats[kc] = bits[kc]
 	}
 	args := strings.Join(k.restoreArgs(), " ")
 	if !strings.HasPrefix(args, "r rate 500 33") {
 		t.Errorf("restoring starts with %q", args)
 	}
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		want := "-r " + strconv.Itoa(kc)
 		if k.repeats[kc] {
 			want = "r " + strconv.Itoa(kc)
@@ -149,27 +149,30 @@ func TestThePerKeyRepeatTableIsReadAndPutBack(t *testing.T) {
 	}
 }
 
-// The fire key is in the list, and the arrows are not. That is the whole of the
+// The fire key is in the list, and so is the vertical; the side arrows are not. That is the whole of the
 // fix: measured on this desktop, one tap of a key that repeats kills the held
 // arrow's stream for good, and with the tap's own repeat switched off the arrow
 // comes back twenty-nine milliseconds later.
 func TestTheActionKeysStopRepeatingAndTheArrowsDoNot(t *testing.T) {
 	in := map[int]bool{}
-	for _, kc := range actionKeys {
+	for _, kc := range noRepeat {
 		in[kc] = true
 	}
 	if !in[65] {
 		t.Error("the space bar still repeats, so firing still stops the ship")
 	}
-	for _, arrow := range []int{111, 113, 114, 116} {
-		if in[arrow] {
-			t.Errorf("keycode %d is an arrow and its repeat is being switched off", arrow)
+	// Left and right keep their repeat, because strafing is the thing that has to
+	// be continuous. Up and down do not: pressing one of them while holding a
+	// side arrow killed the side arrow's stream, so the vertical is a step.
+	for _, side := range []int{113, 114, 38, 40, 43, 46} {
+		if in[side] {
+			t.Errorf("keycode %d strafes and its repeat is being switched off", side)
 		}
 	}
-	// The letters that steer are not in there either, for the same reason.
-	for _, mover := range []int{25, 38, 39, 40, 43, 44, 45, 46} {
-		if in[mover] {
-			t.Errorf("keycode %d steers and its repeat is being switched off", mover)
+	for _, vertical := range []int{111, 116} {
+		if !in[vertical] {
+			t.Errorf("keycode %d is a vertical arrow and it still repeats, which stops the strafe",
+				vertical)
 		}
 	}
 }

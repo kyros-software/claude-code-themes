@@ -1169,3 +1169,49 @@ func TestReloadingEarlyStillWorks(t *testing.T) {
 		t.Error("r did not start a reload on a half-full magazine")
 	}
 }
+
+// Stepping up or down must not stop the strafe. The keyboard's half of this is in
+// keyboard.go - the vertical arrows stop repeating so the side arrow's stream
+// survives - and this is the game's half: a vertical press must not touch the
+// horizontal axis at all.
+func TestStepingUpAndDownDoesNotStopTheStrafe(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g.Ship = 40
+	for i := 0; i < 12; i++ { // holding left
+		g = Tick(g, Left)
+	}
+	if !g.Side.Moving() {
+		t.Fatal("it is not gliding to start with")
+	}
+	col, row := g.Ship, g.Row
+
+	// A press of up, and then the frames in between the side arrow's repeats.
+	g = Tick(g, Up)
+	g = drive(g, None, 1)
+	g = Tick(g, Left)
+
+	if g.Row != row-1 {
+		t.Errorf("the step went from row %d to %d, want one row up", row, g.Row)
+	}
+	if g.Ship >= col {
+		t.Errorf("the strafe stopped: column %d, was %d", g.Ship, col)
+	}
+	if !g.Side.Moving() {
+		t.Error("the glide died on a vertical press")
+	}
+}
+
+// And a vertical press is a step: one row, and no glide of its own, because the
+// key it came from is not repeating.
+func TestTheVerticalIsAStepAndNotAGlide(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	row := g.Row
+	g = Tick(g, Up)
+	g = drive(g, None, 40)
+	if g.Row != row-1 {
+		t.Errorf("one press moved it %d rows, want one", row-g.Row)
+	}
+	if g.Rise.Moving() {
+		t.Error("a single press left it climbing on its own")
+	}
+}
