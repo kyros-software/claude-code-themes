@@ -58,8 +58,22 @@ func FieldFor(cols, rows int) (Field, bool) {
 	return Field{Cols: cols, Rows: rows - HUDRows - HelpRows}, true
 }
 
-// ShipRow is the top row of the ship: it stands on the floor of the field.
+// ShipRow is the floor: the top row of the ship when it is standing on it, and
+// where every run starts.
 func (f Field) ShipRow() int { return f.Rows - ShipRows }
+
+// ShipRoof is as high as the ship may climb, and it is half the field.
+//
+// The reference gives the player the whole screen, and it can afford to: its
+// enemies come at you from everywhere. Ours all spawn on row zero and come down,
+// so a ship that could reach the top would sit on the spawn line and shoot each
+// one before it had drawn a frame - which is not a harder game or an easier one,
+// it is a different game with no descent in it.
+//
+// Half is enough to be worth having: nine rows of it in an eighty-by-twenty-four
+// terminal, which is room to climb over a bomb, meet something before it reaches
+// the floor, or back off from a boss.
+func (f Field) ShipRoof() int { return f.Rows / 2 }
 
 // ShipColMax is the rightmost column the ship's left edge may reach.
 func (f Field) ShipColMax() int { return f.Cols - ShipCols }

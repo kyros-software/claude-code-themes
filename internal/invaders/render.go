@@ -204,7 +204,7 @@ func field(g Game, cols int) []string {
 	drawMotes(gr, g)
 
 	for _, t := range g.Turrets {
-		gr.put(g.Field.ShipRow()-1, t.Col, "╫", theme.Fg(theme.Ident))
+		gr.put(t.Row, t.Col, "╫", theme.Fg(theme.Ident))
 	}
 	for _, b := range g.Bombs {
 		gr.put(int(b.Y), int(b.X), "╽", theme.Fg(theme.Bad))
@@ -336,7 +336,7 @@ func drawShip(gr grid, g Game) {
 	}
 
 	art := ShipArt(g.Kit.Family, vital)
-	row := g.Field.ShipRow()
+	row := g.Row
 	for i, line := range art {
 		if i == 1 {
 			// The hull is solid; the crest and the tail are not, so the sky

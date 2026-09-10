@@ -280,6 +280,10 @@ func reflow(g Game, f Field) Game {
 	if g.Ship < 0 {
 		g.Ship = 0
 	}
+	// The row as well, now that the ship has one of its own: a shorter window
+	// can leave it below the floor, and a taller one can leave it hanging in the
+	// middle of the field where it has no business being.
+	g.Row = clamp(g.Row, f.ShipRoof(), f.ShipRow())
 
 	aliens := make([]Alien, 0, len(g.Aliens))
 	for _, a := range g.Aliens {

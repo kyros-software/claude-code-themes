@@ -28,22 +28,23 @@ func Decode(buf []byte) (k Key, n int) {
 		case 'C':
 			return Right, 3
 		case 'B':
-			// Down is the brake. The creature latches - an arrow sets it going
-			// and it keeps going - so there has to be a way to say stop, and
-			// the one arrow the floor does not use is the obvious one.
-			return Stop, 3
+			return Down, 3
 		case 'A':
-			// Up steers nothing: the creature runs along the floor. Swallowed
-			// rather than ignored so it cannot be mistaken for a bare Escape
-			// followed by letters.
-			return None, 3
+			return Up, 3
 		}
 		return None, 3
 	case 'a', 'A', 'h', 'H':
 		return Left, 1
 	case 'd', 'D', 'l', 'L':
 		return Right, 1
-	case 's', 'S', 'j', 'J':
+	case 'w', 'W', 'k', 'K':
+		return Up, 1
+	case 'j', 'J':
+		return Down, 1
+	case 's', 'S':
+		// The brake, and the one key where wasd and hjkl disagree: wasd wants
+		// this for down. The down arrow and j both do that, and something has to
+		// stop a ship that latches.
 		return Stop, 1
 	case ' ':
 		return Fire, 1

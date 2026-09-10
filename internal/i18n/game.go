@@ -52,8 +52,12 @@ type Game struct {
 	// The help row, twice: the whole thing, and one that fits in a narrow
 	// window. The renderer prints the longest that fits rather than truncating,
 	// because a key row that ends mid-word has stopped being a key row - and
-	// with a magazine and a health kit to explain, the full one is ninety
-	// columns in Spanish.
+	// with four arrows, a brake, a magazine and a health kit to explain, the full
+	// one is ninety-three columns in Spanish.
+	//
+	// The tight one drops the separators rather than any of the keys. Nine
+	// groups at sixty columns leaves six characters each, and " · " is three of
+	// them; a key row missing a key is worse than a dense one.
 	Help  string
 	Tight string
 
@@ -109,8 +113,8 @@ var spanishGame = Game{
 	ArenaUsage: "uso: ccpet arena [on|off]",
 	NoTerminal: "no hay ningún emulador de terminal en el que abrir el juego (o dime cuál con CCPET_ARENA_TERM)",
 
-	Help:  "←→ mover · ↓ parar · espacio tirar · x habilidad · r recargar · e curar · p pausa · q salir",
-	Tight: "←→ · ␣ tiro · x poder · r carga · e cura · p pausa · q salir",
+	Help:  "↑↓←→ mover · s parar · espacio tirar · x habilidad · r recargar · e curar · p pausa · q salir",
+	Tight: "↑↓←→ ␣tiro x poder r carga e cura s alto p pausa q salir",
 
 	Families: map[string]string{
 		"single":   "único",
@@ -161,8 +165,8 @@ var englishGame = Game{
 	ArenaUsage: "usage: ccpet arena [on|off]",
 	NoTerminal: "no terminal emulator here to open the game in (or name one in CCPET_ARENA_TERM)",
 
-	Help:  "←→ move · ↓ stop · space fire · x ability · r reload · e heal · p pause · q quit",
-	Tight: "←→ · ␣ fire · x power · r load · e heal · p pause · q quit",
+	Help:  "↑↓←→ move · s stop · space fire · x ability · r reload · e heal · p pause · q quit",
+	Tight: "↑↓←→ ␣fire x power r load e heal s stop p pause q quit",
 
 	Families: map[string]string{
 		"single":   "single",

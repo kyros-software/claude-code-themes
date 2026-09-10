@@ -48,6 +48,7 @@ and it was the wrong thing to fly.
 | drawn by | `internal/pet` | `ship.go`, in the fleet's own line art |
 | identity | the whole sprite | colour, silhouette and eyes |
 | against a 5-cell enemy | twice its width | its width |
+| where it may go | the floor, left and right | half the field, all four ways |
 
 Three things carry the identity now, and each of them says something the player
 already knows:
@@ -314,11 +315,44 @@ last arrow - and it is not enough either: hold the fire key and you coast to a
 halt just the same. Reported twice, from actual play, before the shape of the
 problem was clear.
 
-Latching costs precision, so the down arrow is a brake and a wall is a stop -
-leaving the creature latched against one would mean the next key you press is a
-key you did not know you had to press. And draining the key channel prefers an
-action over a direction, for the same reason: a dropped direction costs nothing
-because the latch carries it, while a dropped shot is a press the game ignored.
+Latching costs precision, so there is a brake, and a wall is a stop - leaving the
+ship latched against one would mean the next key you press is a key you did not
+know you had to press. And draining the key channel prefers an action over a
+direction, for the same reason: a dropped direction costs nothing because the
+latch carries it, while a dropped shot is a press the game ignored.
+
+### Two axes, and where the brake went
+
+The ship moves up and down as well now, and each axis latches on its own: press
+left, press up, and it goes up and left until you say otherwise. That is the only
+way a diagonal exists at all down a pipe that reports one key at a time.
+
+The brake used to be the down arrow - the one arrow a ship on the floor had no
+use for. It cannot be that any more, so it is `s`, which is the single key where
+the two sets people already have in their fingers disagree: wasd wants it for
+down, hjkl has nothing there. Down is the arrow and `j`, up is the arrow and `w`
+and `k`, and `s` stops both axes at once.
+
+Climbing is three times slower than strafing. A terminal cell is about twice as
+tall as it is wide, so a row a tick reads as roughly double the speed of a column
+a tick, and at the same cadence the ship crossed its half of the field before you
+could let go of the key.
+
+**Half the field, not all of it.** `Field.ShipRoof` is `Rows/2`. The reference
+gives its player the whole screen and can afford to, because its enemies come
+from everywhere; ours all spawn on row zero and come down, so a ship that could
+reach the top would sit on the spawn line and shoot each one before it had drawn a
+frame. That is not a harder game or an easier one - it is a game with no descent
+in it. Half is nine rows in an eighty-by-twenty-four terminal: room to climb over
+a bomb, to meet something before it reaches the floor, or to back away from a
+boss.
+
+Three things had to follow the ship up: the hitbox, the muzzle and the ram. The
+first two are the same expression with `g.Row` in place of the floor. The third is
+new - flying into one of theirs now costs the two life a landing on your head used
+to, wherever on the field you did it - and it is what stops climbing from being a
+way of taking the fleet out of play. Turrets keep the row they were dropped at,
+because a turret that followed the ship would not be a turret.
 
 ## The bosses climb with the stages
 

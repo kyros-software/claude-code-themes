@@ -300,14 +300,14 @@ func TestTheHelpRowNamesTheKeysThatExist(t *testing.T) {
 	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
 		i18n.Use(lang)
 		help := i18n.G().Help
-		for _, want := range []string{"←", "→", "x", "r", "e", "p", "q"} {
+		keys := []string{"←", "→", "↑", "↓", "x", "r", "e", "s", "p", "q"}
+		for _, want := range keys {
 			if !strings.Contains(help, want) {
 				t.Errorf("%s: the help row does not mention %q: %q", lang, want, help)
 			}
 		}
-		// The tight one may drop the brake and the long names, but not a key
-		// that does something nothing else does.
-		for _, want := range []string{"←", "→", "x", "r", "e", "p", "q"} {
+		// The tight one drops the separators and the long words, never a key.
+		for _, want := range keys {
 			if !strings.Contains(i18n.G().Tight, want) {
 				t.Errorf("%s: the tight help row does not mention %q: %q",
 					lang, want, i18n.G().Tight)

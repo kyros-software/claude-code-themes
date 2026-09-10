@@ -477,3 +477,27 @@ func TestTheGameNamesTheWindowAndGivesTheNameBack(t *testing.T) {
 		t.Errorf("leaving wrote %q, and never gave the title back", got.String())
 	}
 }
+
+// A window that gets shorter must not leave the ship below the floor or hanging
+// in the middle of the field: both are rows it cannot be steered out of.
+func TestAResizeKeepsTheShipBetweenItsRoofAndItsFloor(t *testing.T) {
+	big, _ := FieldFor(120, 40)
+	small, _ := FieldFor(60, 18)
+	g := NewGame(big, "wasp", 6, Save{Wave: 3, Seed: 5})
+	g = drive(Tick(g, Up), None, 200)
+	if g.Row != big.ShipRoof() {
+		t.Fatalf("it did not climb: row %d of a roof at %d", g.Row, big.ShipRoof())
+	}
+
+	g = reflow(g, small)
+	if g.Row < small.ShipRoof() || g.Row > small.ShipRow() {
+		t.Errorf("after the resize the ship is at row %d, and its half is %d..%d",
+			g.Row, small.ShipRoof(), small.ShipRow())
+	}
+
+	g = reflow(g, big)
+	if g.Row < big.ShipRoof() || g.Row > big.ShipRow() {
+		t.Errorf("back in the big window it is at row %d of %d..%d",
+			g.Row, big.ShipRoof(), big.ShipRow())
+	}
+}

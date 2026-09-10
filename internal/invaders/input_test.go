@@ -6,9 +6,13 @@ import (
 	"testing"
 )
 
-// Every key the help row promises has to work, including the arrows, the vi
-// pair and the wasd pair - a shmup where up is only ever "k" is a shmup nobody
-// can pick up.
+// Every key the help row promises has to work, including all four arrows, the vi
+// set and the wasd set - a game where up is only ever "k" is a game nobody can
+// pick up.
+//
+// The one disagreement is `s`: wasd wants it for down and this uses it for the
+// brake, because a ship that latches needs one and the down arrow and `j` both
+// already say down.
 func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 	for _, c := range []struct {
 		in   string
@@ -16,8 +20,12 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 	}{
 		{"\033[D", Left}, {"\033OD", Left}, {"a", Left}, {"h", Left}, {"A", Left},
 		{"\033[C", Right}, {"\033OC", Right}, {"d", Right}, {"l", Right}, {"L", Right},
-		{"\033[B", Stop}, {"\033OB", Stop}, {"s", Stop}, {"j", Stop},
+		{"\033[B", Down}, {"\033OB", Down}, {"j", Down}, {"J", Down},
+		{"\033[A", Up}, {"\033OA", Up}, {"w", Up}, {"k", Up}, {"K", Up},
+		{"s", Stop}, {"S", Stop},
 		{" ", Fire}, {"x", Ability}, {"z", Ability},
+		{"r", Rearm}, {"e", Heal}, {"f", Heal},
+		{"1", One}, {"2", Two}, {"3", Three},
 		{"p", Pause}, {"P", Pause},
 		{"q", Quit}, {"Q", Quit}, {"\003", Quit},
 	} {
@@ -34,8 +42,8 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 // Raw mode is VMIN 0 with VTIME 1, so a read comes back after a tenth of a
 // second with whatever arrived - which is regularly one or two bytes of a
 // three-byte arrow key. Decoding those as separate keys turns one press of the
-// up arrow into an escape, a bracket and an A, and in a game whose only controls
-// are up and down that is a ship jumping across the field.
+// up arrow into an escape, a bracket and an A, and in a game steered with four
+// arrows that is a ship jumping across the field.
 func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
 	full := []byte("\033[D")
 	for cut := 1; cut < len(full); cut++ {

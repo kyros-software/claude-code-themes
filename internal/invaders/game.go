@@ -17,6 +17,8 @@ const (
 	None Key = iota
 	Left
 	Right
+	Up
+	Down
 	Stop
 	Fire
 	Ability
@@ -44,8 +46,17 @@ const (
 )
 
 const (
-	// moveWait is ticks between one column of movement and the next.
-	moveWait = 1
+	// moveWait is ticks between one column of movement and the next, and
+	// climbWait ticks between one row and the next.
+	//
+	// Climbing is three times slower on purpose. A terminal cell is about twice
+	// as tall as it is wide, so a row a tick reads as roughly twice the speed of
+	// a column a tick, and at the same cadence the ship crossed its own half of
+	// the field vertically before you could let go of the key. It also keeps the
+	// vertical a considered move rather than a twitch: the field is nine rows
+	// tall for you and forty-odd columns wide.
+	moveWait  = 1
+	climbWait = 3
 
 	// The ship LATCHES: an arrow sets it going and it keeps going until you
 	// point it the other way or tell it to stop.
@@ -127,6 +138,7 @@ type Bomb struct {
 // its own.
 type Turret struct {
 	Col    int
+	Row    int // where it was dropped: it stays there while the ship moves on
 	Life   int
 	Next   int
 	Damage int
@@ -197,17 +209,20 @@ type Game struct {
 	Frame int
 	Rand  uint64
 
-	Ship     int // the leftmost column of the ship
-	MoveWait int
-	Drift    int // -1, 0 or 1: the way it is going, until told otherwise
-	HP       int
-	Ammo     int // rounds in the magazine
-	Loading  int // ticks left of a reload, 0 when loaded
-	Cool     int // ticks until the gun may fire again
-	Ready    int // ticks until the ability is ready; 0 is ready
-	Invuln   int
-	Revived  bool
-	Kits     int // health kits in the hold
+	Ship      int // the leftmost column of the ship
+	Row       int // the top row of the ship: the floor to start with, and up to Field.ShipRoof
+	MoveWait  int
+	ClimbWait int
+	Drift     int // -1, 0 or 1: the way it is going sideways, until told otherwise
+	Climb     int // the same for up and down
+	HP        int
+	Ammo      int // rounds in the magazine
+	Loading   int // ticks left of a reload, 0 when loaded
+	Cool      int // ticks until the gun may fire again
+	Ready     int // ticks until the ability is ready; 0 is ready
+	Invuln    int
+	Revived   bool
+	Kits      int // health kits in the hold
 
 	Score int
 	Kills int
@@ -263,6 +278,7 @@ func NewGame(f Field, form string, level int, s Save) Game {
 		Phase: Playing,
 		Rand:  seedOf(s),
 		Ship:  f.ShipColMax() / 2,
+		Row:   f.ShipRow(),
 		Score: s.Score, Kills: s.Kills,
 		Revived: s.Revived,
 		Power:   s.Power, Quick: s.Speed, Mag: s.Mag,
@@ -500,32 +516,57 @@ func (g Game) offerUpgrade() Game {
 	return g
 }
 
+// moveShip steers both axes. Each one latches on its own and the brake stops
+// both, which is what makes a diagonal possible at all down a pipe that reports
+// one key at a time: press left, press up, and the ship is going up and left
+// until you say otherwise.
+//
+// The brake used to be the down arrow, and it cannot be any more. It is `s` now -
+// and `s` rather than a letter nobody would guess because the two things a
+// terminal offers are the arrows and the two key sets people already have in
+// their fingers, wasd and hjkl, which disagree about `s` and agree about
+// everything else.
 func (g Game) moveShip(in Key) Game {
 	switch in {
 	case Left:
 		g.Drift = -1
 	case Right:
 		g.Drift = 1
+	case Up:
+		g.Climb = -1
+	case Down:
+		g.Climb = 1
 	case Stop:
-		g.Drift = 0
+		g.Drift, g.Climb = 0, 0
 	}
 
 	if g.MoveWait > 0 {
 		g.MoveWait--
 	}
-	if g.Drift == 0 || g.MoveWait > 0 {
-		return g
+	if g.ClimbWait > 0 {
+		g.ClimbWait--
 	}
 
-	next := g.Ship + g.Drift
-	if next < 0 || next > g.Field.ShipColMax() {
-		// A wall is a stop. Leaving it pressed against one would mean the next
-		// thing you press is a key you did not know you had to press.
-		g.Drift = 0
-		return g
+	if g.Drift != 0 && g.MoveWait == 0 {
+		next := g.Ship + g.Drift
+		if next < 0 || next > g.Field.ShipColMax() {
+			// A wall is a stop. Leaving it pressed against one would mean the
+			// next thing you press is a key you did not know you had to press.
+			g.Drift = 0
+		} else {
+			g.Ship = next
+			g.MoveWait = moveWait
+		}
 	}
-	g.Ship = next
-	g.MoveWait = moveWait
+	if g.Climb != 0 && g.ClimbWait == 0 {
+		next := g.Row + g.Climb
+		if next < g.Field.ShipRoof() || next > g.Field.ShipRow() {
+			g.Climb = 0
+		} else {
+			g.Row = next
+			g.ClimbWait = climbWait
+		}
+	}
 	return g
 }
 
@@ -586,7 +627,7 @@ func (g Game) volley(n int) Game {
 		n = 1
 	}
 	shots := append([]Shot{}, g.Shots...)
-	top := float64(g.Field.ShipRow())
+	top := float64(g.Row)
 	for i := 0; i < n; i++ {
 		x := g.Muzzle()
 		if n > 1 {
@@ -630,7 +671,10 @@ func (g Game) tickAbility(in Key) Game {
 		turrets := append([]Turret{}, g.Turrets...)
 		for i := 0; i < n; i++ {
 			col := clamp(g.Ship+1+i*3, 0, g.Field.Cols-1)
-			turrets = append(turrets, Turret{Col: col, Life: turretLife, Next: turretCadence, Damage: g.Kit.Damage})
+			turrets = append(turrets, Turret{
+				Col: col, Row: g.Row, Life: turretLife,
+				Next: turretCadence, Damage: g.Kit.Damage,
+			})
 		}
 		g.Turrets = turrets
 	case AbilityInvuln:
@@ -833,7 +877,7 @@ func (g Game) moveTurrets() Game {
 			t.Next--
 		} else {
 			t.Next = turretCadence
-			shots = append(shots, Shot{X: float64(t.Col), Y: float64(g.Field.ShipRow()), Damage: t.Damage})
+			shots = append(shots, Shot{X: float64(t.Col), Y: float64(t.Row), Damage: t.Damage})
 		}
 		next = append(next, t)
 	}
@@ -868,14 +912,17 @@ func (g Game) moveAliens() Game {
 			})
 		}
 
-		// The floor. One that comes down on top of you costs more than one that
-		// slips past at the far end of the row, and both of them are gone.
-		if a.Y >= float64(g.Field.ShipRow()) {
-			if a.X+float64(c.W) > float64(g.Ship) && a.X < float64(g.Ship+ShipCols) {
-				g = g.wound(ramDrop)
-			} else {
-				g = g.wound(landDrop)
-			}
+		// Running into the ship costs more than slipping past it, and both of
+		// them are gone. The ram is checked against where the ship IS rather
+		// than against the floor, because the ship no longer lives on the floor:
+		// climbing into something is a way to get hurt now, and it should be.
+		if g.rams(a) {
+			g = g.wound(ramDrop)
+			g = g.burst(a.X+float64(c.W)/2, a.Y, 0)
+			continue
+		}
+		if a.Y+float64(c.H) >= float64(g.Field.Rows) {
+			g = g.wound(landDrop)
 			g = g.burst(a.X+float64(c.W)/2, a.Y, 0)
 			continue
 		}
@@ -945,7 +992,7 @@ func (g Game) moveBoss() Game {
 		g.Boss.X, g.Boss.Dir = float64(g.Field.Cols-BossCols), -1
 	}
 	// It leans down as it is worn, so a long fight is a closing one.
-	if g.Frame%90 == 0 && int(g.Boss.Y)+BossRows < g.Field.ShipRow()-1 {
+	if g.Frame%90 == 0 && int(g.Boss.Y)+BossRows < g.Field.Rows-1 {
 		g.Boss.Y++
 	}
 	if g.Boss.Fire > 0 {
@@ -972,10 +1019,14 @@ func (g Game) moveStones() Game {
 		if right := float64(g.Field.Cols - Rock.W); s.X > right {
 			s.X, s.Vx = right, -s.Vx
 		}
-		if s.Y >= float64(g.Field.ShipRow()) {
-			if s.X+float64(Rock.W) > float64(g.Ship) && s.X < float64(g.Ship+ShipCols) {
-				g = g.wound(ramDrop)
-			}
+		hit := s.X+float64(Rock.W) > float64(g.Ship) && s.X < float64(g.Ship+ShipCols) &&
+			s.Y+float64(Rock.H) > float64(g.Row) && s.Y < float64(g.Row+ShipRows)
+		if hit {
+			g = g.wound(ramDrop)
+			g = g.breakStone(s)
+			continue
+		}
+		if s.Y+float64(Rock.H) >= float64(g.Field.Rows) {
 			g = g.breakStone(s)
 			continue
 		}
@@ -1063,13 +1114,20 @@ func (g Game) hitsShip(x, y float64) bool {
 	if col < g.Ship || col >= g.Ship+ShipCols {
 		return false
 	}
-	switch row - g.Field.ShipRow() {
+	switch row - g.Row {
 	case 1:
 		return true
 	case 0, 2:
 		return col >= g.Ship+1 && col <= g.Ship+ShipCols-2
 	}
 	return false
+}
+
+// rams says whether a ship has flown into the player's, box against box.
+func (g Game) rams(a Alien) bool {
+	c := a.Craft()
+	return a.X+float64(c.W) > float64(g.Ship) && a.X < float64(g.Ship+ShipCols) &&
+		a.Y+float64(c.H) > float64(g.Row) && a.Y < float64(g.Row+ShipRows)
 }
 
 // alienAt is the index of whatever is in the air at a point, if anything.
@@ -1295,7 +1353,7 @@ func (g Game) bookkeep() Game {
 	// only cost life when they get through - it is a wave of individuals and
 	// letting one past should not be the end of a run - but a boss coming down
 	// on top of you is the fight lost.
-	if g.Boss.Alive && int(g.Boss.Y)+BossRows >= g.Field.ShipRow() {
+	if g.Boss.Alive && int(g.Boss.Y)+BossRows >= g.Field.Rows {
 		g.HP = 0
 		g.Phase = Over
 		g.Banner = BannerLanded

@@ -298,7 +298,7 @@ func TestABossThatLandsEndsTheRun(t *testing.T) {
 	if !g.Boss.Alive {
 		t.Fatal("wave five has no boss")
 	}
-	g.Boss.Y = float64(g.Field.ShipRow() - BossRows + 1)
+	g.Boss.Y = float64(g.Field.Rows - BossRows)
 	g = Tick(g, None)
 	if g.Phase != Over {
 		t.Errorf("a boss on the floor left the run in %v", g.Phase)
@@ -669,4 +669,140 @@ func stripComments(src string) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// The ship climbs, and it stops at the roof rather than at the top of the field.
+// Half the screen is the player's; the other half is where the fleet comes from,
+// and a ship that could sit on the spawn line would shoot every ship before it
+// had drawn a frame.
+func TestTheShipClimbsAsFarAsTheRoofAndNoFurther(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	if g.Row != g.Field.ShipRow() {
+		t.Fatalf("a run starts at row %d and the floor is %d", g.Row, g.Field.ShipRow())
+	}
+
+	g = drive(Tick(g, Up), None, 400)
+	if g.Row != g.Field.ShipRoof() {
+		t.Errorf("all the way up is row %d, want the roof at %d", g.Row, g.Field.ShipRoof())
+	}
+	if g.Climb != 0 {
+		t.Error("it is still trying to climb through the roof")
+	}
+	if g.Field.ShipRoof() <= 0 {
+		t.Error("the roof is the top of the field, so there is no descent left")
+	}
+
+	g = drive(Tick(g, Down), None, 400)
+	if g.Row != g.Field.ShipRow() {
+		t.Errorf("all the way down is row %d, want the floor at %d", g.Row, g.Field.ShipRow())
+	}
+}
+
+// Both axes latch, so a diagonal is two presses and stays a diagonal - which is
+// the only way to have one at all down a pipe that reports a single key.
+func TestTwoPressesMakeADiagonalAndItKeepsGoing(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	col, row := g.Ship, g.Row
+	g = Tick(g, Left)
+	g = Tick(g, Up)
+	g = drive(g, Fire, 30)
+	if g.Ship >= col {
+		t.Errorf("it went from column %d to %d", col, g.Ship)
+	}
+	if g.Row >= row {
+		t.Errorf("it went from row %d to %d", row, g.Row)
+	}
+}
+
+// And the brake stops both at once. It used to be the down arrow, which is a key
+// that means something else now.
+func TestTheBrakeStopsBothAxes(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g = Tick(g, Left)
+	g = Tick(g, Up)
+	g = drive(g, None, 12)
+	g = Tick(g, Stop)
+	col, row := g.Ship, g.Row
+	g = drive(g, None, 40)
+	if g.Ship != col || g.Row != row {
+		t.Errorf("after the brake it drifted from %d,%d to %d,%d", col, row, g.Ship, g.Row)
+	}
+	if g.Drift != 0 || g.Climb != 0 {
+		t.Errorf("the brake left drift %d and climb %d", g.Drift, g.Climb)
+	}
+}
+
+// Climbing is slower than strafing, because a terminal cell is about twice as
+// tall as it is wide and a row a tick reads as twice the speed.
+func TestClimbingIsSlowerThanStrafing(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Ship = 30
+	across := drive(Tick(g, Left), None, 30)
+	up := drive(Tick(g, Up), None, 30)
+	if cols, rows := 30-across.Ship, g.Row-up.Row; rows >= cols {
+		t.Errorf("in thirty ticks it moved %d columns and %d rows", cols, rows)
+	}
+}
+
+// Everything that can hit the ship has to follow it up the field: the hitbox, the
+// muzzle and the ram.
+func TestWhatCanHitTheShipFollowsItUpTheField(t *testing.T) {
+	g := aGame(t, "marathon", 4)
+	g.Ship = 20
+	g.Row = g.Field.ShipRoof()
+
+	// A bomb where the ship used to be is a bomb that misses.
+	hp := g.HP
+	g.Bombs = []Bomb{{X: 22, Y: float64(g.Field.ShipRow()) - 1, Hurt: 1}}
+	g = drive(g, None, 20)
+	if g.HP != hp {
+		t.Errorf("a bomb aimed at the floor hit a ship that had climbed: %d hp of %d", g.HP, hp)
+	}
+
+	// One where it is now is a bomb that lands.
+	g.Bombs = []Bomb{{X: 22, Y: float64(g.Row) - 1, Hurt: 1}}
+	g = drive(g, None, 20)
+	if g.HP >= hp {
+		t.Error("a bomb on the hull cost nothing")
+	}
+
+	// And the shots leave from where it is.
+	g.Ammo = g.Kit.Cap
+	g.Cool = 0
+	g = Tick(g, Fire)
+	if len(g.Shots) == 0 {
+		t.Fatal("it did not fire")
+	}
+	if got := g.Shots[0].Y; got > float64(g.Row) {
+		t.Errorf("the shot left from row %g and the ship is at %d", got, g.Row)
+	}
+}
+
+// Flying into something costs you, wherever you did it. Climbing is not a way to
+// take the fleet's ships out of play.
+func TestClimbingIntoAShipIsARamWhereverItHappens(t *testing.T) {
+	g := aGame(t, "marathon", 5)
+	g.Ship = 20
+	g.Row = g.Field.ShipRoof() + 2
+	hp := g.HP
+	g = oneAlien(g, 0, 21, float64(g.Row)-1)
+
+	g = untilLanded(t, g)
+	if g.HP != hp-ramDrop {
+		t.Errorf("a ram in the middle of the field cost %d, want %d", hp-g.HP, ramDrop)
+	}
+}
+
+// The row survives everything the field can do to it, including a window that
+// changes size under a run.
+func TestTheShipStaysBetweenTheRoofAndTheFloorForAWholeRun(t *testing.T) {
+	g := aGame(t, "wasp", 6)
+	keys := []Key{Up, Fire, Up, Left, Fire, Down, Down, Fire, Right, Stop, Up, Fire}
+	for i := 0; i < 6000 && g.Phase != Over; i++ {
+		g = Tick(g, keys[i%len(keys)])
+		if g.Row < g.Field.ShipRoof() || g.Row > g.Field.ShipRow() {
+			t.Fatalf("tick %d: the ship is at row %d, and its half is %d..%d",
+				i, g.Row, g.Field.ShipRoof(), g.Field.ShipRow())
+		}
+	}
 }

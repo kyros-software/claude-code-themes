@@ -195,29 +195,26 @@ level scales it - so feeding the pet is how you get a better one, and the
 forty-one forms all play differently.
 
 ```
-oleada 14 · ♥ █████░░░ · ≡ 7/18 · ✚1 · puntos 1860 · cazabugs n4 rastreador
-                           ^^^                                        ^
-               .          <-o->                                      /o\
-                           v v     /\ /\            .                 v
-                                   (-o-)
-                                   \/ \/                \_ _/
-           /\ /\                                        <ooo>  .-.
-           (-o-)                                              (o o)
-·          \/ \/                                               '-'
-         ·
-            ✚╽                                            .
-                                           ·
-                ·                                   ·                \_ _/
-                                                                   · <ooo>
-                       ╿
-                  ·
-     ·
-                      ^
-·                    \^/
-          .         <o o> .                     ·       .
-                     /^\         ·
+oleada 14 · ♥ ██░░░░░░ · ≡ 16/21 · ✚1 · puntos 2340 · cazabugs n4 rastreador
+             ·               ╿                                                 ·
+               /\ /\                               ^^^
+               (-o-)         .               .    <-o->                   .
+               \/ \/                               v v
+                                                             .-.
+                                                            (o o)  .
+                                           .                 '-'
 
-←→ · ␣ tiro · x poder · r carga · e cura · p pausa · q salir
+                ·               ╿ ╿                             ^
+        ·                                                      /o\      \_ _/
+            ✚                        *                          v       <ooo>
+                                   · ·**
+         ·                       \^/
+                      ·         <- ->                                      ╽   .
+                            ·    /^\
+
+                               ·                                  ·
+
+↑↓←→ ␣tiro x poder r carga e cura s alto p pausa q salir
 ```
 
 **Ten kinds of enemy ship**, each falling and drifting and shooting on its own
@@ -241,9 +238,16 @@ it, `e` spends one. And an asteroid, which is on nobody's side - break it and it
 throws meteoroids that hurt whatever they touch, including whatever of theirs was
 underneath.
 
-The arrows are a throttle rather than a nudge: one press sets the ship going and
-it keeps going, and down is the brake. That is the only way a terminal will let
-you fire and move at once, since it cannot report two keys held at the same time.
+**You fly, not just strafe.** All four arrows, and each axis latches on its own:
+press left, press up, and the ship goes up and left until you say otherwise, which
+is the only way a diagonal exists down a pipe that reports one key at a time. `s`
+is the brake. You get half the field - the other half is where the fleet comes
+from, and a ship that could reach the spawn line would shoot everything before it
+had drawn a frame. Climbing is slower than strafing, because a terminal cell is
+twice as tall as it is wide.
+
+That latch is also the only way a terminal will let you fire and move at once,
+since it cannot report two keys held at the same time.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
 a second and cannot read a keypress. `ccpet arena on` opens it for you while
