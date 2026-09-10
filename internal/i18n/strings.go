@@ -35,6 +35,10 @@ type Strings struct {
 	IfContextBlows string
 
 	// Feeding, from the panel.
+	// LogDefeat labels the one log row that is not a meal: a run of invade
+	// lost. It is here and not in Foods because a defeat is not something you
+	// can order - see pet.Setback.
+	LogDefeat  string
 	AteAlready string // takes a duration
 	WontEat    string // takes the meal's name
 	Evolves    string // takes two form names
@@ -119,6 +123,7 @@ var spanish = Strings{
 	In:             "en",
 	IfContextBlows: "si revientas el contexto",
 
+	LogDefeat:  "derrota en invade",
 	AteAlready: "ya ha comido. le toca en %s",
 	WontEat:    "no le entra %s ahora mismo",
 	Evolves:    "evoluciona: %s › %s",
@@ -198,6 +203,7 @@ var english = Strings{
 	In:             "in",
 	IfContextBlows: "if you blow the context",
 
+	LogDefeat:  "lost at invade",
 	AteAlready: "already fed. next one in %s",
 	WontEat:    "it will not take %s right now",
 	Evolves:    "evolves: %s › %s",

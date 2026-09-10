@@ -386,6 +386,11 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 			}
 			if food, ok := pet.Foods[e.Event]; ok {
 				r.label = food.Label()
+			} else if e.Event == pet.DefeatEvent {
+				// The one row that is not a meal, so it is not in Foods and has
+				// no Label of its own. Without this branch a lost run printed
+				// the raw event name in an otherwise translated panel.
+				r.label = i18n.S().LogDefeat
 			} else if r.label == "" {
 				r.label = "?"
 			}
