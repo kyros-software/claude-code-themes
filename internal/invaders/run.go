@@ -26,6 +26,10 @@ const (
 	// enough to lose the wave you were meant to be let out of.
 	pauseEvery = 5
 
+	// emptyReadsBeforeGivingUp is how many reads may come back with nothing
+	// before the key reader decides the terminal has gone.
+	emptyReadsBeforeGivingUp = 1000
+
 	// sizeEvery is how often the terminal is re-measured, in ticks.
 	//
 	// Polled rather than driven by SIGWINCH: it is one ioctl a second against a
@@ -293,9 +297,16 @@ func leave(w io.Writer) { io.WriteString(w, theme.Reset+"\033[?25h\033[?1049l") 
 // The channel is small and full sends are dropped: somebody leaning on the arrow
 // key must not be able to stall the frame that is meant to be showing them the
 // result.
+//
+// A read that comes back with nothing is NOT the end of the terminal, and taking
+// it for one is how the first version of this shipped with a dead keyboard: with
+// VMIN 0 and VTIME 1 os.File reports a timed-out read as io.EOF, so the goroutine
+// returned a tenth of a second in and never read another byte. Raw mode blocks
+// on a byte now, and an empty read is treated as the nothing it is.
 func readKeys(r io.Reader, keys chan<- Key, stop <-chan struct{}) {
 	buf := make([]byte, 0, 16)
 	chunk := make([]byte, 16)
+	empty := 0
 	for {
 		select {
 		case <-stop:
@@ -304,6 +315,7 @@ func readKeys(r io.Reader, keys chan<- Key, stop <-chan struct{}) {
 		}
 		n, err := r.Read(chunk)
 		if n > 0 {
+			empty = 0
 			var decoded []Key
 			decoded, buf = DecodeAll(append(buf, chunk[:n]...))
 			for _, k := range decoded {
@@ -314,9 +326,19 @@ func readKeys(r io.Reader, keys chan<- Key, stop <-chan struct{}) {
 				default:
 				}
 			}
+			continue
 		}
-		if err != nil {
+		// A terminal that has gone away reports it over and over and instantly,
+		// so a budget of empty reads tells that apart from a terminal that is
+		// merely quiet - and it costs microseconds to spend. With VMIN 1 the
+		// budget is never touched at all; it is here so that getting the termios
+		// wrong is a game that keeps playing rather than a dead keyboard, which
+		// is exactly how this shipped the first time.
+		if empty++; empty > emptyReadsBeforeGivingUp {
 			return
+		}
+		if err == nil {
+			continue
 		}
 	}
 }

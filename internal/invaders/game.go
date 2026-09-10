@@ -34,10 +34,13 @@ const (
 )
 
 const (
-	// moveWait is ticks between one column of movement and the next. Terminal
-	// key repeat is uneven across emulators, so movement is paced here rather
-	// than left to however fast the keyboard happens to autorepeat.
-	moveWait = 2
+	// moveWait is ticks between one column of movement and the next.
+	//
+	// One, so a held key moves a column a frame - twenty a second, about four
+	// seconds to cross a wide terminal, which is roughly what the arcade's
+	// cannon does. At two it read as sluggish, and sluggish in a game where
+	// moving IS aiming is the difference between missing and being cheated.
+	moveWait = 1
 
 	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a
 	// good margin: you are meant to be able to shoot your way out of one.

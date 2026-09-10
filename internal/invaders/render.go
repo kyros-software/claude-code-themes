@@ -88,15 +88,22 @@ func joinFit(parts []string, cols int) string {
 // the one thing internal/pet is for. So a block claims nine columns of its row
 // and the assembly steps over them.
 type grid struct {
-	cells  [][]string
+	glyph  [][]string // what is in the cell, unpainted
+	ink    [][]string // the escape that colours it
 	blocks []map[int]string
 	cols   int
 }
 
 func newGrid(rows, cols int) grid {
-	g := grid{cells: make([][]string, rows), blocks: make([]map[int]string, rows), cols: cols}
-	for i := range g.cells {
-		g.cells[i] = make([]string, cols)
+	g := grid{
+		glyph:  make([][]string, rows),
+		ink:    make([][]string, rows),
+		blocks: make([]map[int]string, rows),
+		cols:   cols,
+	}
+	for i := range g.glyph {
+		g.glyph[i] = make([]string, cols)
+		g.ink[i] = make([]string, cols)
 		g.blocks[i] = map[int]string{}
 	}
 	return g
@@ -110,12 +117,19 @@ func (g grid) block(row, col int, painted string) {
 	g.blocks[row][col] = painted
 }
 
-// put writes one painted glyph, ignoring anything off the field.
-func (g grid) put(row, col int, painted string) {
-	if row < 0 || row >= len(g.cells) || col < 0 || col >= g.cols {
+// put writes one glyph and the colour it wants, ignoring anything off the field.
+//
+// The colour is kept beside the glyph rather than wrapped around it so that
+// assembly can emit one escape per RUN of colour. A row of eleven identical
+// sprites is one colour and sixty-odd cells; wrapping each of them cost about
+// ten kilobytes a frame and two hundred a second, which is fine on a local
+// terminal and is not fine down an ssh connection.
+func (g grid) put(row, col int, glyph, ink string) {
+	if row < 0 || row >= len(g.glyph) || col < 0 || col >= g.cols {
 		return
 	}
-	g.cells[row][col] = painted
+	g.glyph[row][col] = glyph
+	g.ink[row][col] = ink
 }
 
 // blit writes a row of a sprite, one glyph at a time, in one colour. A blank in
@@ -126,25 +140,41 @@ func (g grid) blit(row, col int, art, ink string) {
 		if r == ' ' {
 			continue
 		}
-		g.put(row, col+i, ink+string(r)+theme.Reset)
+		g.put(row, col+i, string(r), ink)
 	}
 }
 
 func (g grid) lines() []string {
-	out := make([]string, len(g.cells))
-	for i, row := range g.cells {
+	out := make([]string, len(g.glyph))
+	for i, row := range g.glyph {
 		var b strings.Builder
+		open := ""
 		for x := 0; x < len(row); x++ {
 			if painted, ok := g.blocks[i][x]; ok {
+				if open != "" {
+					b.WriteString(theme.Reset)
+					open = ""
+				}
 				b.WriteString(painted)
 				x += ShipCols - 1
 				continue
 			}
 			if row[x] == "" {
+				if open != "" {
+					b.WriteString(theme.Reset)
+					open = ""
+				}
 				b.WriteByte(' ')
 				continue
 			}
+			if ink := g.ink[i][x]; ink != open {
+				b.WriteString(ink)
+				open = ink
+			}
 			b.WriteString(row[x])
+		}
+		if open != "" {
+			b.WriteString(theme.Reset)
 		}
 		out[i] = b.String()
 	}
@@ -160,13 +190,13 @@ func field(g Game, cols int) []string {
 	drawBoss(gr, g)
 
 	for _, t := range g.Turrets {
-		gr.put(g.Field.ShipRow()-1, t.Col, theme.Fg(theme.Ident)+"╫"+theme.Reset)
+		gr.put(g.Field.ShipRow()-1, t.Col, "╫", theme.Fg(theme.Ident))
 	}
 	for _, b := range g.Bombs {
-		gr.put(int(b.Y), int(b.X), theme.Fg(theme.Bad)+"╽"+theme.Reset)
+		gr.put(int(b.Y), int(b.X), "╽", theme.Fg(theme.Bad))
 	}
 	for _, s := range g.Shots {
-		gr.put(int(s.Y), int(s.X), theme.Fg(theme.Emph)+"╿"+theme.Reset)
+		gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
 	}
 
 	// The creature is opaque on its nine columns, and it goes in last so

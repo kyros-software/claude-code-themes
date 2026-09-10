@@ -294,6 +294,28 @@ tied now.
 `dropOurHooks` needed nothing: it matches on the `ccpet` marker in the command
 string, so uninstall already removes an event it has never heard of.
 
+## The keyboard was dead, and every test passed
+
+Worth writing down, because the shape of it will happen again.
+
+Raw mode's obvious setting is VMIN 0 with VTIME 1: *come back in a tenth of a
+second with whatever there is*. It does not work here. `os.File` turns a read
+that returns nothing into `io.EOF`, so the goroutine reading keys saw an EOF a
+tenth of a second after the game started, took it for a closed terminal and
+returned. Not one keypress reached the game for the rest of the run.
+
+Every test in the package passed, because they all drive the loop through a fake
+key channel and none of them goes near a terminal. What found it was a pty: fork
+one, run the binary in it, write bytes at it and read the frames back. That is
+also how the diagnosis got sharp - `a` and the arrows behaved identically, which
+ruled out the decoder and pointed straight at the reader.
+
+Three things came out of it. Raw mode blocks for a key now (VMIN 1, VTIME 0), and
+the flags it computes are a pure function so there is something to assert. The
+reader tolerates a budget of empty reads before it gives up, so getting the
+termios wrong again is a game that keeps playing rather than one nobody can
+steer. And both are regression tests that fail against the old code.
+
 ## Drawing
 
 Full-frame repaint, one buffer, one flush, one write. Cursor home and an
@@ -302,6 +324,11 @@ synchronised-output pair around it is ignored by terminals that lack it. No
 diffing: sixty by eighteen is about ten kilobytes a frame and two hundred a
 second, which is nothing, and a shadow buffer buys a whole class of stale-cell
 bugs for no measurable gain.
+
+Colour is emitted per RUN and not per cell. A row of eleven identical sprites is
+one colour and sixty-odd glyphs; wrapping each of them cost about ten kilobytes a
+frame and two hundred a second, which is fine on a local terminal and is not fine
+down an ssh connection.
 
 The alternate screen and the cursor come back on every path, including a panic
 and a signal. A game that leaves your terminal with no cursor is worse than one

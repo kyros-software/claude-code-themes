@@ -26,8 +26,13 @@ const (
 	ShipRows = pet.CompactRows
 	ShipCols = pet.SpriteWidth
 
-	// A troop sprite and the cell it lives in. One column of space and one row,
-	// so the block reads as a grid rather than a wall.
+	// A troop sprite and the cell it lives in.
+	//
+	// Five cells wide and three tall, exactly as the canvas draws it. Trimming
+	// it to its middle three was tried and thrown away: the shoulders are what
+	// tells the forty species apart - trimmed, they collapse into five
+	// silhouettes and two of them stop walking. The block is made smaller by
+	// having fewer columns, not by drawing worse bugs.
 	TroopCols = 5
 	TroopRows = 3
 	cellCols  = TroopCols + 1

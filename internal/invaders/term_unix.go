@@ -36,18 +36,20 @@ func openTerm() (*term, error) {
 }
 
 // raw turns off echo, line buffering and the signal characters, and returns the
-// undo. VMIN 0 with VTIME 1 makes a read wait a tenth of a second and then come
-// back with whatever there is, which is what lets one goroutine read keys
-// without ever blocking the frame it is feeding.
+// undo.
+//
+// VMIN 1 with VTIME 0: a read blocks until at least one byte arrives. The
+// obvious setting is the other one - VMIN 0, VTIME 1, "come back in a tenth of a
+// second with whatever there is" - and it does not work here, because os.File
+// turns a read that returns nothing into io.EOF. The reader goroutine saw that
+// EOF a tenth of a second after the game started, took it for a closed terminal
+// and returned, and from then on NOT ONE KEY reached the game. Blocking is fine:
+// the reader is a goroutine of its own and the frames are drawn by the loop.
 func (t *term) raw() (restore func(), err error) {
 	if err := ioctl(t.f.Fd(), getAttr, unsafe.Pointer(&t.prev)); err != nil {
 		return nil, err
 	}
-	next := t.prev
-	next.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
-	next.Iflag &^= syscall.IXON | syscall.ICRNL
-	next.Cc[syscall.VMIN] = 0
-	next.Cc[syscall.VTIME] = 1
+	next := rawTermios(t.prev)
 	if err := ioctl(t.f.Fd(), setAttr, unsafe.Pointer(&next)); err != nil {
 		return nil, err
 	}
@@ -77,6 +79,18 @@ func (t *term) size() (cols, rows int) {
 		return c, r
 	}
 	return 80, 24
+}
+
+// rawTermios is the flags a raw terminal wants, as a function of the flags it
+// had. Split out from raw so it can be tested: everything else in here needs a
+// terminal to say anything, and this is the part that was wrong.
+func rawTermios(prev syscall.Termios) syscall.Termios {
+	next := prev
+	next.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
+	next.Iflag &^= syscall.IXON | syscall.ICRNL
+	next.Cc[syscall.VMIN] = 1
+	next.Cc[syscall.VTIME] = 0
+	return next
 }
 
 func (t *term) Read(p []byte) (int, error)  { return t.f.Read(p) }

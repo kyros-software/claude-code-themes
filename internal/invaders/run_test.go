@@ -2,6 +2,7 @@ package invaders
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -348,3 +349,58 @@ func TestTheGameCanOnlyEverTakeXpAndNeverGiveIt(t *testing.T) {
 }
 
 func theStripped(s string) string { return strings.ReplaceAll(s, "\033", "^") }
+
+// stutter is a reader that comes back with nothing before it comes back with
+// something, which is what a terminal does.
+type stutter struct {
+	steps []string
+	at    int
+	done  chan struct{}
+}
+
+func (s *stutter) Read(p []byte) (int, error) {
+	if s.at >= len(s.steps) {
+		<-s.done
+		return 0, io.EOF
+	}
+	step := s.steps[s.at]
+	s.at++
+	if step == "" {
+		// Exactly what os.File does with a read that timed out, which is the
+		// shape that killed the keyboard.
+		return 0, io.EOF
+	}
+	return copy(p, step), nil
+}
+
+// A read that comes back with nothing is not the end of the terminal, and the
+// key reader must not give up on the first one.
+//
+// This is the dead keyboard, as a test. os.File reports a read that timed out as
+// io.EOF, so with VMIN 0 the reader saw one a tenth of a second in, took it for
+// a closed terminal and returned - and not one keypress reached the game for the
+// rest of the run. The termios is right now and this can no longer happen, but
+// the budget means that getting it wrong again is a game that keeps playing
+// rather than one nobody can steer.
+func TestAnEmptyReadIsNotTheEndOfTheKeyboard(t *testing.T) {
+	src := &stutter{steps: []string{"", "", "a", "", " ", "\033[C"}, done: make(chan struct{})}
+
+	keys := make(chan Key, 8)
+	stop := make(chan struct{})
+	defer close(stop)
+
+	go readKeys(src, keys, stop)
+
+	want := []Key{Left, Fire, Right}
+	for i, w := range want {
+		select {
+		case got := <-keys:
+			if got != w {
+				t.Errorf("key %d is %d, want %d", i, got, w)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("only %d keys arrived: the reader gave up on an empty read", i)
+		}
+	}
+	close(src.done)
+}

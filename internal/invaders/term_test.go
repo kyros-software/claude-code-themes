@@ -2,7 +2,10 @@
 
 package invaders
 
-import "testing"
+import (
+	"syscall"
+	"testing"
+)
 
 // The geometry has to be exercisable without a terminal, or every test that
 // depends on the field size needs a tty and CI has none.
@@ -72,5 +75,48 @@ func TestOpeningATerminalThatIsNotThereIsAnErrorAndNotAHang(t *testing.T) {
 	// least close cleanly without having been put into raw mode.
 	if err := tm.Close(); err != nil {
 		t.Errorf("closing it failed: %v", err)
+	}
+}
+
+// The bug that shipped a dead keyboard, as a test.
+//
+// The obvious raw-mode setting is VMIN 0 with VTIME 1: "come back in a tenth of
+// a second with whatever there is". It does not work, because os.File turns a
+// read that returns nothing into io.EOF - so the goroutine reading keys saw an
+// EOF a tenth of a second after the game started, took it for a closed terminal
+// and returned. Not one keypress reached the game for the rest of the run, and
+// every test in this package passed, because they all drive the loop through a
+// fake key channel and never go near a terminal.
+func TestRawModeBlocksForAKeyRatherThanTimingOut(t *testing.T) {
+	var prev syscall.Termios
+	prev.Lflag = syscall.ECHO | syscall.ICANON | syscall.ISIG | syscall.IEXTEN
+	prev.Iflag = syscall.IXON | syscall.ICRNL | syscall.IGNBRK
+
+	next := rawTermios(prev)
+
+	if next.Cc[syscall.VMIN] != 1 {
+		t.Errorf("VMIN is %d, want 1: a read has to block for a key", next.Cc[syscall.VMIN])
+	}
+	if next.Cc[syscall.VTIME] != 0 {
+		t.Errorf("VTIME is %d, want 0: a timed-out read comes back as io.EOF",
+			next.Cc[syscall.VTIME])
+	}
+	// Compared one at a time rather than through a table: Termios.Lflag is 32
+	// bits on Linux and 64 on Darwin, so a map of one of them will not build on
+	// the other - and this file is compiled on both.
+	if next.Lflag&syscall.ECHO != 0 {
+		t.Error("ECHO is still set: every keypress would be printed over the frame")
+	}
+	if next.Lflag&syscall.ICANON != 0 {
+		t.Error("ICANON is still set: nothing arrives until Enter")
+	}
+	if next.Lflag&syscall.ISIG != 0 {
+		t.Error("ISIG is still set: ctrl-c would never reach Decode")
+	}
+	if next.Lflag&syscall.IEXTEN == 0 {
+		t.Error("it cleared a flag it was not asked to")
+	}
+	if next.Iflag&syscall.IGNBRK == 0 {
+		t.Error("it cleared an input flag it was not asked to")
 	}
 }
