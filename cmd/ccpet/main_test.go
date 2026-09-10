@@ -162,7 +162,7 @@ func TestSetupDispatch(t *testing.T) {
 func TestEveryDispatchedVerbIsDocumented(t *testing.T) {
 	verbs := []string{
 		"statusline", "hook", "setup", "link", "version", "help", "lang",
-		"feed", "count", "day", "record", "session",
+		"feed", "count", "day", "record", "session", "invade",
 	}
 	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
 		i18n.Use(lang)
@@ -293,5 +293,42 @@ func TestTheLangFlagDoesNotTouchTheSetting(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "ccpet.json")); err == nil {
 		t.Error("--lang wrote the setting down; it is meant to be for one command")
+	}
+}
+
+// invade needs a terminal, and CI has none. It has to say so and come straight
+// back rather than blocking on a /dev/tty that is not there - the shape of hang
+// that only ever shows up in CI, ten minutes into a timeout.
+//
+// Skipped where there IS a terminal, and that is not shyness: invade takes the
+// controlling terminal, hides the cursor and reads keys, so running it for real
+// from `go test` on a developer's machine would swallow their shell until they
+// pressed q. The path this test is about only exists where there is nothing to
+// take, which is exactly where CI runs.
+func TestInvadeWithoutATerminalSaysSoAndDoesNotHang(t *testing.T) {
+	if f, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+		f.Close()
+		t.Skip("there is a terminal here; invade would take it over")
+	}
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+
+	done := make(chan struct{})
+	var code int
+	var errOut string
+	go func() {
+		defer close(done)
+		code, _, errOut = call(t, []string{"ccpet", "invade"}, "")
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("invade blocked instead of refusing")
+	}
+	if code != 2 {
+		t.Errorf("exit %d, want 2: the environment is wrong, not the program", code)
+	}
+	if strings.TrimSpace(errOut) == "" {
+		t.Error("it refused and said nothing about why")
 	}
 }

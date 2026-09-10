@@ -4,6 +4,7 @@
 //
 //	ccpet statusline    read a refresh payload on stdin, print the footer
 //	ccpet hook          read a hook payload on stdin, turn it into food
+//	ccpet invade        the shmup: the pet you have is the ship
 //	ccpet               the pet's panel
 //	ccpet feed|tests|commit|compact|task|overflow      a meal
 //	ccpet count|day|record|session                     bookkeeping
@@ -20,6 +21,7 @@ import (
 
 	"github.com/kyros-software/claude-code-themes/internal/hook"
 	"github.com/kyros-software/claude-code-themes/internal/i18n"
+	"github.com/kyros-software/claude-code-themes/internal/invaders"
 	"github.com/kyros-software/claude-code-themes/internal/panel"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/setup"
@@ -60,6 +62,12 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 			return runSetup(args[1:], stdout, stderr)
 		case "lang":
 			return runLang(args[1:], stdout, stderr)
+		case "invade":
+			// The paths are resolved here, like every other verb: a package
+			// under internal/ is handed where its state lives rather than
+			// going and finding it, which is what lets the tests point them
+			// somewhere harmless.
+			return invaders.Run(args[1:], stdout, stderr, pet.Path(), invaders.SavePath(), now)
 		case "link":
 			root := ""
 			if len(args) > 1 {
