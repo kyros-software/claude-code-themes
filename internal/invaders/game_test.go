@@ -1,7 +1,6 @@
 package invaders
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -462,11 +461,7 @@ func TestARunPlaysItselfUntilTheLadderOutgrowsIt(t *testing.T) {
 // level, but that happens once, in run.go, when the run is over - a tick that
 // could reach the pet would punish it twenty times a second.
 func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
-	raw, err := os.ReadFile("game.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := string(raw)
+	src := mustRead(t, "game.go")
 	for _, forbidden := range []string{
 		"pet.Update(", "pet.Save(", "pet.Setback(",
 		"os.", "syscall.", "\\033", "fmt.Print", "time.",
