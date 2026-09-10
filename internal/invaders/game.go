@@ -485,9 +485,9 @@ func (g Game) moveShots() Game {
 			}
 		}
 		s.Y -= shotSpeed
-		if s.Y >= 0 {
-			next = append(next, s)
-		}
+		// Kept even once it is off the top: what it crossed on the way has not
+		// been resolved yet. resolveHits culls it afterwards.
+		next = append(next, s)
 	}
 	g.Shots = next
 	return g
@@ -665,14 +665,31 @@ func (g Game) resolveHits() Game {
 			}
 			continue
 		}
-		for _, i := range byRow[int(s.Y)] {
-			if members[i].HP <= 0 {
+		// Every row the shot crossed this tick, lowest first.
+		//
+		// It travels more than a row a tick, so testing only the row it landed
+		// on steps straight over about one row in eleven - and the row it steps
+		// over most visibly is the top one, where the next step takes it off the
+		// field entirely and it is thrown away untested. That is a top row you
+		// cannot shoot until the block drops a step, which is exactly what it
+		// looked like from the outside.
+		for row := crossedTop(s, g.Field); row >= crossedLow(s) && alive; row-- {
+			hit := -1
+			for _, i := range byRow[row] {
+				if members[i].HP <= 0 {
+					continue
+				}
+				x, _ := g.Squad.At(members[i])
+				if s.X < float64(x)-TroopHit/2 || s.X >= float64(x)+TroopHit/2+1 {
+					continue
+				}
+				hit = i
+				break
+			}
+			if hit < 0 {
 				continue
 			}
-			x, _ := g.Squad.At(members[i])
-			if s.X < float64(x)-TroopHit/2 || s.X >= float64(x)+TroopHit/2+1 {
-				continue
-			}
+			i := hit
 			members[i].HP -= s.Damage
 			if s.Splash > 0 {
 				// Sideways, along the row, and not up and down: a formation is
@@ -694,9 +711,9 @@ func (g Game) resolveHits() Game {
 			if s.Hit > s.Pierce {
 				alive = false
 			}
-			break
 		}
-		if alive {
+		// Off the top of the field, having crossed everything it was going to.
+		if alive && s.Y >= 0 {
 			shots = append(shots, s)
 		}
 	}
@@ -719,6 +736,19 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+// crossedTop and crossedLow are the rows a shot swept this tick: it was one
+// shotSpeed lower a tick ago, and it is here now.
+func crossedTop(s Shot, f Field) int {
+	return clamp(int(s.Y+shotSpeed), 0, f.Rows-1)
+}
+
+func crossedLow(s Shot) int {
+	if s.Y < 0 {
+		return 0
+	}
+	return int(s.Y)
 }
 
 func (g Game) hitsBoss(s Shot) bool {

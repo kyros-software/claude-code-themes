@@ -476,3 +476,59 @@ func withoutComments(src string) string {
 	}
 	return out.String()
 }
+
+// The top row has to be shootable where it starts, and every other row too.
+//
+// A shot travels more than a row a tick, so testing only the row it landed on
+// steps straight over about one row in eleven - and the row it stepped over most
+// visibly was the top one, at field row zero, where the next step takes the shot
+// off the field and it was thrown away untested. From the outside that is a row
+// you cannot kill until the block drops a step, which is how it was reported.
+func TestAShotHitsEveryRowItCrosses(t *testing.T) {
+	for _, rows := range []int{MinRows, 20, 24, 30, 40} {
+		f := aField(t, 80, rows)
+		for row := 0; row < f.ShipRow(); row++ {
+			g := NewGame(f, "spark", 1, Save{Wave: 1, Seed: 1})
+			// One member, alone, on the row under test.
+			g.Squad.X, g.Squad.Y = 20, 0
+			g.Squad.Members = []Member{{Species: 0, Col: 0, Row: 0, HP: 1}}
+			g.Squad.Wait = 1 << 30 // hold the block still
+			g.Started = 1
+			at, _ := g.Squad.At(g.Squad.Members[0])
+			g.Squad.Y = float64(row)
+
+			g.Ship = at - ShipCols/2
+			if g.Ship < 0 {
+				g.Ship = 0
+			}
+			g.Shots = []Shot{{X: float64(at), Y: float64(f.ShipRow()), Damage: 5}}
+
+			killed := false
+			for i := 0; i < 200 && !killed; i++ {
+				g = g.moveShots()
+				g = g.resolveHits()
+				killed = len(g.Squad.Members) == 0
+				if len(g.Shots) == 0 && !killed {
+					break
+				}
+			}
+			if !killed {
+				t.Errorf("%d rows: a shot went straight through the member on row %d", rows, row)
+			}
+		}
+	}
+}
+
+// And a shot that leaves the top of the field is gone rather than lingering at a
+// negative row where nothing can be drawn.
+func TestAShotThatLeavesTheFieldIsGone(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	g.Squad.Members = nil
+	g.Shots = []Shot{{X: 10, Y: 0.5, Damage: 1}}
+
+	g = g.moveShots()
+	g = g.resolveHits()
+	if len(g.Shots) != 0 {
+		t.Errorf("a shot off the top is still in the air at y=%v", g.Shots[0].Y)
+	}
+}

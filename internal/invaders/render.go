@@ -196,7 +196,9 @@ func field(g Game, cols int) []string {
 		gr.put(int(b.Y), int(b.X), "╽", theme.Fg(theme.Bad))
 	}
 	for _, s := range g.Shots {
-		gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
+		if s.Y >= 0 {
+			gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
+		}
 	}
 
 	// The creature is opaque on its nine columns, and it goes in last so

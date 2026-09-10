@@ -201,6 +201,25 @@ bullet** and one to the eye. On a five-cell pitch that leaves two columns of
 clear air between neighbours, so aiming still means something and a miss is still
 yours.
 
+## A shot has to hit every row it crosses
+
+A bullet travels 1.1 rows a tick, which means it does not land on every row: over
+a flight it steps clean over about one row in eleven. Testing only the row it
+landed on therefore misses, at random, whichever row the arithmetic happens to
+skip - and the row it skipped most visibly was the top one, at field row zero,
+because the next step takes the bullet off the field, where it was thrown away
+before anything was tested against it.
+
+From the outside that is a top row you cannot kill until the block drops a step,
+which is how it was reported after five minutes of play. It is also the kind of
+bug that hides: every other row worked, and the one that did not moved around
+with the height of the terminal.
+
+So a shot now resolves against every row between where it was a tick ago and
+where it is, lowest first, and it is culled after that rather than before. The
+regression test fires at a lone invader on every row of five different terminal
+heights; against the old code it fails thirteen times.
+
 ## Moving and firing at once, which a terminal does not want to allow
 
 The creature **latches**: an arrow sets it going and it keeps going until you
