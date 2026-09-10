@@ -111,9 +111,9 @@ func TestTheCreatureIsTheFormsOwnSpriteAndItsOwnRamp(t *testing.T) {
 	for _, form := range []string{"spark", "wasp", "phoenix", "marathon"} {
 		g := NewGame(f, form, 4, Save{Wave: 1, Seed: 1})
 		frame := strings.Join(Render(g, 80), "\n")
-		for i, row := range pet.DrawTiny(form, g.Vital(), g.Frame/8, false) {
+		for i, row := range pet.DrawCard(form, g.Vital(), g.Frame/8, false) {
 			if !strings.Contains(frame, row) {
-				t.Errorf("%s: tiny row %d is not in the frame", form, i)
+				t.Errorf("%s: card row %d is not in the frame", form, i)
 			}
 		}
 	}
@@ -126,7 +126,7 @@ func TestADyingCreatureLiesDown(t *testing.T) {
 	g := NewGame(f, "bughunter", 4, Save{Wave: 1, Seed: 1})
 	g.HP = 0
 	frame := strings.Join(Render(g, 80), "\n")
-	down := pet.DrawTiny("bughunter", pet.KO, g.Frame/8, false)
+	down := pet.DrawCard("bughunter", pet.KO, g.Frame/8, false)
 	for i, row := range down {
 		if !strings.Contains(frame, row) {
 			t.Errorf("row %d of the k.o. creature is not in the frame", i)
@@ -135,7 +135,7 @@ func TestADyingCreatureLiesDown(t *testing.T) {
 
 	g.HP = g.Kit.MaxHP
 	if up := strings.Join(Render(g, 80), "\n"); strings.Contains(up, down[len(down)-1]) {
-		t.Error("a creature at full life has its eyes shut")
+		t.Error("a creature at full life is lying down")
 	}
 }
 

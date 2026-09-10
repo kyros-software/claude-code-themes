@@ -20,17 +20,24 @@ const (
 	HUDRows  = 1
 	HelpRows = 1
 
-	// The creature at the bottom is pet.DrawTiny: two rows of five cells, its
-	// mark over its eyes.
+	// The creature at the bottom is pet.DrawCard: four rows of nine cells, the
+	// crest over the three compact ones.
 	//
-	// The five-row card is the pet's portrait and this is its cannon. Cropping
-	// the compact form was tried and is not the same thing as drawing a smaller
-	// one: at nine cells it was still nearly twice the gap between two invaders,
-	// where the arcade's cannon is about one of them wide. DrawTiny is a fourth
-	// size in internal/pet rather than a crop out here, because that package is
-	// the only thing that knows how to draw the creature.
-	ShipRows = pet.TinyRows
-	ShipCols = pet.TinyWidth
+	// Smaller was tried three ways and none of them was worth it. Cropping the
+	// compact form to two rows lost nothing much and gained nothing much. A true
+	// downsample - the block glyphs are 2x2 pixel patches, so halving a sprite
+	// is arithmetic rather than guesswork - turned four of the forty-one into
+	// the same five glyphs and took the eyes off all of them. And a
+	// purpose-drawn five-cell version worked, and was not what anybody wanted to
+	// look at: what the creature needs to keep is its CREST, the antennae and
+	// horns that say which of the forty-one it is, and the crest is the one
+	// thing the compact form throws away.
+	//
+	// So it goes the other way: the card, which is the compact form with the
+	// crest put back on top. It is the biggest thing on the field by a distance,
+	// and that is the point of the whole exercise.
+	ShipRows = pet.CardRows
+	ShipCols = pet.SpriteWidth
 
 	// A troop and the cell it lives in: one glyph, in a cell five across and two
 	// down.

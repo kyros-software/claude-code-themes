@@ -66,6 +66,9 @@ func squeeze(lower string) string {
 	return string([]rune{body[0], body[len(body)/2], body[len(body)-1]})
 }
 
+// CardRows is the height of DrawCard: the crest and the three compact rows.
+const CardRows = 4
+
 // DrawCard returns the four rows of the statusline's card: the crest and then
 // the three compact rows.
 //
@@ -77,13 +80,13 @@ func squeeze(lower string) string {
 //
 // That is the atlas's own reading of what identifies a form: "la marca de
 // arriba y el numero de patas". The statusline now carries both.
-func DrawCard(form string, v Vital, step int, dimEyes bool) [4]string {
+func DrawCard(form string, v Vital, step int, dimEyes bool) [CardRows]string {
 	sprite, ok := Sprites[form]
 	if !ok {
 		sprite = Sprites[Root]
 	}
 	rows := DrawCompact(form, v, step, dimEyes)
-	return [4]string{
+	return [CardRows]string{
 		theme.Fg(RampOf(form).Body[v.Rank]) + sprite.Crest + theme.Reset,
 		rows[0], rows[1], rows[2],
 	}
@@ -173,92 +176,6 @@ func Draw(form string, v Vital, step int, dimEyes bool) [5]string {
 		body + lower + theme.Reset,
 		body + feetFor(sprite, v, step) + theme.Reset,
 	}
-}
-
-// TinyWidth and TinyRows are the smallest creature there is: five cells by two.
-const (
-	TinyWidth = 5
-	TinyRows  = 2
-)
-
-// DrawTiny is the creature at the size of a cannon: its mark over its eyes.
-//
-// The fourth size, after the five-row card, the four-row panel card and the
-// three-row compact. It exists for ccpet invade, where the creature stands at
-// the bottom of the screen against invaders that are one glyph each, and even
-// the compact form was twice as wide as the gap between two of them.
-//
-// It is neither the compact form cropped nor the compact form scaled down.
-// Scaling was tried, and it is not guesswork: the block glyphs really are
-// pixels - each is a 2x2 patch - so a 9x3 sprite is an 18x6 image and halving it
-// is arithmetic. The result is mush. Four forms came out as the same five glyphs
-// and every one of them lost its eyes, which at this size ARE the creature. A
-// cell is the floor of what a terminal can draw and the compact form is already
-// standing on it.
-//
-// So it is drawn rather than derived, and it carries the two things the design
-// canvas says tell one form from another: "la marca de arriba" - the middle of
-// the crest, which is distinct for 31 of the 41 on its own - and, in place of
-// the foot count it has no room for, the colour. What is left of the body is a
-// shoulder either side of the eyes.
-func DrawTiny(form string, v Vital, step int, dimEyes bool) [TinyRows]string {
-	sprite, ok := Sprites[form]
-	if !ok {
-		sprite = Sprites[Root]
-	}
-	ramp := RampOf(form)
-	body := theme.Fg(ramp.Body[v.Rank])
-	eyeCol := theme.Fg(ramp.Lit(v.Rank))
-	if dimEyes {
-		eyeCol = theme.Fg(ramp.Body[2])
-	}
-
-	// The crest never changes with the state - it is the form's mark, and Draw
-	// keeps it through all seven - so the middle of it is the one part of the
-	// silhouette worth spending a whole row on.
-	crest := []rune(sprite.Crest)
-	from := (len(crest) - TinyWidth) / 2
-
-	face := []rune(sprite.Face)
-	eyes := eyesFor(v, step)
-	left := shoulder(face, sprite.EyeCols[0], -1)
-	right := shoulder(face, sprite.EyeCols[1], 1)
-
-	var lower strings.Builder
-	lower.WriteString(body)
-	lower.WriteRune(left)
-	lower.WriteString(eyeCol)
-	lower.WriteRune(eyes[0])
-	lower.WriteString(body)
-	lower.WriteRune(face[sprite.EyeCols[0]+1])
-	lower.WriteString(eyeCol)
-	lower.WriteRune(eyes[1])
-	lower.WriteString(body)
-	lower.WriteRune(right)
-	lower.WriteString(theme.Reset)
-
-	return [TinyRows]string{
-		body + string(crest[from:from+TinyWidth]) + theme.Reset,
-		lower.String(),
-	}
-}
-
-// shoulder is the nearest piece of body to one side of an eye.
-//
-// Nearest rather than adjacent because the forms wear their shoulders at
-// different distances - a spark's are right against its eyes and a marathon's
-// are out at the edges - and a fixed column would hand half the atlas a cannon
-// with nothing holding it up.
-func shoulder(face []rune, from, step int) rune {
-	for i := from + step; i >= 0 && i < len(face); i += step {
-		if face[i] != ' ' {
-			return face[i]
-		}
-	}
-	if step < 0 {
-		return '▐'
-	}
-	return '▌'
 }
 
 // eyesFor picks the pair of glyphs for a frame. They belong to the STATE, all

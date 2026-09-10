@@ -203,7 +203,7 @@ func field(g Game, cols int) []string {
 
 	// The creature is opaque on its nine columns, and it goes in last so
 	// nothing is ever painted over it.
-	sprite := pet.DrawTiny(g.Form, g.Vital(), g.Frame/8, g.Ready > 0)
+	sprite := pet.DrawCard(g.Form, g.Vital(), g.Frame/8, g.Ready > 0)
 	for i, row := range sprite {
 		gr.block(g.Field.ShipRow()+i, g.Ship, row)
 	}

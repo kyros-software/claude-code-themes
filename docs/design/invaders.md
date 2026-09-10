@@ -34,39 +34,34 @@ emulator's own tab key, because the two own different terminals. Inside tmux it
 can be one keystroke instead, which is what `ccpet invade --split` is for - ten
 lines, guarded on tmux being present, and never a dependency.
 
-## The creature is small, and it is at the bottom
+## The creature keeps its crest, and it is at the bottom
 
-It is `pet.DrawTiny`: **two rows of five cells**, its mark over its eyes. The
-five-row card is the pet's portrait; this is its cannon, and beside invaders that
-are a single glyph each it has to be about one of them wide, which is what the
-arcade's cannon is.
+It is `pet.DrawCard`: four rows of nine cells, the crest over the three compact
+ones. It is by a distance the biggest thing on the field, and that is the point
+of the whole exercise - the swarm is the arcade's, and the thing shooting back at
+it is your pet.
 
-Getting there took three goes and the first two were the same mistake - cropping
-a big drawing instead of making a small one. The compact form is three rows of
-nine; dropping its top row gave two of nine, which is still nearly twice the gap
-between two invaders.
+Three smaller versions were built and thrown away, and the third is the one worth
+recording.
 
-The third go asked whether the sprite could simply be **scaled**, and it is a
-fair question with an arithmetic answer: the block glyphs really are pixels -
-each is a 2x2 patch - so a 9x3 sprite is an 18x6 image and halving it is a
-downsample, not guesswork. It was tried. The result is mush: four of the
-forty-one came out as the same five glyphs, and every one of them lost its eyes,
-which at this size ARE the creature. **A cell is the floor of what a terminal can
-draw, and the compact form is already standing on it.** Anything smaller has to
-be drawn, not derived.
+Cropping the compact form to two rows lost little and gained little. Then the
+fair question: can the sprite not just be **scaled**? It can, and it is
+arithmetic rather than guesswork - the block glyphs really are pixels, each one a
+2x2 patch, so a 9x3 sprite is an 18x6 image and halving it is a downsample. It
+was tried. Four of the forty-one came out as the same five glyphs and every one
+of them lost its eyes. **A cell is the floor of what a terminal can draw, and the
+compact form is already standing on it**: anything smaller has to be drawn, not
+derived.
 
-So `DrawTiny` is a fourth size inside `internal/pet`, next to the other three,
-because that package is the only thing that knows how to draw the creature and
-the only place with the tests to keep it honest. It carries the two things the
-design canvas says tell one form from another: *"la marca de arriba"* - the
-middle five cells of the crest, which distinguishes 31 of the 41 on its own - and
-the colour, standing in for the foot count it has no room for. The forms that do
-collide are a mark and its title, or two of one branch, and the ramp separates
-those.
+So a five-cell version was drawn - the middle of the crest over the eyes - and it
+worked, in the sense that it fitted and told 31 of the 41 apart. It was still the
+wrong answer, and finding out why is what settled the design: what the creature
+has to keep is its **crest**, the antennae and horns that say which of the
+forty-one it is, and the crest is precisely the thing `DrawCompact` throws away
+to get down to three rows.
 
-The first draft of it drew a shoulder either side of the eyes and nothing else,
-and gave **forty of the forty-one the same five glyphs**. That is what the test
-in `internal/pet` is guarding against.
+Hence the card, which is the compact form with the crest put back on. The
+direction was down and the answer was up.
 
 ## Two ways to lose, and the second one is the clock
 
