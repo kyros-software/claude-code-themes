@@ -374,6 +374,34 @@ It moves side to side, quickens as it is worn down, leans a row lower every few
 seconds, and fires three bombs at a time. Clearing it heals you to full, which is
 what makes every fifth wave a rhythm rather than a countdown.
 
+## Dying is not the end of the evening
+
+The run ends, the screen holds the last frame - the ship with its eyes out - and
+the row underneath asks: *space for another, q to quit*. Two minutes of no answer
+gives the terminal back, because an abandoned window should not hold a shell for
+the rest of the day.
+
+That question is `run.go`'s and not the tick's. A tick cannot know whether there
+is a shell to go back to, and it must not: `series` is the loop around the loop,
+and what it does between two runs is the reason it exists.
+
+**The pet is read again.** The death has just taken a level off it, so the replay
+flies the kit it has NOW - `revive` calls `pet.CurrentForm` a second time rather
+than reusing the form and level the process started with. Without that the wager
+is invisible: you would lose the level in `pet.json` and keep flying the gun it
+paid for until you quit the process. It is also the only reason a replay cannot
+be done inside the tick.
+
+**Every death is charged once.** `concede` is called on the way past `Over` and
+nowhere else, so five runs is five setbacks and no more - and the one line printed
+to the shell on the way out names the level the pet is on now rather than
+repeating the news five times.
+
+**The upgrades die with the run.** `ToSave` clears the three counts on `Over`,
+which is the same rule `Fresh` has: the gun you built belongs to the run that
+built it. What survives is the records - the best wave, the best score and the
+count of runs.
+
 ## Losing takes a level, and that is the one rule this breaks
 
 The design set itself a hard rule: *a run must not be able to feed or starve the

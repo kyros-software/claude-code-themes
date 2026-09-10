@@ -257,6 +257,11 @@ Claude works; inside tmux, `ccpet invade --split` puts it in a pane.
 evolved into, but the kit drops a step until you feed it back up. It never costs
 more than a day's feeding, and quitting is not losing.
 
+**And then you can go again.** The game-over screen offers another run for a press
+of space. The pet is read again first, so the replay flies the kit it has now -
+which is the level the death just paid for. The records survive; the upgrades you
+built do not.
+
 ### `ccpet arena on`
 
 The waiting, turned into the game. With the arena on, sending Claude a prompt

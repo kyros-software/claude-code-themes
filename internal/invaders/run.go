@@ -30,6 +30,12 @@ const (
 	// before the key reader decides the terminal has gone.
 	emptyReadsBeforeGivingUp = 1000
 
+	// againWait is how long the game-over screen waits for an answer before it
+	// gives the terminal back. Long enough to walk away from a lost run and come
+	// back to it, short enough that an abandoned window does not hold a shell
+	// for the rest of the day.
+	againWait = 2 * time.Minute
+
 	// sizeEvery is how often the terminal is re-measured, in ticks.
 	//
 	// Polled rather than driven by SIGWINCH: it is one ioctl a second against a
@@ -123,24 +129,96 @@ func Run(args []string, stdout, stderr io.Writer, petPath, savePath string, now 
 		Out:   out,
 		Close: func() { close(stop) },
 	}
-	final, code := loop(sc, g, signals, time.Now)
+	state, final, deaths, code := series(sc, g, state, petPath, savePath, signals, now, time.Now)
 
-	state = final.ToSave(state)
 	giveBack()
 	close(stop)
 
-	if err := StoreSave(state, savePath); err != nil {
-		fmt.Fprintln(stderr, "ccpet:", err)
-	}
-	if final.Phase == Over {
-		fmt.Fprintln(stdout, Banner(final))
-		if lost := concede(petPath, final.Wave.N, now); lost > 0 {
-			fmt.Fprintf(stdout, "%s\n", fmt.Sprintf(i18n.G().LostALevel,
-				pet.LevelFor(pet.Load(petPath).XP)))
-		}
+	if deaths > 0 {
+		// One line whatever the evening was, and the level it says is the one
+		// the pet is on NOW: five runs is five setbacks, and reporting each of
+		// them would be five lines saying the same thing worse.
+		fmt.Fprintln(stdout, Banner(over(final)))
+		fmt.Fprintf(stdout, "%s\n", fmt.Sprintf(i18n.G().LostALevel,
+			pet.LevelFor(pet.Load(petPath).XP)))
 		fmt.Fprintln(stdout, Records(state))
 	}
 	return code
+}
+
+// series plays one run after another for as long as the player asks for another,
+// and returns the last of them with the number that ended in a death.
+//
+// It is the loop around the loop, and it lives here rather than in the tick for
+// the same reason concede does: between two runs the pet is READ AGAIN. The death
+// that just happened has taken a level off it, so the next run flies the kit it
+// has now - which is the whole point of the wager, and it would be invisible if a
+// replay reused the kit the process started with.
+func series(sc screen, g Game, state Save, petPath, savePath string,
+	signals <-chan os.Signal, now time.Time, clock func() time.Time) (Save, Game, int, int) {
+	deaths := 0
+	for {
+		final, code := loop(sc, g, signals, clock)
+		state = final.ToSave(state)
+		if err := StoreSave(state, savePath); err != nil {
+			return state, final, deaths, code
+		}
+		if final.Phase != Over {
+			// A quit, a signal or a terminal that went away. None of them is a
+			// defeat and none of them asks a question.
+			return state, final, deaths, code
+		}
+
+		deaths++
+		concede(petPath, final.Wave.N, now)
+		if !askAgain(sc, final) {
+			return state, final, deaths, code
+		}
+		g = revive(final.Field, petPath, savePath)
+	}
+}
+
+// over is the state as the game-over line wants it, for the one printed to the
+// shell on the way out.
+func over(g Game) Game {
+	g.Banner = BannerOver
+	return g
+}
+
+// askAgain holds the last frame with the offer on it and waits.
+//
+// It draws once and then blocks. There is nothing left to animate - the fleet is
+// gone, the ship has its eyes out - and a screen that keeps repainting a dead
+// game is a screen that keeps a laptop's fan on while somebody decides.
+func askAgain(sc screen, g Game) bool {
+	g.Banner = BannerAgain
+	w := bufio.NewWriterSize(sc.Out, 1<<16)
+	frame(w, Render(g, g.Field.Cols))
+
+	timeout := time.NewTimer(againWait)
+	defer timeout.Stop()
+	for {
+		select {
+		case k := <-sc.Keys:
+			switch k {
+			case Fire, One:
+				return true
+			case Quit, Pause:
+				return false
+			}
+		case <-timeout.C:
+			// Nobody is there. Give the terminal back rather than sit on it for
+			// the rest of the day.
+			return false
+		}
+	}
+}
+
+// revive is the run after a death: the pet is read again for the level it has
+// now, and the save for the records the last run left behind.
+func revive(f Field, petPath, savePath string) Game {
+	form, level := pet.CurrentForm(pet.Load(petPath))
+	return NewGame(f, form, level, LoadSave(savePath))
 }
 
 // concede is the whole of the game's power over the pet: one level, once, on a
@@ -243,22 +321,12 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 		draw()
 
 		if g.Phase == Over {
-			// One last frame with the creature lying down, and then it waits:
-			// the records are worth reading before the shell comes back.
-			return waitForAKey(sc, g)
+			// The last frame is drawn - the ship with its eyes out - and that is
+			// where this stops. What happens next is a question, and asking it is
+			// series' job.
+			return g, 0
 		}
 	}
-}
-
-// waitForAKey holds the final frame until the player presses something.
-func waitForAKey(sc screen, g Game) (Game, int) {
-	timeout := time.NewTimer(30 * time.Second)
-	defer timeout.Stop()
-	select {
-	case <-sc.Keys:
-	case <-timeout.C:
-	}
-	return g, 0
 }
 
 // reflow fits a running game into a field that has changed size, keeping the

@@ -37,6 +37,9 @@ type Game struct {
 	// columns.
 	LevelUp string
 	GotKit  string
+	// Again is the offer on the game-over screen. It goes on the same row as
+	// GameOver, so the two of them together have to fit sixty columns.
+	Again string
 
 	// The refusals.
 	TooSmall string // takes the columns and rows wanted, then the ones there are
@@ -103,6 +106,7 @@ var spanishGame = Game{
 	Records:        "mejor oleada %d · mejores puntos %d · partidas %d",
 	LevelUp:        "mejora: 1 potencia · 2 cadencia · 3 cargador",
 	GotKit:         "botiquín a bordo · e para gastarlo",
+	Again:          "espacio otra · q salir",
 
 	TooSmall: "hacen falta %dx%d y este terminal es %dx%d",
 	NoTTY:    "invade necesita un terminal de verdad, no una tubería",
@@ -155,6 +159,7 @@ var englishGame = Game{
 	Records:        "best wave %d · best score %d · runs %d",
 	LevelUp:        "upgrade: 1 power · 2 rate · 3 magazine",
 	GotKit:         "health kit aboard · e to use it",
+	Again:          "space for another · q to quit",
 
 	TooSmall: "needs %dx%d and this terminal is %dx%d",
 	NoTTY:    "invade needs a real terminal, not a pipe",

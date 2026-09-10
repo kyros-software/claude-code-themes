@@ -2,6 +2,8 @@ package invaders
 
 import (
 	"bytes"
+	"github.com/kyros-software/claude-code-themes/internal/i18n"
+	"github.com/kyros-software/claude-code-themes/internal/theme"
 	"io"
 	"os"
 	"os/signal"
@@ -499,5 +501,148 @@ func TestAResizeKeepsTheShipBetweenItsRoofAndItsFloor(t *testing.T) {
 	if g.Row < big.ShipRoof() || g.Row > big.ShipRow() {
 		t.Errorf("back in the big window it is at row %d of %d..%d",
 			g.Row, big.ShipRoof(), big.ShipRow())
+	}
+}
+
+// killer is a bomb one row above the ship with more than enough in it, which is
+// how these tests get a death in three ticks instead of in three minutes.
+func killer(g Game) Game {
+	g.HP = 1
+	g.Bombs = []Bomb{{X: float64(g.Ship + 2), Y: float64(g.Row) - 1, Hurt: 99}}
+	return g
+}
+
+// Dying is not the end of the evening: the run ends, the screen says so, and
+// space starts another one.
+func TestTheGameOverScreenOffersAnotherRunAndSpaceTakesIt(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	i18n.Use(i18n.ES)
+	defer i18n.Use("")
+
+	sc, keys, out := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	g := NewGame(f, "bughunter", 4, Save{Wave: 6, Seed: 1})
+	g.Phase = Over
+	g.Banner = BannerOver
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		keys <- Fire
+	}()
+	if !askAgain(sc, g) {
+		t.Error("space on the game-over screen did not ask for another run")
+	}
+	painted := out.String()
+	if !strings.Contains(theme.Strip(painted), i18n.G().Again) {
+		t.Errorf("the game-over screen never says how to play again:\n%s", theme.Strip(painted))
+	}
+	if !strings.Contains(theme.Strip(painted), "oleada 6") {
+		t.Error("the game-over screen does not say which wave it ended on")
+	}
+}
+
+func TestQuittingFromTheGameOverScreenLeaves(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	sc, keys, _ := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	g := NewGame(f, "spark", 1, Save{Wave: 2, Seed: 1})
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		keys <- Quit
+	}()
+	if askAgain(sc, g) {
+		t.Error("q on the game-over screen asked for another run")
+	}
+}
+
+// The whole cycle: die, ask for another, and the second run is a run - it reads
+// the keyboard, and the quit that ends it is consumed by it rather than left
+// unread.
+func TestASecondRunReallyStartsAfterADeath(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	petPath := petIn(t, 420)
+	savePath := filepath.Join(t.TempDir(), "invaders.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	sc, keys, _ := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	form, level := pet.CurrentForm(pet.Load(petPath))
+	g := killer(NewGame(f, form, level, Save{Wave: 4, Seed: 1}))
+
+	go func() {
+		time.Sleep(250 * time.Millisecond) // the bomb lands well inside this
+		keys <- Fire                       // another run
+		time.Sleep(250 * time.Millisecond)
+		keys <- Quit // and this one has to be read by that run
+	}()
+
+	state, final, deaths, code := series(sc, g, LoadSave(savePath), petPath, savePath, nil, now, time.Now)
+	if code != 0 {
+		t.Errorf("it exited %d", code)
+	}
+	if deaths != 1 {
+		t.Errorf("%d deaths, want one", deaths)
+	}
+	if len(keys) != 0 {
+		t.Error("the quit was never read: the second run did not start")
+	}
+	if final.Phase == Over {
+		t.Error("it came back on the game-over screen rather than out of a live run")
+	}
+	if final.Wave.N != 1 {
+		t.Errorf("the second run started on wave %d", final.Wave.N)
+	}
+	if state.BestWave < 4 {
+		t.Errorf("the records lost the wave the first run reached: %+v", state)
+	}
+	if state.Runs != 1 {
+		t.Errorf("%d runs counted, want the one that ended", state.Runs)
+	}
+}
+
+// The run after a death flies the level the pet has NOW, which is the whole point
+// of the wager: the kit the replay gets is the one the death just paid for.
+//
+// It asserts against pet.LevelFor rather than against a number, because how much
+// a defeat costs is pet.Setback's business - it is capped at a day of feeding, so
+// a death deep inside a level takes xp and leaves the level standing, and that
+// rule belongs to internal/pet and is tested there.
+func TestTheRunAfterADeathFliesTheLevelThePetHasNow(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	petPath := petIn(t, 420) // just inside level 4, so the first drop really lands
+	savePath := filepath.Join(t.TempDir(), "invaders.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	f, _ := FieldFor(80, 24)
+
+	if was := pet.LevelFor(pet.Load(petPath).XP); was != 4 {
+		t.Fatalf("the test pet is level %d, want 4", was)
+	}
+
+	concede(petPath, 9, now)
+	if now := pet.LevelFor(pet.Load(petPath).XP); now != 3 {
+		t.Errorf("after one death the pet is level %d, want 3", now)
+	}
+
+	for death := 1; death <= 3; death++ {
+		g := revive(f, petPath, savePath)
+		level := pet.LevelFor(pet.Load(petPath).XP)
+		if g.Level != level {
+			t.Errorf("death %d: the next run flies level %d and the pet is level %d",
+				death, g.Level, level)
+		}
+		if g.Kit != KitFor(g.Form, level) {
+			t.Errorf("death %d: the next run does not fly the kit its level buys", death)
+		}
+		if g.Wave.N != 1 || g.Phase != Playing {
+			t.Errorf("death %d: the next run starts on wave %d in %v", death, g.Wave.N, g.Phase)
+		}
+		if g.HP != g.Kit.MaxHP {
+			t.Errorf("death %d: it starts with %d of %d life", death, g.HP, g.Kit.MaxHP)
+		}
+		if g.Power != 0 || g.Quick != 0 || g.Mag != 0 {
+			t.Error("a new run kept the upgrades the last one built")
+		}
+		concede(petPath, 9, now)
 	}
 }

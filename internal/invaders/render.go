@@ -391,6 +391,8 @@ func Banner(g Game) string {
 		return w.Landed
 	case BannerOver:
 		return fmt.Sprintf(w.GameOver, g.Wave.N)
+	case BannerAgain:
+		return fmt.Sprintf(w.GameOver, g.Wave.N) + " · " + w.Again
 	case BannerClaude:
 		return w.PausedByClaude + " · " + w.Resume
 	case BannerPaused:

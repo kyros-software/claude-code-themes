@@ -263,6 +263,11 @@ const (
 	BannerPaused  = "paused"
 	BannerChoose  = "choose"
 	BannerKit     = "kit"
+	// BannerAgain is the game-over screen, which is a different thing from the
+	// game-over banner: one says the run ended and the other asks whether to
+	// start again. run.go sets it, because a tick cannot know that the shell is
+	// still there to go back to.
+	BannerAgain = "again"
 )
 
 // Ups is how many upgrades have been taken, of any kind.
