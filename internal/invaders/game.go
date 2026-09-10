@@ -29,9 +29,11 @@ const (
 	Three
 	Pause
 	Quit
-	// The pointer: where it is, and the left button letting go. The press comes
-	// through as Fire, because that is what it is.
+	// The pointer: where it is, the left button going down, and the left button
+	// coming up. A click is its own key rather than a Fire so that the loop can
+	// tell a hand on the mouse from a hand on the keyboard.
 	MouseAt
+	Click
 	Release
 	// The terminal's own two: the window took or lost the focus. They never
 	// reach the tick - loop takes them out of the stream - because what they

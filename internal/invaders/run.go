@@ -310,13 +310,18 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 					if sc.Focus != nil {
 						sc.Focus(e.Key == FocusIn)
 					}
+					// And whatever the mouse was doing, it is not doing it now.
+					// A button released outside the window is a release nobody
+					// ever reports, and a trigger held down for ever after it is
+					// a game that shoots on its own.
+					g.Trigger = false
 				case Quit:
 					return g, 0
 				case MouseAt:
 					// Only the last one matters: the pointer is where it is now,
 					// not where it has been.
 					aimed, aimX, aimY = true, e.X, e.Y
-				case Fire:
+				case Click:
 					// A press of the button both fires and holds the trigger
 					// down, and the trigger is not a key: nothing cancels it but
 					// the release.
@@ -328,8 +333,13 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 					// The brake is a movement key, not an action: it belongs
 					// with the arrows or it never reaches moveShip at all.
 					move = e.Key
+					g.Trigger = false
 				default:
 					act = e.Key
+					// A key means the hand is on the keyboard, so the mouse is
+					// not holding anything down any more. Whoever is playing
+					// with the keys does their own shooting.
+					g.Trigger = false
 				}
 			default:
 				drained = true
@@ -483,12 +493,22 @@ func frame(w *bufio.Writer, lines []string) {
 // while the game is running, which every full-screen program that reads the mouse
 // costs; shift and drag still selects in most of them.
 func enter(w io.Writer) {
-	io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l\033[?1004h\033[?1003h\033[?1006h")
+	io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l\033[?1004h")
+	if mouseWanted() {
+		io.WriteString(w, "\033[?1003h\033[?1006h")
+	}
 }
 
 func leave(w io.Writer) {
-	io.WriteString(w, theme.Reset+"\033[?1006l\033[?1003l\033[?1004l\033[?25h\033[?1049l\033]0;\007")
+	io.WriteString(w, "\033[?1006l\033[?1003l")
+	io.WriteString(w, theme.Reset+"\033[?1004l\033[?25h\033[?1049l\033]0;\007")
 }
+
+// NoMouse turns the pointer off for anybody who would rather have their
+// terminal's own text selection back, or who keeps knocking the mouse.
+const NoMouse = "CCPET_NO_MOUSE"
+
+func mouseWanted() bool { return os.Getenv(NoMouse) == "" }
 
 // beating keeps the heartbeat fresh for as long as the game is on screen.
 func beating(stop <-chan struct{}) {

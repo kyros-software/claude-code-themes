@@ -252,6 +252,10 @@ not a key, nothing cancels its repeat. The right button reloads. It is how the
 game this is modelled on steers, and it is the only way a terminal can express two
 directions at the same time.
 
+The moment you touch a key, the mouse stops holding the trigger: whoever is
+playing with the keyboard does their own shooting. `CCPET_NO_MOUSE=1` turns the
+pointer off altogether.
+
 The keyboard still works, for a laptop with no mouse or a session over ssh: left
 and right glide while you hold them and stop when you let go, up and down are a
 step each. That split is not a whim - see below. You get half the field - the other half is

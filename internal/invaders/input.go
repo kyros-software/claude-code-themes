@@ -164,7 +164,7 @@ func decodeMouse(buf []byte) (events []Event, n int, ok bool) {
 	switch {
 	case moving || wheel:
 	case button&0b11 == 0 && end == 'M':
-		events = append(events, Event{Key: Fire})
+		events = append(events, Event{Key: Click})
 	case button&0b11 == 0 && end == 'm':
 		events = append(events, Event{Key: Release})
 	case button&0b11 == 2 && end == 'M':

@@ -154,7 +154,7 @@ func TestThePointerIsDecodedFromAnSgrReport(t *testing.T) {
 		x, y int
 	}{
 		{"\033[<35;40;12M", []Key{MouseAt}, 39, 11},      // moving, no button
-		{"\033[<0;10;5M", []Key{MouseAt, Fire}, 9, 4},    // the left button down
+		{"\033[<0;10;5M", []Key{MouseAt, Click}, 9, 4},   // the left button down
 		{"\033[<0;10;5m", []Key{MouseAt, Release}, 9, 4}, // and up again
 		{"\033[<2;7;3M", []Key{MouseAt, Rearm}, 6, 2},    // the right button reloads
 		{"\033[<32;11;6M", []Key{MouseAt}, 10, 5},        // dragging is moving

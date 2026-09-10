@@ -648,3 +648,37 @@ func TestTheRunAfterADeathFliesTheLevelThePetHasNow(t *testing.T) {
 		concede(petPath, 9, now)
 	}
 }
+
+// A hand on the keyboard takes the trigger back. The mouse button holds it down,
+// and a button released outside the window is a release nobody ever reports - so
+// a game that only ever hears "down" would shoot on its own for ever after.
+func TestAKeyTakesTheTriggerBackFromTheMouse(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	sc, keys, _ := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	g := NewGame(f, "marathon", 4, Save{Wave: 1, Seed: 1})
+
+	for _, c := range []struct {
+		name  string
+		event Event
+		want  bool
+	}{
+		{"the button goes down", Event{Key: Click}, true},
+		{"and a key takes it back", Event{Key: Left}, false},
+		{"down again", Event{Key: Click}, true},
+		{"and the space bar takes it back", Event{Key: Fire}, false},
+		{"down again", Event{Key: Click}, true},
+		{"and losing the focus drops it", Event{Key: FocusOut}, false},
+	} {
+		keys <- c.event
+		go func() {
+			time.Sleep(150 * time.Millisecond)
+			keys <- Event{Key: Quit}
+		}()
+		final, _ := loop(sc, g, nil, time.Now)
+		if final.Trigger != c.want {
+			t.Errorf("%s: the trigger is %v, want %v", c.name, final.Trigger, c.want)
+		}
+		g = final
+	}
+}

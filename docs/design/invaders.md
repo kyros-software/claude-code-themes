@@ -383,9 +383,17 @@ nothing held, and the numbers are one-based columns and rows.
 The hand is already doing the easing; two ways of steering at once is a ship that
 carries on after the hand has stopped.
 
+The button holds the trigger down, and three things take it back: the release,
+losing the focus, and **any key at all**. That last one is not tidiness. A button
+released outside the window is a release nobody ever reports - the terminal has
+stopped tracking by then - so a game that only ever hears "down" would shoot on
+its own for the rest of the run, which is what "con teclado quiero disparar yo"
+was. Whoever is playing with the keys does their own shooting, from the first key
+they press.
+
 What it costs is the terminal's own text selection while the game runs, which is
 what every full-screen program that reads the mouse costs, and shift-drag still
-selects in most terminals. The keyboard stays exactly as it was for anybody
+selects in most terminals. `CCPET_NO_MOUSE=1` turns the pointer off altogether. The keyboard stays exactly as it was for anybody
 playing on a laptop with no mouse, or over ssh, or in a terminal that does not
 report the pointer.
 
