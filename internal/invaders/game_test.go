@@ -263,7 +263,7 @@ func TestSplashTakesTheNeighboursAlongTheRow(t *testing.T) {
 	// A shot placed exactly on the second member of the top row.
 	m := g.Squad.Members[1]
 	x, y := g.Squad.At(m)
-	g.Shots = []Shot{{X: float64(x) + 2, Y: float64(y) + 1, Damage: 99, Splash: g.Kit.Splash}}
+	g.Shots = []Shot{{X: float64(x), Y: float64(y), Damage: 99, Splash: g.Kit.Splash}}
 	g = g.resolveHits()
 
 	killed := before - len(g.Squad.Members)
@@ -358,11 +358,14 @@ func TestAKillIsWorthItsSpeciesTimesItsStage(t *testing.T) {
 // level, but that happens once, in run.go, when the run is over.
 func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
 	src := readSource(t, "game.go")
+	// Comments are stripped first: this is a guard on what the code does, and a
+	// sentence that happens to end in "at a time." is not an import of time.
+	code := withoutComments(src)
 	for _, forbidden := range []string{
 		"pet.Update(", "pet.Save(", "pet.Setback(",
 		"os.", "syscall.", "\\033", "fmt.Print", "time.",
 	} {
-		if strings.Contains(src, forbidden) {
+		if strings.Contains(code, forbidden) {
 			t.Errorf("game.go reaches for %q", forbidden)
 		}
 	}
@@ -373,71 +376,103 @@ func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
 	}
 }
 
-// You have to be able to shoot without stopping.
+// You have to be able to shoot without stopping. This is the test that says so,
+// because it is the difference between a shmup and a turn-based game.
 //
 // A terminal has no key-up event and cannot say that two keys are held at once:
 // hold left and the operating system streams left, press fire and it starts
-// repeating fire instead, so the creature stops dead. Momentum is the way round
-// it - and this is the test that says so, because it is the difference between
-// a shmup and a turn-based game.
-func TestFiringDoesNotStopYouMoving(t *testing.T) {
+// repeating fire instead, and the left never comes back until you let go and
+// press it again. Momentum for a few tenths of a second was tried first and was
+// not enough - hold the fire key and you still coast to a halt - so the creature
+// latches.
+func TestFiringNeverStopsYouMoving(t *testing.T) {
 	g := aGame(t, "spark", 3)
-	g.Ship = 30
+	g.Ship = 40
+	g = Tick(g, Left)
 
-	// Two arrows to get it sliding, then nothing but the fire key.
-	g = Tick(g, Left)
-	g = Tick(g, Left)
+	// Nothing but the fire key from here on, for far longer than any coast.
 	was := g.Ship
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 60; i++ {
 		g = Tick(g, Fire)
 	}
-	if g.Ship >= was {
-		t.Errorf("it stopped at column %d the moment it fired, was %d", g.Ship, was)
+	if g.Ship >= was-10 {
+		t.Errorf("it crawled from %d to %d while firing", was, g.Ship)
 	}
 	if len(g.Shots) == 0 {
 		t.Error("and it did not fire either")
 	}
 }
 
-// The slide is short, and the other arrow cuts it off at once: a creature that
-// kept going would be one you cannot line up.
-func TestTheSlideStopsAndReversesOnDemand(t *testing.T) {
+// Latched means latched: one arrow and it keeps going, with no further keys.
+func TestOneArrowKeepsItGoing(t *testing.T) {
 	g := aGame(t, "spark", 3)
-	g.Ship = 30
-
-	g = drive(Tick(g, Left), None, driftFor+2)
-	stopped := g.Ship
-	g = drive(g, None, 20)
-	if g.Ship != stopped {
-		t.Errorf("it slid from %d to %d with no key held", stopped, g.Ship)
+	g.Ship = 40
+	g = drive(Tick(g, Left), None, 20)
+	if g.Ship > 30 {
+		t.Errorf("it stopped at column %d after one arrow", g.Ship)
 	}
-	if g.Drift != 0 {
-		t.Errorf("it is still drifting %d with nothing pressed", g.Drift)
-	}
-
-	back := drive(Tick(g, Right), None, 4)
-	if back.Ship <= g.Ship {
-		t.Errorf("the other arrow did not reverse it: %d then %d", g.Ship, back.Ship)
-	}
-
-	// And a tap is a nudge, not a journey.
-	tap := aGame(t, "spark", 3)
-	tap.Ship = 30
-	tap = drive(Tick(tap, Left), None, 40)
-	if moved := 30 - tap.Ship; moved < 2 || moved > 7 {
-		t.Errorf("one tap moved %d columns, want a nudge", moved)
+	if g.Drift != -1 {
+		t.Errorf("it is drifting %d, want left", g.Drift)
 	}
 }
 
-// The wall stops the slide rather than letting it push against nothing.
-func TestTheSlideStopsAtTheWall(t *testing.T) {
+// And there has to be a brake, or the only way to stop is to hit a wall.
+func TestTheDownArrowStopsIt(t *testing.T) {
+	g := aGame(t, "spark", 3)
+	g.Ship = 40
+	g = drive(Tick(g, Left), None, 6)
+	g = Tick(g, Stop)
+	stopped := g.Ship
+
+	g = drive(g, None, 30)
+	if g.Ship != stopped {
+		t.Errorf("it moved from %d to %d after the brake", stopped, g.Ship)
+	}
+	if g.Drift != 0 {
+		t.Errorf("it is still drifting %d", g.Drift)
+	}
+}
+
+// The other arrow reverses it at once, which is how you line one up.
+func TestTheOtherArrowReversesItAtOnce(t *testing.T) {
+	g := aGame(t, "spark", 3)
+	g.Ship = 40
+	g = drive(Tick(g, Left), None, 6)
+	left := g.Ship
+
+	g = drive(Tick(g, Right), None, 6)
+	if g.Ship <= left {
+		t.Errorf("it went from %d to %d after the other arrow", left, g.Ship)
+	}
+	if g.Drift != 1 {
+		t.Errorf("it is drifting %d, want right", g.Drift)
+	}
+}
+
+// A wall is a stop. Leaving it latched against one would mean the next key you
+// press is a key you did not know you had to press.
+func TestTheWallStopsIt(t *testing.T) {
 	g := aGame(t, "spark", 3)
 	g.Ship = 1
 	g = drive(Tick(g, Left), None, 30)
 	if g.Ship != 0 {
 		t.Errorf("it ended at column %d", g.Ship)
 	}
-	if g.Drift != 0 || g.Sliding != 0 {
+	if g.Drift != 0 {
 		t.Error("it is still trying to walk into the wall")
 	}
+}
+
+// withoutComments is the source with its comments taken out, for the guards that
+// assert on what a file reaches for rather than on what it says about itself.
+func withoutComments(src string) string {
+	var out strings.Builder
+	for _, line := range strings.Split(src, "\n") {
+		if i := strings.Index(line, "//"); i >= 0 {
+			line = line[:i]
+		}
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+	return out.String()
 }

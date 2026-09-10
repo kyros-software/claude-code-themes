@@ -81,7 +81,7 @@ var spanishGame = Game{
 	NoTTY:    "invade necesita un terminal de verdad, no una tubería",
 	NoTmux:   "no hay tmux: abre otra pestaña y lanza ccpet invade ahí",
 
-	Help: "←→ mover · espacio disparar · x habilidad · p pausa · q salir",
+	Help: "←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir",
 
 	Families: map[string]string{
 		"single":   "único",
@@ -131,7 +131,7 @@ var englishGame = Game{
 	NoTTY:    "invade needs a real terminal, not a pipe",
 	NoTmux:   "no tmux here: open another tab and run ccpet invade in it",
 
-	Help: "←→ move · space fire · x ability · p pause · q quit",
+	Help: "←→ move · ↓ stop · space fire · x ability · p pause · q quit",
 
 	Families: map[string]string{
 		"single":   "single",

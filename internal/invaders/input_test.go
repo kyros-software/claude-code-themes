@@ -16,6 +16,7 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 	}{
 		{"\033[D", Left}, {"\033OD", Left}, {"a", Left}, {"h", Left}, {"A", Left},
 		{"\033[C", Right}, {"\033OC", Right}, {"d", Right}, {"l", Right}, {"L", Right},
+		{"\033[B", Stop}, {"\033OB", Stop}, {"s", Stop}, {"j", Stop},
 		{" ", Fire}, {"x", Ability}, {"z", Ability},
 		{"p", Pause}, {"P", Pause},
 		{"q", Quit}, {"Q", Quit}, {"\003", Quit},

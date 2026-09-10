@@ -146,10 +146,13 @@ func TestTheBlockIsDrawnWithTheArcadeSprites(t *testing.T) {
 	frame := strings.Join(Render(g, 80), "\n")
 	plain := theme.Strip(frame)
 
-	species := Troops[g.Wave.Species[0]]
-	for i, row := range species.Frames[g.Squad.Frame()] {
-		if !strings.Contains(plain, strings.TrimSpace(row)) {
-			t.Errorf("row %d of a %s is not in the frame", i, species.Name)
+	for _, s := range Troops {
+		want := false
+		for _, i := range g.Wave.Species {
+			want = want || Troops[i].Name == s.Name
+		}
+		if got := strings.Contains(plain, s.Glyph); got != want {
+			t.Errorf("the %s is on screen = %v, want %v", s.Name, got, want)
 		}
 	}
 

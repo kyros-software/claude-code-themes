@@ -42,10 +42,14 @@ func pilot(g Game) Key {
 	}
 	muzzle := g.Muzzle()
 	switch {
-	case target < muzzle-1:
+	case target < muzzle-0.5:
 		return Left
-	case target > muzzle+1:
+	case target > muzzle+0.5:
 		return Right
+	}
+	// Lined up: stop drifting past it, then shoot.
+	if g.Drift != 0 {
+		return Stop
 	}
 	return Fire
 }
@@ -58,7 +62,7 @@ func lowestColumn(g Game) (float64, bool) {
 	for _, m := range g.Squad.Members {
 		x, y := g.Squad.At(m)
 		if !found || y > low {
-			best, low, found = float64(x)+TroopCols/2, y, true
+			best, low, found = float64(x), y, true
 		}
 	}
 	return best, found

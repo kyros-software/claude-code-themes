@@ -193,34 +193,38 @@ the pet is how you get a better gun, and the forty-one forms all play
 differently.
 
 ```
-oleada 21 · ♥ ████████ · puntos 1080 · cazabugs n4 rastreador · habilidad lista
+oleada 21 · ♥ ████████ · puntos 4860 · cazabugs n4 rastreador · habilidad lista
 
-    ▄██▄         ▄██▄         ▄██▄         ▄██▄         ▄██▄
-  ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄
-  ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀
-  ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄
+       Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ
 
-  ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀
- ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄
-█▀███████▀█  █▀███████▀█  █▀███████▀█  █▀███████▀█  █▀███████▀█
-▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀
-                                  ╽
-                    ╿
+       Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж
+
+       Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж
+
+       Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ
+
+       Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ
+                              ╽
+
+              ╿ ╿
                        ▗▟███▙▖
                       ▐█ > < █▌
                        ▝▝▀▀▀▘▘
 
-←→ mover · espacio disparar · x habilidad · p pausa · q salir
+←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir
 ```
 
 You move and you shoot, and **only two of your shots may be in the air at once** -
-so a miss costs you the time it takes to reach the top. The swarm walks sideways,
+so a miss costs you the time it takes to reach the top. The arrows are a
+throttle rather than a nudge: one sets the creature going and it keeps going, and
+down is the brake. That is the only way a terminal will let you fire and move at
+the same time, since it cannot report two keys held at once. The swarm walks sideways,
 steps down at the walls and comes down faster as you empty it. Bombs cost you
 life; the block landing on you ends the run.
 
-The swarm is the arcade's own - squid, crab and octopus, from the 1978 pixel
-grids - and what a later wave changes is the colour and the price rather than the
-shape: a kill pays its species' value times how deep the stage is, so the top row
+The swarm is the arcade's own - squid, crab and octopus, one glyph each, eleven
+columns by five rows, the cabinet's fifty-five - and what a later wave changes is
+the colour and the price rather than the shape: a kill pays its species' value times how deep the stage is, so the top row
 is always worth three of the bottom. Every fifth wave a boss, one of
 thirty-five off the design canvas, climbing the ranks as the stages climb.
 

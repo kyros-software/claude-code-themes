@@ -27,10 +27,15 @@ func Decode(buf []byte) (k Key, n int) {
 			return Left, 3
 		case 'C':
 			return Right, 3
-		case 'A', 'B':
-			// Up and down steer nothing here: the creature runs along the
-			// floor. Swallowed rather than ignored so they cannot be mistaken
-			// for a bare Escape followed by letters.
+		case 'B':
+			// Down is the brake. The creature latches - an arrow sets it going
+			// and it keeps going - so there has to be a way to say stop, and
+			// the one arrow the floor does not use is the obvious one.
+			return Stop, 3
+		case 'A':
+			// Up steers nothing: the creature runs along the floor. Swallowed
+			// rather than ignored so it cannot be mistaken for a bare Escape
+			// followed by letters.
 			return None, 3
 		}
 		return None, 3
@@ -38,6 +43,8 @@ func Decode(buf []byte) (k Key, n int) {
 		return Left, 1
 	case 'd', 'D', 'l', 'L':
 		return Right, 1
+	case 's', 'S', 'j', 'J':
+		return Stop, 1
 	case ' ':
 		return Fire, 1
 	case 'x', 'X', 'z', 'Z':

@@ -20,13 +20,8 @@ func TestEverySpriteIsTheWidthItClaims(t *testing.T) {
 	}
 
 	for _, s := range Troops {
-		for f, frame := range s.Frames {
-			for i, row := range frame {
-				if w := theme.Width(row); w != TroopCols {
-					t.Errorf("%s frame %d row %d is %d cells, want %d: %q",
-						s.Name, f, i, w, TroopCols, row)
-				}
-			}
+		if w := theme.Width(s.Glyph); w != TroopCols {
+			t.Errorf("%s is %d cells wide, want %d: %q", s.Name, w, TroopCols, s.Glyph)
 		}
 	}
 
@@ -45,12 +40,12 @@ func TestEverySpriteIsTheWidthItClaims(t *testing.T) {
 	}
 }
 
-// Three species, and no two of them the same shape - which is the whole reason
+// Three species, and no two of them the same glyph - which is the whole reason
 // the arcade drew three rather than one.
 func TestTheThreeAreThreeDifferentThings(t *testing.T) {
 	seen := map[string]string{}
 	for _, s := range Troops {
-		key := strings.Join(s.Frames[0][:], "|")
+		key := s.Glyph
 		if other, dup := seen[key]; dup {
 			t.Errorf("%s is drawn exactly like %s", s.Name, other)
 		}
@@ -68,13 +63,10 @@ func TestTheThreeAreThreeDifferentThings(t *testing.T) {
 	}
 }
 
-// Two frames, and they have to differ, or the walk is a still.
+// A boss has two leg frames, and they have to differ, or the walk is a still.
+// The troops have no walk: at one cell there is nothing to animate, and what
+// moves is the block.
 func TestEverySpriteWalks(t *testing.T) {
-	for _, s := range Troops {
-		if s.Frames[0] == s.Frames[1] {
-			t.Errorf("%s has the same two frames", s.Name)
-		}
-	}
 	for _, s := range Bosses {
 		if s.Legs[0] == s.Legs[1] {
 			t.Errorf("boss %s has the same legs in both frames", s.Name)
@@ -82,16 +74,11 @@ func TestEverySpriteWalks(t *testing.T) {
 	}
 }
 
-// A sprite has to have something in every row, or it is drawn with a gap the
-// player reads as damage.
-func TestNoSpriteHasAnEmptyRow(t *testing.T) {
+// A glyph you cannot see is an enemy nobody can aim at.
+func TestNoSpriteIsBlank(t *testing.T) {
 	for _, s := range Troops {
-		for f, frame := range s.Frames {
-			for i, row := range frame {
-				if strings.TrimSpace(row) == "" {
-					t.Errorf("%s frame %d row %d is blank", s.Name, f, i)
-				}
-			}
+		if strings.TrimSpace(s.Glyph) == "" {
+			t.Errorf("%s is drawn with %q", s.Name, s.Glyph)
 		}
 	}
 }

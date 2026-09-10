@@ -17,6 +17,7 @@ const (
 	None Key = iota
 	Left
 	Right
+	Stop
 	Fire
 	Ability
 	Pause
@@ -37,20 +38,19 @@ const (
 	// moveWait is ticks between one column of movement and the next.
 	moveWait = 1
 
-	// driftFor is how long the creature keeps sliding after the last arrow.
+	// The creature LATCHES: an arrow sets it going and it keeps going until you
+	// point it the other way or tell it to stop.
 	//
-	// A terminal has no key-up event and no way to say two keys are down at
-	// once: holding left sends a stream of bytes, and the moment you press the
-	// fire key the operating system starts repeating THAT instead, so you stop
-	// dead. Momentum is the way round it - the creature keeps going for four
-	// tenths of a second, which covers the press, and the opposite arrow still
-	// reverses it instantly.
+	// This is the only thing that works. A terminal has no key-up event and no
+	// way to say two keys are down at once - hold left and the operating system
+	// streams left, press fire and it starts repeating THAT instead, and the
+	// left never comes back until you let go and press it again. Momentum for a
+	// few tenths of a second was tried first and is not enough: hold the fire
+	// key and you still coast to a halt.
 	//
-	// A tap is six columns, about the gap between two invaders: coarse enough
-	// to sweep with, fine enough to line one up. Holding the key refreshes the
-	// slide on every autorepeat, so a held arrow crosses the screen in under
-	// four seconds.
-	driftFor = 6
+	// So the arrows are a throttle rather than a nudge, and the down arrow is
+	// the brake. It is not how the arcade felt, and it is the only way to fire
+	// and move at once down a pipe that only ever reports one key.
 
 	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a
 	// good margin: you are meant to be able to shoot your way out of one.
@@ -124,8 +124,7 @@ type Game struct {
 
 	Ship     int // the leftmost column of the creature
 	MoveWait int
-	Drift    int // -1, 0 or 1: the way it is still sliding
-	Sliding  int // ticks of slide left
+	Drift    int // -1, 0 or 1: the way it is going, until told otherwise
 	HP       int
 	Reload   int // ticks until you may fire again
 	Ready    int // ticks until the ability is ready; 0 is ready
@@ -295,18 +294,15 @@ func Tick(g Game, in Key) Game {
 func (g Game) moveShip(in Key) Game {
 	switch in {
 	case Left:
-		g.Drift, g.Sliding = -1, driftFor
+		g.Drift = -1
 	case Right:
-		g.Drift, g.Sliding = 1, driftFor
+		g.Drift = 1
+	case Stop:
+		g.Drift = 0
 	}
 
 	if g.MoveWait > 0 {
 		g.MoveWait--
-	}
-	if g.Sliding > 0 {
-		g.Sliding--
-	} else {
-		g.Drift = 0
 	}
 	if g.Drift == 0 || g.MoveWait > 0 {
 		return g
@@ -314,7 +310,9 @@ func (g Game) moveShip(in Key) Game {
 
 	next := g.Ship + g.Drift
 	if next < 0 || next > g.Field.ShipColMax() {
-		g.Drift, g.Sliding = 0, 0
+		// A wall is a stop. Leaving it pressed against one would mean the next
+		// thing you press is a key you did not know you had to press.
+		g.Drift = 0
 		return g
 	}
 	g.Ship = next
@@ -672,7 +670,7 @@ func (g Game) resolveHits() Game {
 				continue
 			}
 			x, _ := g.Squad.At(members[i])
-			if s.X < float64(x) || s.X >= float64(x+TroopCols) {
+			if s.X < float64(x)-TroopHit/2 || s.X >= float64(x)+TroopHit/2+1 {
 				continue
 			}
 			members[i].HP -= s.Damage

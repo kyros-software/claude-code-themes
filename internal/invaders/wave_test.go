@@ -164,14 +164,14 @@ func TestTheThreeStackTheWayTheArcadeStacksThem(t *testing.T) {
 	if len(w.Species) < 3 {
 		t.Fatalf("only %d rows to check", len(w.Species))
 	}
-	for i, want := range []string{"squid", "crab", "octopus"} {
+	for i, want := range []string{"squid", "crab", "crab"} {
 		if got := Troops[w.Species[i]].Name; got != want {
 			t.Errorf("row %d is a %s, want a %s", i, got, want)
 		}
 	}
 	for _, s := range w.Species[3:] {
 		if Troops[s].Name != "octopus" {
-			t.Errorf("the rows under the crab are %s, want octopuses", Troops[s].Name)
+			t.Errorf("the rows under the crabs are %s, want octopuses", Troops[s].Name)
 		}
 	}
 

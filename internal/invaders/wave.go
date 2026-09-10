@@ -26,16 +26,28 @@ const (
 	ShipRows = pet.CompactRows
 	ShipCols = pet.SpriteWidth
 
-	// A troop sprite and the cell it lives in.
+	// A troop and the cell it lives in: one glyph, in a cell five across and two
+	// down.
 	//
-	// Twelve cells across and four down: the arcade's own pixel grids, packed
-	// two pixel rows to a text row. They need the width - a crab is eleven
-	// pixels wide and there is no honest way to draw one in five - so a block is
-	// six across rather than eleven, and each of them is three times the sprite.
-	TroopCols = 12
-	TroopRows = 4
-	cellCols  = TroopCols + 1
-	cellRows  = TroopRows + 1
+	// One cell each is what makes the arcade's own formation fit - eleven
+	// columns by five rows, fifty-five on the screen - which no drawn sprite
+	// could do in eighty columns. The spacing is what gives the block its shape:
+	// at five apart, eleven columns fill about two thirds of a wide terminal,
+	// which is roughly what the cabinet showed.
+	TroopCols = 1
+	TroopRows = 1
+	cellCols  = 5
+	cellRows  = 2
+
+	// TroopHit is how wide one of them is to a bullet: its own cell and one
+	// either side.
+	//
+	// A one-cell target hit by a one-cell bullet is not the arcade's game, it is
+	// a coin toss - the cabinet's aliens are eight to twelve pixels across and
+	// its bullet is one. Three cells of a five-cell pitch leaves two columns of
+	// clear air between neighbours, so aiming still means something and missing
+	// is still your fault.
+	TroopHit = 3
 
 	// A rank sprite: the bigger ones, and every boss.
 	BossCols = 9
@@ -76,10 +88,10 @@ func (f Field) FormationCols() int {
 }
 
 func (f Field) FormationRows() int {
-	// The floor, the creature, and six rows of daylight between the block and
+	// The floor, the creature, and eight rows of daylight between the block and
 	// the creature when it starts - the descent has to be worth watching. Two
 	// rows is the fewest worth calling a formation, five is the arcade's.
-	return clamp((f.Rows-ShipRows-6)/cellRows, 2, 5)
+	return clamp((f.Rows-ShipRows-8)/cellRows, 2, 5)
 }
 
 // BlockCols is how wide the whole formation is, in cells.
@@ -113,7 +125,10 @@ func WaveFor(n int, f Field) Wave {
 		// as it is emptied - see Formation.Step. Never under two ticks, or a
 		// row crosses the screen before a frame has been drawn.
 		Step: clamp(26-n/2, 5, 40),
-		Drop: clamp(70-n, 14, 70),
+		// Fifty-five of them drop a lot of bombs between them, and a wave with a
+		// one-shot gun is long. Seven seconds between bombs at the start,
+		// closing to one: the early waves have to be survivable by a larva.
+		Drop: clamp(140-2*n, 20, 140),
 	}
 	w.Species = speciesFor(f.FormationRows())
 	if w.Boss {
@@ -149,8 +164,8 @@ func bossFor(n, stage int) int {
 	return first + (n/5-1)%count
 }
 
-// speciesFor stacks the three the way the arcade stacks them: the squid on the
-// top row, the crab under it, octopuses the rest of the way down.
+// speciesFor stacks the three the way the cabinet stacks them: one row of squid
+// on top, two of crab, octopuses the rest of the way down.
 //
 // It does not vary with the wave, and that is the point of using the arcade's
 // bestiary rather than forty of our own - what a later wave changes is the
@@ -158,7 +173,14 @@ func bossFor(n, stage int) int {
 func speciesFor(rows int) []int {
 	out := make([]int, rows)
 	for r := 0; r < rows; r++ {
-		out[r] = clamp(r, 0, len(Troops)-1)
+		switch {
+		case r == 0:
+			out[r] = 0 // squid
+		case r <= 2:
+			out[r] = 1 // crab
+		default:
+			out[r] = 2 // octopus
+		}
 	}
 	return out
 }

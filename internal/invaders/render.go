@@ -211,7 +211,6 @@ func field(g Game, cols int) []string {
 // drawSquad paints the block: every living member in the wave's stage tone, one
 // colour each, which is what a screen of them needs to stay readable.
 func drawSquad(gr grid, g Game) {
-	frame := g.Squad.Frame()
 	pal := Stages[clamp(g.Wave.Stage-1, 0, len(Stages)-1)]
 	for _, m := range g.Squad.Members {
 		// A member that has taken a hit and lived shows it by sinking down the
@@ -220,9 +219,7 @@ func drawSquad(gr grid, g Game) {
 		ink := theme.Fg(tone)
 
 		x, y := g.Squad.At(m)
-		for i, row := range Troops[m.Species].Frames[frame] {
-			gr.blit(y+i, x, row, ink)
-		}
+		gr.put(y, x, Troops[m.Species].Glyph, ink)
 	}
 }
 

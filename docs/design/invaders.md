@@ -171,30 +171,57 @@ because the space bar is the only thing the player times: the weapon is automati
 on purpose, since terminal key repeat is uneven across emulators and holding a
 key to shoot feels broken through no fault of ours.
 
-## The arcade's three, not forty of our own
+## One glyph an invader, and why it took three tries
 
-The swarm is the 1978 cabinet's own bestiary: **squid, crab, octopus**, two
-frames each, from their real pixel grids - 8x8 for the squid, 11x8 for the other
-two - packed two pixel rows to a text row with half blocks and centred in a
-common twelve cells.
+The swarm is the arcade's three - squid, crab, octopus - drawn in **one cell
+each**. Two bigger versions were built and thrown away first, and both were
+wrong in a way that only shows when you look at a screen:
 
-A set of forty was tried first, off the design canvas, drawn five cells by three
-with `> <` eyes. It was more inventive and it was wrong: it did not look like
-Space Invaders, which is the one thing a game called invade has to do. The
-canvas's own bosses are still in here, and the pet is still the cannon - that
-part is the joke - but the things coming down are the things everybody pictures.
+| try | what it was | why it went |
+| --- | --- | --- |
+| forty, off the design canvas | 5x3 cells, `> <` eyes, eight stages | inventive, and it did not look like Space Invaders - the one thing a game called invade has to do |
+| the arcade's own pixel grids | 11x8 pixels packed into 12x4 cells with half blocks | looked exactly right and was **enormous**: one invader three times the creature you steer |
+| one glyph | `Ψ` `Ж` `Щ` | the cabinet's own arithmetic fits: eleven columns by five rows, fifty-five on screen |
 
-They need the width. A crab is eleven pixels across and there is no honest way to
-draw one in five, so a block is **six columns rather than eleven** and each
-member is three times the sprite it replaced. The screen carries about as much
-paint as before; it just spends it on shapes people recognise.
+At one cell the silhouette is gone and what is left is a glyph picked for its
+shape: antennae, arms out, legs down. What it buys is the formation - the real
+one, the one everybody pictures - and a creature at the bottom that is plainly
+the biggest thing in the game, which is the joke.
 
-Three species and not forty, because the arcade had three. What a later wave
-changes is the **colour and the price**, not the shape: the stage climbs every
-four waves through the canvas's eight palettes, and a kill pays its species'
-arcade value - 30, 20, 10 - multiplied by the stage. So the top row is worth
-three of the bottom one at every depth, which is the arcade's own reason to shoot
-the squids first.
+Three species and not forty because the arcade had three. What a later wave
+changes is the **colour and the price**: the stage climbs every four waves
+through the canvas's eight palettes, and a kill pays its species' arcade value -
+30, 20, 10 - multiplied by the stage. So the top row is worth three of the bottom
+one at every depth, which is the arcade's own reason to shoot the squids first.
+
+One thing had to be given back. A one-cell target hit by a one-cell bullet is not
+the arcade's game, it is a coin toss: the cabinet's aliens are eight to twelve
+pixels across and its bullet is one. So an invader is **three cells wide to a
+bullet** and one to the eye. On a five-cell pitch that leaves two columns of
+clear air between neighbours, so aiming still means something and a miss is still
+yours.
+
+## Moving and firing at once, which a terminal does not want to allow
+
+The creature **latches**: an arrow sets it going and it keeps going until you
+point it the other way or press down to stop.
+
+This is not how the cabinet felt and it is the only thing that works. A terminal
+has no key-up event and no way to say two keys are down at once. Hold left and
+the operating system streams left; press fire and it starts repeating *that*
+instead, and the left never comes back until you let go and press it again. So
+the first version stopped dead the moment you shot.
+
+Momentum was tried next - keep sliding for three tenths of a second after the
+last arrow - and it is not enough either: hold the fire key and you coast to a
+halt just the same. Reported twice, from actual play, before the shape of the
+problem was clear.
+
+Latching costs precision, so the down arrow is a brake and a wall is a stop -
+leaving the creature latched against one would mean the next key you press is a
+key you did not know you had to press. And draining the key channel prefers an
+action over a direction, for the same reason: a dropped direction costs nothing
+because the latch carries it, while a dropped shot is a press the game ignored.
 
 ## The bosses climb with the stages
 

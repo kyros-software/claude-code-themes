@@ -23,39 +23,30 @@ type Palette struct {
 	Eye    theme.Colour
 }
 
-// Troop is one of the three the arcade came with: twelve cells across, four
-// rows down, two frames.
+// Troop is one of the three the arcade came with, drawn in a single cell.
 //
-// The art is the real thing - the 8x8 and 11x8 pixel grids of the 1978 cabinet -
-// packed two pixel rows to a text row with half blocks, and centred in a common
-// twelve so the block stays a grid. The canvas's own forty bugs were tried here
-// first and thrown out: they were not what a person means by Space Invaders.
+// One glyph each, and that is the whole sprite. Two bigger drawings were tried
+// and thrown out on the way here: the canvas's own forty, five cells by three,
+// which did not look like Space Invaders at all; and the arcade's real pixel
+// grids packed into half blocks at twelve cells by four, which looked exactly
+// right and were enormous - one of them was three times the creature you steer.
 //
-// There are three because the arcade had three. What changes with the waves is
-// the colour and what they are worth, which is what Stages is for.
+// At one cell the silhouette is gone and what is left is a glyph chosen for its
+// shape: a squid with its antennae, a crab with its arms out, an octopus with
+// its legs down. What it buys is the arcade's own arithmetic - eleven columns by
+// five rows, fifty-five of them on the screen at once - and a creature at the
+// bottom that is unmistakably the biggest thing in the game, which is the joke.
 type Troop struct {
 	Name, Desc string
-	Points     int // the arcade's own: 30 for the squid, 20, 10
-	Frames     [2][TroopRows]string
+	Points     int    // the arcade's own: 30 for the squid, 20, 10
+	Glyph      string // one cell, and TestEverySpriteIsTheWidthItClaims says so
 }
 
 // Troops are the three, in the order the arcade stacks them: the squid on top.
 var Troops = []Troop{
-	{Name: "squid", Desc: "the narrow one at the top", Points: 30,
-		Frames: [2][TroopRows]string{
-			{"    ▄██▄    ", "  ▄█▀██▀█▄  ", "  ▀▀█▀▀█▀▀  ", "  ▄▀▄▀▀▄▀▄  "},
-			{"    ▄██▄    ", "  ▄█▀██▀█▄  ", "  ▀█▀██▀█▀  ", "  ▀▄    ▄▀  "},
-		}},
-	{Name: "crab", Desc: "arms out sideways", Points: 20,
-		Frames: [2][TroopRows]string{
-			{"  ▀▄   ▄▀   ", " ▄█▀███▀█▄  ", "█▀███████▀█ ", "▀ ▀▄▄ ▄▄▀ ▀ "},
-			{"▄ ▀▄   ▄▀ ▄ ", "█▄█▀███▀█▄█ ", "▀█████████▀ ", " ▄▀     ▀▄  "},
-		}},
-	{Name: "octopus", Desc: "the wide dome", Points: 10,
-		Frames: [2][TroopRows]string{
-			{" ▄▄▄████▄▄▄ ", "███▀▀██▀▀███", "▀▀▀██▀▀██▀▀▀", "▄▄▀▀ ▀▀ ▀▀▄▄"},
-			{" ▄▄▄████▄▄▄ ", "███▀▀██▀▀███", "▀▀███▀▀███▀▀", " ▀█▄ ▀▀ ▄█▀ "},
-		}},
+	{Name: "squid", Desc: "antennae up, the narrow one at the top", Points: 30, Glyph: "\u03a8"},
+	{Name: "crab", Desc: "arms out sideways", Points: 20, Glyph: "\u0416"},
+	{Name: "octopus", Desc: "the wide one, legs down", Points: 10, Glyph: "\u0429"},
 }
 
 // Boss is one of the thirty-five: five rows of nine cells, two leg frames.
