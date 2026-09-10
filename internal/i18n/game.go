@@ -37,6 +37,12 @@ type Game struct {
 	NoTTY    string
 	NoTmux   string
 
+	// The arena: the switch that lets the game open itself while Claude works.
+	ArenaIsOn  string
+	ArenaIsOff string
+	ArenaUsage string
+	NoTerminal string
+
 	// The help row.
 	Help string
 
@@ -80,6 +86,11 @@ var spanishGame = Game{
 	TooSmall: "hacen falta %dx%d y este terminal es %dx%d",
 	NoTTY:    "invade necesita un terminal de verdad, no una tubería",
 	NoTmux:   "no hay tmux: abre otra pestaña y lanza ccpet invade ahí",
+
+	ArenaIsOn:  "arena: encendida · el juego se abre solo mientras Claude trabaja",
+	ArenaIsOff: "arena: apagada · el juego solo se abre si lo abres tú",
+	ArenaUsage: "uso: ccpet arena [on|off]",
+	NoTerminal: "no hay ningún emulador de terminal en el que abrir el juego (o dime cuál con CCPET_ARENA_TERM)",
 
 	Help: "←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir",
 
@@ -130,6 +141,11 @@ var englishGame = Game{
 	TooSmall: "needs %dx%d and this terminal is %dx%d",
 	NoTTY:    "invade needs a real terminal, not a pipe",
 	NoTmux:   "no tmux here: open another tab and run ccpet invade in it",
+
+	ArenaIsOn:  "arena: on · the game opens by itself while Claude works",
+	ArenaIsOff: "arena: off · the game opens when you open it",
+	ArenaUsage: "usage: ccpet arena [on|off]",
+	NoTerminal: "no terminal emulator here to open the game in (or name one in CCPET_ARENA_TERM)",
 
 	Help: "←→ move · ↓ stop · space fire · x ability · p pause · q quit",
 

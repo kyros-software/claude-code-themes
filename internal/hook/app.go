@@ -24,6 +24,8 @@ import (
 //	PostToolUse  (others)  -> the name is logged, and nothing else happens
 //	PreCompact             -> compact
 //	SessionEnd             -> the shape of the session
+//	UserPromptSubmit       -> the arena opens, and remembers where to hand back
+//	Stop                   -> the arena pauses, and hands the focus back
 //
 // The Python this replaces needed a bash front end to avoid paying for an
 // interpreter on every tool call. A binary that starts in about two
@@ -214,14 +216,30 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 			return true
 		})
 		return 0
+	case "UserPromptSubmit":
+		// The turn is starting, so the arena - if it is switched on at all -
+		// opens the game, brings it forward and takes it out of the pause the
+		// last turn left it in. What comes back is the window the prompt was
+		// typed in, which is where the focus goes when the turn ends; it is kept
+		// with this session's other scratch because two sessions waiting on two
+		// answers go back to two different tabs.
+		//
+		// NOTHING is printed here. Whatever a UserPromptSubmit hook writes to
+		// stdout is appended to the prompt, so a stray line would end up being
+		// read as something the user said.
+		if window := invaders.Enter(now); window != "" {
+			session.WriteAtomic(session.PathFor(sessionID, "window"), []byte(window))
+		}
+		return 0
 	case "Stop":
-		// Claude has finished answering, so the game in the other terminal
-		// should stop and let you go and read what it did. A touch of one file
-		// and nothing else: no XP, no counters, no session state. A Stop is not
-		// a meal, and the failure is ignored because a game that is not running
-		// is the common case and a hook must never be the reason a turn reports
-		// an error.
+		// Claude has finished answering, so the game in the other window should
+		// stop and let you go and read what it did, and the focus should be back
+		// where the prompt was typed. A touch of one file and a window raised:
+		// no XP, no counters, no session state. A Stop is not a meal, and the
+		// failures are ignored because a game that is not running is the common
+		// case and a hook must never be the reason a turn reports an error.
 		invaders.Touch(now)
+		invaders.GiveBack(windowOf(sessionID))
 		return 0
 	case "SessionEnd":
 		if sessionID != "" {
@@ -229,7 +247,8 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 			// Everything this session left in $TMPDIR, including the lock
 			// beside the tool log and the statusline's git cache. Sweep would
 			// get them in a day; this gets them now.
-			for _, p := range []string{hookPath, toolsPath, session.PathFor(sessionID, "git")} {
+			for _, p := range []string{hookPath, toolsPath,
+				session.PathFor(sessionID, "git"), session.PathFor(sessionID, "window")} {
 				os.Remove(p)
 				os.Remove(lockfile.Path(p))
 			}
@@ -486,4 +505,20 @@ func CloseSession(factsPath, statePath string, now time.Time) {
 		return true
 	})
 	os.Remove(factsPath)
+}
+
+// windowOf is the window this session's prompt was typed in, as remembered by
+// the UserPromptSubmit above. An unreadable file is no window, which is a Stop
+// that pauses the game and leaves the focus where it is - the behaviour anybody
+// gets who has never turned the arena on.
+func windowOf(sessionID string) string {
+	path := session.PathFor(sessionID, "window")
+	if path == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
 }

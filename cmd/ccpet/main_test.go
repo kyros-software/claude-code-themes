@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/i18n"
+	"github.com/kyros-software/claude-code-themes/internal/invaders"
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 )
 
@@ -162,7 +163,7 @@ func TestSetupDispatch(t *testing.T) {
 func TestEveryDispatchedVerbIsDocumented(t *testing.T) {
 	verbs := []string{
 		"statusline", "hook", "setup", "link", "version", "help", "lang",
-		"feed", "count", "day", "record", "session", "invade",
+		"feed", "count", "day", "record", "session", "invade", "arena",
 	}
 	for _, lang := range []i18n.Lang{i18n.ES, i18n.EN} {
 		i18n.Use(lang)
@@ -330,5 +331,47 @@ func TestInvadeWithoutATerminalSaysSoAndDoesNotHang(t *testing.T) {
 	}
 	if strings.TrimSpace(errOut) == "" {
 		t.Error("it refused and said nothing about why")
+	}
+}
+
+// The arena is a program that opens windows on somebody's desktop, so it is off
+// until it is switched on, it says which it is whenever it is asked, and it
+// refuses a word it does not know rather than guessing between on and off.
+func TestTheArenaSwitchSaysWhichItIs(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	// No emulator anywhere, which makes the warning below deterministic on a
+	// machine with a desktop and on a CI runner without one alike.
+	t.Setenv("PATH", t.TempDir())
+
+	code, out, _ := call(t, []string{"ccpet", "--lang", "en", "arena"}, "")
+	if code != 0 || !strings.Contains(out, "arena: off") {
+		t.Errorf("asking exited %d saying %q, want it off", code, out)
+	}
+
+	code, out, errOut := call(t, []string{"ccpet", "--lang", "en", "arena", "on"}, "")
+	if code != 0 || !strings.Contains(out, "arena: on") {
+		t.Errorf("switching it on exited %d saying %q", code, out)
+	}
+	if !strings.Contains(errOut, "no terminal emulator") {
+		t.Errorf("there is nothing here to open a window with and it said %q", errOut)
+	}
+	if !invaders.ArenaOn() {
+		t.Error("the switch is on and the arena disagrees")
+	}
+
+	if code, out, _ := call(t, []string{"ccpet", "--lang", "en", "arena"}, ""); !strings.Contains(out, "arena: on") {
+		t.Errorf("asking again exited %d saying %q, want it still on", code, out)
+	}
+
+	if code, _, _ := call(t, []string{"ccpet", "--lang", "en", "arena", "off"}, ""); code != 0 {
+		t.Errorf("switching it off exited %d", code)
+	}
+	if invaders.ArenaOn() {
+		t.Error("the switch is off and the arena is still on")
+	}
+
+	code, _, errOut = call(t, []string{"ccpet", "--lang", "en", "arena", "maybe"}, "")
+	if code != 2 || !strings.Contains(errOut, "usage:") {
+		t.Errorf("a word it does not know exited %d saying %q, want a usage error", code, errOut)
 	}
 }

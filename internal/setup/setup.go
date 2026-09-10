@@ -28,7 +28,7 @@ const hookMark = "ccpet"
 
 // hookEvents are the ones the legacy installer wires up. A plugin install
 // brings its own and never touches this file.
-var hookEvents = []string{"PostToolUse", "PreCompact", "SessionEnd", "Stop"}
+var hookEvents = []string{"PostToolUse", "PreCompact", "SessionEnd", "UserPromptSubmit", "Stop"}
 
 // ConfigDir is ~/.claude, or CLAUDE_CONFIG_DIR when set.
 func ConfigDir() string { return config.Dir() }

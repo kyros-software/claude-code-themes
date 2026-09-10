@@ -143,7 +143,7 @@ var spanish = Strings{
 	FoodHooks:         "hooks de comida en settings.json: %s\n",
 	PluginHooksNote:   "(si lo instalas como plugin, sus hooks son suyos y no salen aquí)",
 	StatuslineWired:   "  statusLine conectada",
-	HooksWired:        "  hooks conectados: PostToolUse (todas), PreCompact, SessionEnd, Stop",
+	HooksWired:        "  hooks conectados: PostToolUse (todas), PreCompact, SessionEnd, UserPromptSubmit, Stop",
 	HooksNotInstalled: "  hooks NO instalados (pasa --hooks si los quieres)",
 	SettingsClean:     "  settings.json limpio (el tema no se toca: cámbialo con /theme)",
 
@@ -170,6 +170,7 @@ var spanish = Strings{
   ccpet setup install         instalación sin plugin (install-hooks incluye los hooks)
   ccpet setup uninstall       deshacerlo
   ccpet invade                marcianitos: tu mascota es el cañón
+  ccpet arena on|off          abre los marcianitos mientras Claude trabaja
   ccpet version               imprime la versión
   ccpet help                  esta ayuda (también -h y --help)
 `,
@@ -223,7 +224,7 @@ var english = Strings{
 	FoodHooks:         "food hooks in settings.json: %s\n",
 	PluginHooksNote:   "(installed as a plugin, its hooks are its own and do not show here)",
 	StatuslineWired:   "  statusLine wired",
-	HooksWired:        "  hooks wired: PostToolUse (all), PreCompact, SessionEnd, Stop",
+	HooksWired:        "  hooks wired: PostToolUse (all), PreCompact, SessionEnd, UserPromptSubmit, Stop",
 	HooksNotInstalled: "  hooks NOT installed (pass --hooks if you want them)",
 	SettingsClean:     "  settings.json clean (the theme is left alone: change it with /theme)",
 
@@ -250,6 +251,7 @@ var english = Strings{
   ccpet setup install         install without the plugin (install-hooks adds the hooks)
   ccpet setup uninstall       undo it
   ccpet invade                space invaders: your pet is the cannon
+  ccpet arena on|off          open the invaders while Claude works
   ccpet version               print the version
   ccpet help                  this help (also -h and --help)
 `,

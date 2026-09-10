@@ -349,6 +349,100 @@ tied now.
 `dropOurHooks` needed nothing: it matches on the `ccpet` marker in the command
 string, so uninstall already removes an event it has never heard of.
 
+## The arena: the game opens itself while Claude works
+
+`ccpet arena on`, and a turn is a round. Submitting a prompt opens the game in a
+window of its own and hands it the keyboard; the `Stop` that ends the turn pauses
+the game and puts the focus back in the tab you typed in. You play while Claude
+works and you stop where you were when it is done, without touching either
+window yourself.
+
+Three rules, and they are what the tests are about.
+
+**One game, however many Claudes are open.** The running game writes
+`~/.claude/ccpet-invade.live` once a second; a prompt reads its mtime, and the
+session that finds it stale is the only one that opens a window. Everyone else
+raises the window that is already playing.
+
+Three seconds of staleness, which is three missed beats: one is a busy machine
+and three is a window that has been closed. The alternative - a pid file, checked
+with `kill(pid, 0)` - does not work here at all. Under gnome-terminal every
+window belongs to one `gnome-terminal-server` process, so the pid the launcher
+gets back is a dbus client that has already exited, and the game is a grandchild
+of a process that outlives every game. The heartbeat is written by the only party
+that knows, which is the game.
+
+The claim is taken **before** the window is opened and under `lockfile`, and the
+file's contents are the beating process's pid so only that process can drop it.
+Both matter. Two sessions answering in the same instant would otherwise both
+look, both see nothing playing, and both open a window; and a second game started
+by hand and quit would otherwise free a slot the arena's game is still holding.
+
+**Off until somebody says otherwise.** The switch is `~/.claude/ccpet-arena`, a
+file whose existence is the setting. Not a key in `ccpet.json`, which is read by
+a hook on every prompt of every session and would have to be parsed and merged to
+be written: a stat is cheaper, it cannot lose somebody's language setting to a
+botched write, and it can be found with an `ls` by somebody wondering why
+terminals keep opening. A theme that starts opening windows because it was
+installed is a theme that gets uninstalled.
+
+**Never an error the turn can see.** No X, no window manager, an emulator nobody
+has heard of, a machine over ssh: every piece of this degrades to doing nothing,
+which is the same as the arena being off. `ccpet arena on` is where that is said
+out loud, because it is the only moment somebody is listening - the alternative is
+turn after turn of nothing happening and no way to tell why.
+
+### The protocol is two mtimes
+
+| file | touched by | read by | means |
+| --- | --- | --- | --- |
+| `ccpet-stop` | `Stop` | the game, 4×/s | Claude has answered: pause |
+| `ccpet-play` | `UserPromptSubmit` | the game, 4×/s | a turn has started: play |
+| `ccpet-invade.live` | the game, 1×/s | every prompt | a game is running, and whose |
+
+Two files rather than one with a word in it: the signal is the mtime, and a mtime
+is something both sides compare without reading, parsing or locking anything.
+Which of the two moved last is the whole protocol, and `fileWatch` is nine lines
+because both halves are the same nine lines.
+
+A pause the *player* asked for with `p` is not lifted by the next prompt, and that
+is what the banner is checked for: somebody who stopped the game to go and read
+something did not ask for it back. Claude only undoes Claude's pause.
+
+### A window, not a tab, and a title rather than a pid
+
+The focus is moved with `wmctrl -i -a <id>` and read with
+`xprop -root _NET_ACTIVE_WINDOW`. Both are X11, both are looked up rather than
+depended on, and Wayland answers neither.
+
+The game gets its **own window** and not a tab beside Claude, because no terminal
+emulator has a command line that selects a tab: `gnome-terminal --tab` opens one
+and then nothing can bring it forward again. A window is a thing `wmctrl` can
+raise. Which is also why the game names its window - `\033]0;ccpet invade\007` on
+the way in, an empty title on the way out - since a title is the only handle a
+window manager offers for "the window with the game in it".
+
+The window the focus goes **back** to is the one that had it when the prompt was
+submitted, which is the tab you typed in, because typing is what gives a window
+the focus. It is read first, before the game is raised over it, and it is
+remembered per session in `$TMPDIR` with the rest of the session's scratch - not
+in one file like the pause, because two sessions waiting on two answers go back
+to two different tabs. A prompt that arrives from the game's own window has
+nowhere to hand anything back to and says so.
+
+### What the wiring costs
+
+Five edit points, the same shape as `Stop` and with one more trap.
+`hookEvents`, `hooks.json`, `hook.Run` and `HooksWired`, as before - and the trap
+is that **whatever a `UserPromptSubmit` hook writes to stdout is appended to the
+prompt**. A stray line from this code would arrive as something the user said, so
+the hook prints nothing at all, and `openArena` gives the emulator no stdin,
+stdout or stderr: a hook holding its pipe open until the game is over is a turn
+that never starts.
+
+`--split` stays as it was, for tmux. The arena is what the same idea looks like
+when there is no multiplexer to lean on, which is most desktops.
+
 ## The keyboard was dead, and every test passed
 
 Worth writing down, because the shape of it will happen again.

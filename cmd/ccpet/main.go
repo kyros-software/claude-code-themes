@@ -5,6 +5,7 @@
 //	ccpet statusline    read a refresh payload on stdin, print the footer
 //	ccpet hook          read a hook payload on stdin, turn it into food
 //	ccpet invade        space invaders: the pet you have is the cannon
+//	ccpet arena on|off  let the game open itself while Claude works
 //	ccpet               the pet's panel
 //	ccpet feed|tests|commit|compact|task|overflow      a meal
 //	ccpet count|day|record|session                     bookkeeping
@@ -68,6 +69,8 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 			// going and finding it, which is what lets the tests point them
 			// somewhere harmless.
 			return invaders.Run(args[1:], stdout, stderr, pet.Path(), invaders.SavePath(), now)
+		case "arena":
+			return runArena(args[1:], stdout, stderr)
 		case "link":
 			root := ""
 			if len(args) > 1 {
@@ -84,6 +87,41 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 		}
 	}
 	return panel.Run(args, stdout, stderr, pet.Path(), now)
+}
+
+// runArena is the switch that lets a turn open the game: on, off, or say which
+// it is. Three lines of state - one file that exists or does not - because what
+// it guards is a program opening a window on somebody's desktop, and that is a
+// thing to have said yes to out loud.
+func runArena(args []string, stdout, stderr io.Writer) int {
+	g := i18n.G()
+	action := "status"
+	if len(args) > 0 && args[0] != "" {
+		action = args[0]
+	}
+	switch action {
+	case "on", "off":
+		if err := invaders.SetArena(action == "on"); err != nil {
+			fmt.Fprintln(stderr, "ccpet:", err)
+			return 1
+		}
+	case "status":
+	default:
+		fmt.Fprintln(stderr, g.ArenaUsage)
+		return 2
+	}
+	if !invaders.ArenaOn() {
+		fmt.Fprintln(stdout, g.ArenaIsOff)
+		return 0
+	}
+	fmt.Fprintln(stdout, g.ArenaIsOn)
+	// Said at the moment it is switched on, not the first time a turn silently
+	// fails to open anything: there is nothing on this machine to open a window
+	// with, and the arena will do nothing until there is.
+	if !invaders.CanOpenAWindow() {
+		fmt.Fprintln(stderr, "ccpet:", g.NoTerminal)
+	}
+	return 0
 }
 
 // runSetup writes the one settings.json key a plugin cannot install by itself.

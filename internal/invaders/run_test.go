@@ -404,3 +404,71 @@ func TestAnEmptyReadIsNotTheEndOfTheKeyboard(t *testing.T) {
 	}
 	close(src.done)
 }
+
+// The other half of the auto-pause: a prompt takes the game back out of it. Ten
+// turns is ten of these, and a game that had to be un-paused by hand every time
+// would be a game nobody plays twice.
+func TestAPromptTakesTheGameOutOfThePauseClaudeLeftItIn(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	sc, keys, _ := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	g := NewGame(f, "spark", 2, Save{Wave: 1, Seed: 1})
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		Touch(time.Now().Add(time.Second))
+		time.Sleep(200 * time.Millisecond)
+		Resume(time.Now().Add(2 * time.Second))
+		time.Sleep(200 * time.Millisecond)
+		keys <- Quit
+	}()
+	final, _ := loop(sc, g, nil, time.Now)
+
+	if final.Phase != Playing {
+		t.Errorf("the game is in %v after the prompt, want playing", final.Phase)
+	}
+	if final.Banner == BannerClaude {
+		t.Error("the game is playing and still says Claude stopped it")
+	}
+}
+
+// But a pause the PLAYER asked for is the player's. Claude starting another turn
+// does not hand the keyboard back to a game somebody deliberately stopped to go
+// and read something.
+func TestAPromptDoesNotLiftThePauseThePlayerAskedFor(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	sc, keys, _ := fakeScreen(t, 80, 24)
+	f, _ := FieldFor(80, 24)
+	g := NewGame(f, "spark", 2, Save{Wave: 1, Seed: 1})
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		keys <- Pause
+		time.Sleep(200 * time.Millisecond)
+		Resume(time.Now().Add(time.Second))
+		time.Sleep(200 * time.Millisecond)
+		keys <- Quit
+	}()
+	final, _ := loop(sc, g, nil, time.Now)
+
+	if final.Phase != Paused || final.Banner != BannerPaused {
+		t.Errorf("the game is in %v saying %q, want the player's own pause kept",
+			final.Phase, final.Banner)
+	}
+}
+
+// The window's name is what the arena raises the game by, so it is part of
+// borrowing the terminal - and it is handed back, or a tab that played once is
+// called "ccpet invade" until it is closed.
+func TestTheGameNamesTheWindowAndGivesTheNameBack(t *testing.T) {
+	var got strings.Builder
+	enter(&got)
+	if !strings.Contains(got.String(), "\033]0;"+arenaTitle+"\007") {
+		t.Errorf("entering wrote %q, with no window title in it", got.String())
+	}
+	got.Reset()
+	leave(&got)
+	if !strings.Contains(got.String(), "\033]0;\007") {
+		t.Errorf("leaving wrote %q, and never gave the title back", got.String())
+	}
+}

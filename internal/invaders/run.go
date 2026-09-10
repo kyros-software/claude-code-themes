@@ -80,6 +80,16 @@ func Run(args []string, stdout, stderr io.Writer, petPath, savePath string, now 
 	stop := make(chan struct{})
 	go readKeys(tm, keys, stop)
 
+	// The heartbeat. It is how a prompt in any session can tell that a game is
+	// already running and raise that window instead of opening a second one, and
+	// it is kept whether the arena is on or not: a game somebody started by hand
+	// is still the one game. The claim goes back on the way out, in that order,
+	// so the beater cannot write the file after it has been dropped.
+	heart := make(chan struct{})
+	defer Unbeat()
+	defer close(heart)
+	go beating(heart)
+
 	// The alternate screen and the cursor come back whatever happens: a normal
 	// quit, a signal, or a panic in the tick. A game that leaves your terminal
 	// with no cursor is worse than a game that crashes.
@@ -155,7 +165,8 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 	defer ticker.Stop()
 
 	w := bufio.NewWriterSize(sc.Out, 1<<16)
-	watch := watchPause()
+	watch := watchFile(PausePath())
+	wake := watchFile(ResumePath())
 	cols, _ := sc.Size()
 	small := false
 
@@ -211,9 +222,21 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 				small = true
 			}
 		}
-		if g.Frame%pauseEvery == 0 && watch.fired() && g.Phase == Playing {
-			g.Phase = Paused
-			g.Banner = BannerClaude
+		if g.Frame%pauseEvery == 0 {
+			// Both files are asked on the same beat and the phase decides which
+			// answer matters: a Stop only stops a game that is playing, and a
+			// prompt only wakes one that a Stop put to sleep. A pause the PLAYER
+			// asked for with p is the player's, and Claude does not lift it -
+			// which is the whole reason the banner is looked at here.
+			stopped, woken := watch.fired(), wake.fired()
+			if stopped && g.Phase == Playing {
+				g.Phase = Paused
+				g.Banner = BannerClaude
+			}
+			if woken && g.Phase == Paused && g.Banner == BannerClaude {
+				g.Phase = Playing
+				g.Banner = ""
+			}
 		}
 
 		g = Tick(g, in)
@@ -299,8 +322,31 @@ func frame(w *bufio.Writer, lines []string) {
 	w.Flush()
 }
 
-func enter(w io.Writer) { io.WriteString(w, "\033[?1049h\033[?25l") }
-func leave(w io.Writer) { io.WriteString(w, theme.Reset+"\033[?25h\033[?1049l") }
+// enter and leave are the terminal the game borrows: the alternate screen, the
+// cursor, and the window's name.
+//
+// The name is not decoration - it is the handle the arena raises the game's
+// window by, there being no way to find a window by the process inside it under
+// a terminal whose windows all belong to one server. It is given back on the way
+// out with an empty title, which is how a terminal is told to go back to
+// deciding its own.
+func enter(w io.Writer) { io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l") }
+func leave(w io.Writer) { io.WriteString(w, theme.Reset+"\033[?25h\033[?1049l\033]0;\007") }
+
+// beating keeps the heartbeat fresh for as long as the game is on screen.
+func beating(stop <-chan struct{}) {
+	Beat(time.Now())
+	ticker := time.NewTicker(beatEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case now := <-ticker.C:
+			Beat(now)
+		}
+	}
+}
 
 // readKeys turns the terminal into a channel of keys.
 //

@@ -237,6 +237,27 @@ in a pane beside Claude.
 evolved into, but the kit drops a step until you feed it back up. It never costs
 more than a day's feeding, and quitting is not losing.
 
+### `ccpet arena on`
+
+The waiting, turned into the game. With the arena on, sending Claude a prompt
+opens the invaders in a window of its own and gives it the keyboard; when Claude
+finishes answering, the game pauses on the spot and the focus goes back to the tab
+you typed in.
+
+| | |
+| --- | --- |
+| `ccpet arena on` | a turn opens the game, a `Stop` pauses it and hands the focus back |
+| `ccpet arena off` | the game opens when you open it (the default) |
+| `ccpet arena` | says which it is |
+
+**One game, however many Claudes you have open**: the game running keeps a
+heartbeat, and a second session's prompt raises that window instead of opening
+another. It is off until you switch it on, and it needs `wmctrl`, `xprop` and a
+terminal emulator it knows - X11, in other words. Where any of that is missing it
+does nothing at all, and `ccpet arena on` says so rather than leaving you to
+notice. `CCPET_ARENA_TERM="wezterm start --"` names an emulator it has not heard
+of.
+
 ## The themes
 
 | Theme | Accent | Look |
