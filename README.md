@@ -229,9 +229,17 @@ reload, which is a real cost when six ships are coming down at their own angles.
 `r` reloads early; firing on empty starts the reload for you. A fast gun reloads
 fast: the wait is six shots' worth of its own cadence.
 
-**The score buys upgrades.** Every few hundred points the game stops and offers
-three - power, rate, magazine - and the gun you build is saved with the run, so
-quitting and coming back keeps it.
+**The score buys upgrades.** Every few hundred points the game stops, puts a box
+in the middle of the screen and offers three - power, rate, magazine. The gun you
+build is saved with the run, so quitting and coming back keeps it.
+
+**`x` is your creature's own verb**, and it is a different one for every branch of
+the tree: the larva shoves the whole fleet back up, `pattern` raises a shield that
+burns bombs, `refactor` puts a second ship beside you that fires with you,
+`bughunter` throws a net that stops the fleet descending, `sprinter` dashes across
+the field through whatever is in the way, `marathon` fires one enormous lance, and
+`feral` spends a point of life for double damage. The HUD names yours, and the
+ship changes colour while it is running.
 
 **Two things fall on their own.** A health kit a minute: catch it by flying into
 it, `e` spends one. And an asteroid, which is on nobody's side - break it and it

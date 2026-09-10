@@ -224,16 +224,28 @@ func TestEveryFamilyHasANameInBothLanguages(t *testing.T) {
 // in a mark's modifier would otherwise be a space bar that silently does
 // nothing for one form out of forty-one.
 func TestEveryAbilityAKitAsksForIsOneThatExists(t *testing.T) {
-	known := map[string]bool{
-		AbilityVolley: true, AbilitySweep: true, AbilityTurret: true,
-		AbilityTurret2: true, AbilityInvuln: true, AbilityThree: true,
-		AbilityBlast: true, AbilityChimera: true,
+	// And every ability that exists is one somebody flies: an id in the list
+	// that no form asks for is a verb written and never given to anybody.
+	flown := map[string]bool{}
+	defer func() {
+		for _, a := range Abilities {
+			if !flown[a] {
+				t.Errorf("the ability %q belongs to no form", a)
+			}
+		}
+	}()
+
+	known := map[string]bool{}
+	for _, a := range Abilities {
+		known[a] = true
 	}
 	for form := range pet.Sprites {
 		for level := 1; level <= levels(); level++ {
-			if s := KitFor(form, level).Special; !known[s] {
+			s := KitFor(form, level).Special
+			if !known[s] {
 				t.Errorf("%s at level %d asks for the ability %q", form, level, s)
 			}
+			flown[s] = true
 		}
 	}
 }

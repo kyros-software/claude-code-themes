@@ -870,3 +870,181 @@ func TestTheShipStaysBetweenTheRoofAndTheFloorForAWholeRun(t *testing.T) {
 		}
 	}
 }
+
+// A frame carries a direction AND an action, because a terminal delivers both in
+// the same twenty-five milliseconds all the time: a held arrow repeating and the
+// shot you just pressed. The version that took one key threw one of them away.
+func TestADirectionAndAnActionShareAFrame(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	col, shots := g.Ship, len(g.Shots)
+
+	g = TickWith(g, Left, Fire)
+	if g.Ship != col-1 {
+		t.Errorf("the arrow was dropped: column %d, was %d", g.Ship, col)
+	}
+	if len(g.Shots) <= shots {
+		t.Error("the shot was dropped")
+	}
+}
+
+// Changing direction while gliding must not stop the ship. It is one finger
+// moving from one arrow to the other, and treating the first press of the new
+// direction as a fresh tap parked it for a whole repeat delay - which is what
+// "a veces estoy presionando y se queda parado" was.
+func TestChangingDirectionMidGlideKeepsGoing(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g.Ship = 40
+	for i := 0; i < 12; i++ { // holding left
+		g = Tick(g, Left)
+	}
+	turned := g.Ship
+
+	// One press of the other arrow, and then the gap before its autorepeat
+	// starts. The ship has to carry on rightwards through that gap.
+	g = Tick(g, Right)
+	g = drive(g, None, 3)
+	if g.Ship <= turned {
+		t.Errorf("it stalled at column %d after turning round at %d", g.Ship, turned)
+	}
+	if !g.Side.Moving() {
+		t.Error("the glide died on the turn")
+	}
+}
+
+// Every ability has to DO something, and something a shot does not do. Eleven of
+// the thirteen families used to share "volley" - three shots at once - which is
+// what the space bar already does, so for most of the forty-one forms the ability
+// key was a slightly better space bar.
+func TestEveryAbilityDoesSomethingAndNoneOfThemIsJustAVolley(t *testing.T) {
+	for _, form := range []string{
+		"spark", "pattern", "probe", "ember", "refactor", "tidy",
+		"bughunter", "architect", "sprinter", "marathon", "feral",
+		"phoenix", "chimera",
+	} {
+		g := aGame(t, form, 4)
+		g = oneAlien(g, 5, 30, 6) // a cazador, six rows down, in the middle
+		g.Ship, g.Row = 28, g.Field.ShipRow()
+		g.Ready = 0
+
+		before := g
+		after := Tick(g, Ability)
+		if after.Ready == 0 {
+			t.Errorf("%s: the ability did not go on cooldown, so nothing happened", form)
+		}
+
+		// Something has to be different beyond the cooldown and the frame.
+		after.Ready, after.Frame = before.Ready, before.Frame
+		after.Rand, before.Rand = 0, 0
+		if reflect.DeepEqual(after, before) {
+			t.Errorf("%s: pressing x changed nothing at all", form)
+		}
+	}
+}
+
+// And the ones that last have to end, or they are not abilities, they are the
+// gun getting better for free.
+func TestTheAbilitiesThatLastRunOut(t *testing.T) {
+	for _, c := range []struct {
+		form string
+		of   func(Game) int
+	}{
+		{"pattern", func(g Game) int { return g.Shield }},
+		{"ember", func(g Game) int { return g.Rush }},
+		{"refactor", func(g Game) int { return g.Mirror }},
+		{"bughunter", func(g Game) int { return g.Net }},
+		{"feral", func(g Game) int { return g.Rage }},
+	} {
+		g := aGame(t, c.form, 4)
+		g = Tick(g, Ability)
+		if c.of(g) <= 0 {
+			t.Errorf("%s: the ability did not start", c.form)
+			continue
+		}
+		g = drive(g, None, 10*TicksPerSecond)
+		if c.of(g) != 0 {
+			t.Errorf("%s: still running after ten seconds", c.form)
+		}
+	}
+}
+
+// The net stops the fleet coming down and nothing else: they still drift and they
+// still shoot, so it is time bought rather than a pause button.
+func TestTheNetStopsTheDescentAndNotTheFleet(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	g = oneAlien(g, 1, 30, 4) // an avispa
+	g.Aliens[0].Vx = Fleet[1].Drift
+	g = Tick(g, Ability)
+	if g.Net == 0 {
+		t.Fatal("the net did not go up")
+	}
+	y, x := g.Aliens[0].Y, g.Aliens[0].X
+	g = drive(g, None, 40)
+	if g.Aliens[0].Y != y {
+		t.Errorf("it came down from %g to %g under the net", y, g.Aliens[0].Y)
+	}
+	if g.Aliens[0].X == x {
+		t.Error("the net froze it altogether, which is a pause button")
+	}
+}
+
+// The shield burns bombs on the way in, and is not invulnerability: a ship that
+// lands on you still lands on you.
+func TestTheShieldBurnsBombsAndStopsNothingElse(t *testing.T) {
+	g := aGame(t, "pattern", 4)
+	g.Ship = 20
+	g = Tick(g, Ability)
+	hp := g.HP
+	g.Bombs = []Bomb{{X: 22, Y: float64(g.Row) - 1, Hurt: 2}}
+	g = drive(g, None, 20)
+	if g.HP != hp {
+		t.Errorf("a bomb got through the shield: %d hp, was %d", g.HP, hp)
+	}
+	if len(g.Bombs) != 0 {
+		t.Error("the bomb is still falling")
+	}
+
+	// The ram is not a bomb.
+	g = oneAlien(g, 0, float64(g.Ship), float64(g.Row)-1)
+	g = untilLanded(t, g)
+	if g.HP >= hp {
+		t.Error("a ship flew into the shield and it cost nothing")
+	}
+}
+
+// The dash crosses the field, hurts what it passes through, and leaves the ship
+// on the other side rather than travelling.
+func TestTheDashCrossesTheFieldAndLandsStill(t *testing.T) {
+	g := aGame(t, "sprinter", 4)
+	g.Ship = 4
+	g = oneAlien(g, 0, 30, float64(g.Row))
+	g.Aliens[0].HP, g.Aliens[0].MaxHP = 99, 99
+
+	g = Tick(g, Ability)
+	if g.Ship < g.Field.ShipColMax()/2 {
+		t.Errorf("it dashed to column %d of %d", g.Ship, g.Field.ShipColMax())
+	}
+	if len(g.Aliens) == 0 || g.Aliens[0].HP >= 99 {
+		t.Error("it went through a ship and did not touch it")
+	}
+	if g.Side.Moving() {
+		t.Error("it is still travelling after the dash")
+	}
+}
+
+// The lance goes through everything: it is the one press that can take a boss
+// down, and it may not stop at the first thing it meets.
+func TestTheLancePassesThroughEverything(t *testing.T) {
+	g := aGame(t, "marathon", 4)
+	g = Tick(g, Ability)
+	if len(g.Shots) == 0 {
+		t.Fatal("the lance fired nothing")
+	}
+	for _, s := range g.Shots {
+		if s.Pierce < 10 {
+			t.Errorf("a lance that stops after %d bodies", s.Pierce)
+		}
+		if s.Damage <= sweepDamage {
+			t.Errorf("a lance worth %d damage", s.Damage)
+		}
+	}
+}

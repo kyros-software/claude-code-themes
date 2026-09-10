@@ -55,18 +55,46 @@ type Kit struct {
 // key.
 const minCadence = 4
 
-// The abilities. Every kit has one, because the space bar is the only thing the
-// player times and a form that ignores it is a form that plays itself.
+// The abilities: one per family, and no two of them look alike.
+//
+// They used to be one per family in name only. Eleven of the thirteen families
+// had "volley" - three shots at once - which is what the space bar already does,
+// so for most of the forty-one forms the ability key was a slightly better space
+// bar. Said plainly from play: "la habilidad es igual al disparo con espacio,
+// debe ser diferente, relacionado con cada bicho."
+//
+// So each one is now a different VERB, and the verb belongs to the branch it
+// hangs off: the tidy branch sweeps, the architect's builds, the sprinter's
+// dashes, the feral one bleeds itself for damage. Nothing here fires an ordinary
+// shot except the chimera, which fires one alongside something else because being
+// two things at once is what a chimera is.
 const (
-	AbilityVolley  = "volley"   // one free triple volley
-	AbilitySweep   = "sweep"    // a beam that clears a whole row
+	AbilitySweep   = "sweep"    // a beam that clears the column above you
 	AbilityTurret  = "turret"   // drops a turret that fires on its own
 	AbilityTurret2 = "turret2"  // two of them
 	AbilityInvuln  = "invuln"   // brief invulnerability
-	AbilityThree   = "threerow" // strikes three rows at once
+	AbilityThree   = "threerow" // a beam three columns wide
 	AbilityBlast   = "blast"    // the phoenix: everything on screen, and a long wait
-	AbilityChimera = "chimera"  // a volley and a sweep at once, being two things
+	AbilityChimera = "chimera"  // a sweep and a volley at once, being two things
+
+	AbilityPulse  = "pulse"  // shoves the whole fleet back up and burns the bombs
+	AbilityShield = "shield" // bombs die on the way in, for a few seconds
+	AbilityMark   = "mark"   // three darts, each chasing a different ship
+	AbilityRush   = "rush"   // twice the rate of fire and free rounds, briefly
+	AbilityMirror = "mirror" // a second ship beside you, firing with you
+	AbilityNet    = "net"    // the fleet stops descending, and only descending
+	AbilityDash   = "dash"   // across the field at once, through anything in the way
+	AbilityLance  = "lance"  // one enormous shot that goes through everything
+	AbilityFrenzy = "frenzy" // a point of life for double damage
 )
+
+// Abilities is every id above, which is what the guard in kit_test.go walks and
+// what i18n.Game.Abilities has to have a name for in both languages.
+var Abilities = []string{
+	AbilitySweep, AbilityTurret, AbilityTurret2, AbilityInvuln, AbilityThree,
+	AbilityBlast, AbilityChimera, AbilityPulse, AbilityShield, AbilityMark,
+	AbilityRush, AbilityMirror, AbilityNet, AbilityDash, AbilityLance, AbilityFrenzy,
+}
 
 // families is one weapon per family, keyed by the ANCHOR form it hangs off: the
 // rung-3 trade, or the shallower form itself when the lineage is shorter than
@@ -78,17 +106,17 @@ const (
 // first draft subtracted, and a bolt at level 6 came out identical to a bare
 // sprinter because both had hit the floor.
 var families = map[string]Kit{
-	pet.Root:    {Family: "single", Cadence: 28, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 8, Regen: 1},
-	"pattern":   {Family: "steady", Cadence: 36, Damage: 3, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
-	"probe":     {Family: "seeker", Cadence: 30, Damage: 1, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 9, Regen: 1},
-	"ember":     {Family: "rapid", Cadence: 18, Damage: 1, Shots: 1, Special: AbilityVolley, Cooldown: 200, MaxHP: 8, Regen: 1},
-	"refactor":  {Family: "twin", Cadence: 32, Damage: 2, Shots: 2, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
+	pet.Root:    {Family: "single", Cadence: 28, Damage: 1, Shots: 1, Special: AbilityPulse, Cooldown: 200, MaxHP: 8, Regen: 1},
+	"pattern":   {Family: "steady", Cadence: 36, Damage: 3, Shots: 1, Special: AbilityShield, Cooldown: 200, MaxHP: 10, Regen: 1},
+	"probe":     {Family: "seeker", Cadence: 30, Damage: 1, Shots: 1, Homing: true, Special: AbilityMark, Cooldown: 200, MaxHP: 9, Regen: 1},
+	"ember":     {Family: "rapid", Cadence: 18, Damage: 1, Shots: 1, Special: AbilityRush, Cooldown: 200, MaxHP: 8, Regen: 1},
+	"refactor":  {Family: "twin", Cadence: 32, Damage: 2, Shots: 2, Special: AbilityMirror, Cooldown: 200, MaxHP: 10, Regen: 1},
 	"tidy":      {Family: "sweep", Cadence: 34, Damage: 2, Shots: 1, Special: AbilitySweep, Cooldown: 240, MaxHP: 11, Regen: 2},
-	"bughunter": {Family: "homing", Cadence: 30, Damage: 2, Shots: 1, Homing: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 10, Regen: 1},
+	"bughunter": {Family: "homing", Cadence: 30, Damage: 2, Shots: 1, Homing: true, Special: AbilityNet, Cooldown: 200, MaxHP: 10, Regen: 1},
 	"architect": {Family: "turret", Cadence: 34, Damage: 2, Shots: 1, Special: AbilityTurret, Cooldown: 280, MaxHP: 11, Regen: 1},
-	"sprinter":  {Family: "burst", Cadence: 16, Damage: 1, Shots: 2, Special: AbilityVolley, Cooldown: 180, MaxHP: 8, Regen: 1},
-	"marathon":  {Family: "cannon", Cadence: 40, Damage: 3, Shots: 1, Pierce: 3, Special: AbilityVolley, Cooldown: 220, MaxHP: 12, Regen: 2},
-	"feral":     {Family: "overload", Cadence: 24, Damage: 2, Shots: 1, Overload: true, Special: AbilityVolley, Cooldown: 200, MaxHP: 9},
+	"sprinter":  {Family: "burst", Cadence: 16, Damage: 1, Shots: 2, Special: AbilityDash, Cooldown: 180, MaxHP: 8, Regen: 1},
+	"marathon":  {Family: "cannon", Cadence: 40, Damage: 3, Shots: 1, Pierce: 3, Special: AbilityLance, Cooldown: 220, MaxHP: 12, Regen: 2},
+	"feral":     {Family: "overload", Cadence: 24, Damage: 2, Shots: 1, Overload: true, Special: AbilityFrenzy, Cooldown: 200, MaxHP: 9},
 
 	// The two that are not on the tree. A phoenix gets the revival its name is
 	// for; a chimera carries both of its parents' families at once, which is

@@ -45,7 +45,10 @@ func pilot(g Game) Key {
 	if g.Kits > 0 && g.HP*2 <= g.Kit.MaxHP {
 		return Heal
 	}
-	if g.Ready == 0 && g.Kit.Special != AbilityVolley {
+	if g.Ready == 0 {
+		// Every ability is worth pressing now that none of them is a volley in
+		// disguise, so the pilot presses it the moment it is ready. A person
+		// would save it; this is a floor and not a forecast.
 		return Ability
 	}
 	target, ok := lowestColumn(g)

@@ -74,6 +74,7 @@ const (
 	// anybody expects from an arrow key.
 	streamFor    = 2
 	streamMax    = 8
+	turnFor      = 5
 	repeatWindow = 8
 
 	// moveEvery and climbEvery are TICKS PER CELL: one column every tick, one row
@@ -121,6 +122,19 @@ const (
 	turretCadence = 28
 
 	sweepDamage = 8
+
+	// What the nine new abilities are worth, in ticks or in rows. None of them
+	// is meant to replace the gun: the longest lasts six seconds and half of
+	// them are instant.
+	pulseRows  = 4
+	shieldFor  = 5 * TicksPerSecond
+	rushFor    = 4 * TicksPerSecond
+	mirrorFor  = 6 * TicksPerSecond
+	netFor     = 3 * TicksPerSecond
+	rageFor    = 5 * TicksPerSecond
+	mirrorGap  = 7  // columns between you and the ghost
+	lanceHit   = 40 // one enormous shot
+	dashDamage = 12
 
 	// bombDrop is what one of their bombs costs, bossDrop one of a boss's, and
 	// landDrop what it costs to let one reach the floor.
@@ -208,11 +222,25 @@ func (a Axis) Moving() bool { return a.Way != 0 && a.Hold > 0 }
 // press is a key arriving on this axis: a tap if the last one was long ago, a
 // repeat - and so a key being held - if it was not.
 func (a Axis) press(way, every int) Axis {
+	// A press counts as the same key held down if it points the same way, and
+	// ALSO if the axis is still gliding: changing direction mid-glide is one
+	// finger moving from one arrow to the other, and treating it as a fresh tap
+	// stopped the ship dead for a repeat delay. Reported from play as "a veces
+	// estoy presionando y se queda parado".
+	turn := a.Way != way && a.Hold > 0 && a.Since <= repeatWindow
 	repeat := a.Way == way && a.Since <= repeatWindow
 	a.Way = way
-	if repeat {
+	switch {
+	case turn:
+		// One finger moving from one arrow to the other. The new key is a fresh
+		// press as far as the operating system is concerned, so its autorepeat
+		// waits out the whole initial delay before the stream starts: the leash
+		// has to be long enough to carry the ship across that gap, or the turn
+		// reads as the ship parking itself for a tenth of a second.
+		a.Hold = turnFor
+	case repeat:
 		a.Hold = clamp(2*a.Since, streamFor, streamMax)
-	} else {
+	default:
 		// A tap: one cell, now, and then nothing until another press.
 		a.Hold = 0
 		a.Wait = 0
@@ -319,6 +347,14 @@ type Game struct {
 	Cool    int // ticks until the gun may fire again
 	Ready   int // ticks until the ability is ready; 0 is ready
 	Invuln  int
+	// The abilities that last rather than happen, each a count of ticks. Every
+	// one of them is visible from the outside - see drawShip and the hud -
+	// because an effect nobody can see is an effect nobody trusts.
+	Shield  int // bombs burn up on the way in
+	Rush    int // twice the rate of fire, and the rounds are free
+	Mirror  int // a second ship beside you, firing with you
+	Net     int // the fleet stops descending
+	Rage    int // double damage, bought with a point of life
 	Revived bool
 	Kits    int // health kits in the hold
 
@@ -449,6 +485,7 @@ func (g Game) startWave(n int) Game {
 	g.Boss = BossState{}
 	g.Released = 0
 	g.Next = 0
+	g.Shield, g.Rush, g.Mirror, g.Net, g.Rage = 0, 0, 0, 0, 0
 	g.RockIn = rockEvery
 	g.KitIn = kitEvery
 
@@ -505,8 +542,15 @@ func (g Game) ToSave(prev Save) Save {
 	return out.sane()
 }
 
-// Tick advances one frame.
-func Tick(g Game, in Key) Game {
+// Tick advances one frame on one key, which is what a test wants to say.
+func Tick(g Game, in Key) Game { return TickWith(g, in, in) }
+
+// TickWith advances one frame on a direction AND an action, which is what the
+// loop has: a terminal delivers both in the same twenty-five milliseconds all the
+// time - the arrow's autorepeat and the shot you just pressed - and the version
+// that took one key threw one of them away. Whichever it threw away, something
+// the player did did not happen.
+func TickWith(g Game, move, in Key) Game {
 	switch g.Phase {
 	case Over:
 		return g
@@ -537,7 +581,7 @@ func Tick(g Game, in Key) Game {
 		return g
 	}
 
-	g = g.moveShip(in)
+	g = g.moveShip(move)
 	g = g.tickWeapon(in)
 	g = g.tickAbility(in)
 	g = g.tickHeal(in)
@@ -717,16 +761,26 @@ func (g Game) tickWeapon(in Key) Game {
 	// Empty comes before the cadence: pressing fire on an empty magazine has to
 	// start the reload even in the tick after a shot, or whether the gun reloads
 	// itself depends on exactly when you pressed - which is unlearnable.
-	if in == Fire && g.Ammo <= 0 {
+	if in == Fire && g.Ammo <= 0 && g.Rush == 0 {
 		g.Loading = g.Kit.Reload
 		return g
 	}
 	if in != Fire || g.Cool > 0 {
 		return g
 	}
-	g.Ammo--
-	g.Cool = g.Kit.Cadence
-	return g.volley(g.Kit.Shots)
+	if g.Rush > 0 {
+		// Free rounds and twice the rate: the rapid branch's four seconds of
+		// not having to think about the magazine.
+		g.Cool = max(g.Kit.Cadence/2, 1)
+	} else {
+		g.Ammo--
+		g.Cool = g.Kit.Cadence
+	}
+	g = g.volley(g.Kit.Shots)
+	if g.Mirror > 0 {
+		g = g.ghostVolley()
+	}
+	return g
 }
 
 // damageFor is what one shot lands, with the feral branch's passive and the
@@ -737,6 +791,9 @@ func (g *Game) damageFor() int {
 		damage += (g.Kit.MaxHP - g.HP) / 2
 	}
 	if g.Kit.Spike > 0 && chance(&g.Rand, g.Kit.Spike) {
+		damage *= 2
+	}
+	if g.Rage > 0 {
 		damage *= 2
 	}
 	return damage
@@ -771,8 +828,10 @@ func (g Game) tickAbility(in Key) Game {
 	if g.Ready > 0 {
 		g.Ready--
 	}
-	if g.Invuln > 0 {
-		g.Invuln--
+	for _, t := range []*int{&g.Invuln, &g.Shield, &g.Rush, &g.Mirror, &g.Net, &g.Rage} {
+		if *t > 0 {
+			*t--
+		}
 	}
 	if in != Ability || g.Ready > 0 {
 		return g
@@ -784,6 +843,33 @@ func (g Game) tickAbility(in Key) Game {
 		g = g.column(g.Ship, ShipCols, sweepDamage)
 	case AbilityThree:
 		g = g.column(g.Ship-ShipCols, 3*ShipCols, sweepDamage)
+	case AbilityPulse:
+		// The larva's, and the only one that hurts nothing: everything in the
+		// air is shoved back up and every bomb burns. A way out rather than a
+		// way through, which is what a larva needs.
+		g = g.shove(pulseRows)
+	case AbilityShield:
+		g.Shield = shieldFor
+	case AbilityMark:
+		g = g.darts(3)
+	case AbilityRush:
+		g.Rush = rushFor
+		g.Ammo = g.Kit.Cap
+	case AbilityMirror:
+		g.Mirror = mirrorFor
+	case AbilityNet:
+		g.Net = netFor
+	case AbilityDash:
+		g = g.dash()
+	case AbilityLance:
+		g = g.lance()
+	case AbilityFrenzy:
+		// Bought with a point of life, which is that branch's whole idea: the
+		// less of you there is, the harder you hit.
+		g.Rage = rageFor
+		if g.HP > 1 {
+			g.HP--
+		}
 	case AbilityTurret, AbilityTurret2:
 		n := 1
 		if g.Kit.Special == AbilityTurret2 {
@@ -867,6 +953,111 @@ func (g Game) column(from, width, damage int) Game {
 	}
 	g.Stones = stones
 	return g
+}
+
+// shove pushes everything in the air back up the field and burns every bomb. It
+// kills nothing, which is the point: it buys room.
+func (g Game) shove(rows int) Game {
+	aliens := make([]Alien, 0, len(g.Aliens))
+	for _, a := range g.Aliens {
+		a.Y -= float64(rows)
+		if a.Y < 0 {
+			a.Y = 0
+		}
+		aliens = append(aliens, a)
+	}
+	g.Aliens = aliens
+	for _, b := range g.Bombs {
+		g = g.burst(b.X, b.Y, 0)
+	}
+	g.Bombs = nil
+	return g
+}
+
+// darts are the seeker's: three shots that home, spread wide enough to pick three
+// different ships rather than pile onto one.
+func (g Game) darts(n int) Game {
+	shots := append([]Shot{}, g.Shots...)
+	for i := 0; i < n; i++ {
+		shots = append(shots, Shot{
+			X: float64(g.Ship) + float64(i*(ShipCols-1))/float64(n-1),
+			Y: float64(g.Row),
+			// Twice a normal shot, homing whatever the kit does, and through one
+			// body: a dart is not a volley.
+			Damage: 2 * g.damageFor(),
+			Pierce: 1,
+			Homing: true,
+		})
+	}
+	g.Shots = shots
+	return g
+}
+
+// dash crosses the field in one frame, hurting everything the ship passes through
+// on the way.
+//
+// The sprinter's, and the only ability that moves you: half the value of it is
+// that it is also a way out.
+func (g Game) dash() Game {
+	from, to := g.Ship, g.Field.ShipColMax()-g.Ship
+	low, high := min(from, to), max(from, to)
+	aliens := make([]Alien, 0, len(g.Aliens))
+	for _, a := range g.Aliens {
+		c := a.Craft()
+		across := a.X+float64(c.W) > float64(low) && a.X < float64(high+ShipCols)
+		level := a.Y+float64(c.H) > float64(g.Row) && a.Y < float64(g.Row+ShipRows)
+		if across && level {
+			a.HP -= dashDamage
+			if a.HP <= 0 {
+				g = g.killAlien(a)
+				continue
+			}
+		}
+		aliens = append(aliens, a)
+	}
+	g.Aliens = aliens
+	g.Ship = to
+	g.Side = g.Side.stop()
+	return g
+}
+
+// lance is one shot the width of the ship that goes through everything on the
+// field: the cannon branch's, and the only thing in the game that can take a boss
+// down in one press.
+func (g Game) lance() Game {
+	shots := append([]Shot{}, g.Shots...)
+	for i := 1; i < ShipCols-1; i++ {
+		shots = append(shots, Shot{
+			X: float64(g.Ship + i), Y: float64(g.Row),
+			Damage: lanceHit, Pierce: 99,
+		})
+	}
+	g.Shots = shots
+	return g
+}
+
+// ghostVolley is the twin branch's second ship firing alongside you. It is drawn
+// beside the real one - see drawShip - and it shoots from there.
+func (g Game) ghostVolley() Game {
+	shots := append([]Shot{}, g.Shots...)
+	for i := 0; i < g.Kit.Shots; i++ {
+		shots = append(shots, Shot{
+			X: float64(g.ghostAt() + 2), Y: float64(g.Row),
+			Damage: g.damageFor(), Pierce: g.Kit.Pierce,
+			Homing: g.Kit.Homing, Splash: g.Kit.Splash,
+		})
+	}
+	g.Shots = shots
+	return g
+}
+
+// ghostAt is the column the second ship stands in: the far side if there is room
+// for it, and the near side if there is not.
+func (g Game) ghostAt() int {
+	if g.Ship+mirrorGap <= g.Field.ShipColMax() {
+		return g.Ship + mirrorGap
+	}
+	return max(g.Ship-mirrorGap, 0)
 }
 
 // release lets the wave out a ship at a time, and drops the two things that
@@ -1015,7 +1206,12 @@ func (g Game) moveAliens() Game {
 
 	for _, a := range g.Aliens {
 		c := a.Craft()
-		a.Y += c.Fall * g.Wave.Haste
+		if g.Net == 0 {
+			// The homing branch's net stops the descent and nothing else: they
+			// still drift and they still shoot, so it is time bought rather
+			// than a pause button.
+			a.Y += c.Fall * g.Wave.Haste
+		}
 		a.X += a.Vx
 		if a.X < 0 {
 			a.X, a.Vx = 0, -a.Vx
@@ -1211,6 +1407,14 @@ func (g Game) moveBombs() Game {
 	for _, b := range g.Bombs {
 		b.Y += bombSpeed
 		if b.Y >= float64(g.Field.Rows) {
+			continue
+		}
+		if g.Shield > 0 && b.Y >= float64(g.Row-1) && b.Y < float64(g.Row+ShipRows) &&
+			b.X >= float64(g.Ship-1) && b.X <= float64(g.Ship+ShipCols) {
+			// The steady branch's shield: bombs burn on the way in rather than
+			// passing through you. A wall and not invulnerability - a ship that
+			// lands on you still lands on you.
+			g = g.burst(b.X, b.Y, 0)
 			continue
 		}
 		if g.hitsShip(b.X, b.Y) {

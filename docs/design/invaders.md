@@ -132,16 +132,19 @@ moment it is ready:
 
 | form | level | waves reached | minutes |
 | --- | --- | --- | --- |
-| `spark` | 1 | 9 | 4:25 |
-| `bughunter` | 4 | 20 | 8:00 |
-| `architect` | 4 | 23 | 8:47 |
-| `wasp` | 6 | 28 | 9:21 |
-| `leviathan` | 6 | 29 | 9:15 |
+| `spark` | 1 | 5 | 2:22 |
+| `pattern` | 2 | 16 | 7:32 |
+| `bughunter` | 4 | 22 | 8:32 |
+| `architect` | 4 | 24 | 8:50 |
+| `sprinter` | 4 | 22 | 8:00 |
+| `marathon` | 5 | 23 | 8:27 |
+| `leviathan` | 6 | 34 | 10:26 |
 
-Measured again after the frame rate doubled and the ship's speed with it; before
-that the same pilot reached 5, 13, 18, 18 and 23. Half of what a pilot with one
-gun does is line up, so a ship that strafes twice as fast is a pilot that hits
-twice as often.
+Measured three times over: at twenty frames a second the same pilot reached 5,
+13, 18, 18 and 23; doubling the frame rate and the ship's speed with it took it to
+9, 20, 23, 28, 29, because half of what a pilot with one gun does is line up; and
+giving every branch a real ability took it here. A larva still dies on the first
+boss, which is intended.
 
 Two things to read off that table. The pet's level is worth roughly four waves a
 rung, which is what makes feeding it worth doing; and the first boss is a real
@@ -215,6 +218,45 @@ shoot and it does not aim; when it breaks it throws six meteoroids that hurt the
 first thing they touch, which is as often one of theirs as it is you. Breaking
 one scores nothing, deliberately: if it paid, the safest way to farm the game
 would be to stand still and shoot rocks.
+
+## One verb per branch, and none of them is the space bar
+
+The ability key was a lie for a long time. Eleven of the thirteen families had
+`volley` - three shots at once - which is what the space bar already does, so for
+most of the forty-one forms `x` was a slightly better trigger. From play: *"la
+habilidad es igual al disparo con espacio, debe ser diferente, relacionado con
+cada bicho."*
+
+Now every family has its own verb, and the verb belongs to the branch it hangs
+off:
+
+| family | trade | `x` does | what it looks like |
+| --- | --- | --- | --- |
+| single | the larva | **shove** everything back up four rows, burn every bomb | the field jumps away from you |
+| steady | `pattern` | **shield**: bombs burn on the way in, five seconds | the ship turns blue and bombs pop |
+| seeker | `probe` | **darts**: three homing shots at double damage | three curving shots |
+| rapid | `ember` | **overdrive**: twice the rate and free rounds, four seconds | the ship turns yellow, the magazine stops falling |
+| twin | `refactor` | **mirror**: a second ship beside you, firing with you | two ships |
+| sweep | `tidy` | **sweep**: a beam up your own column | a column empties |
+| homing | `bughunter` | **net**: the fleet stops descending for three seconds | everything hangs where it is |
+| turret | `architect` | **turret**: one that fires on its own | a `╫` that keeps shooting |
+| burst | `sprinter` | **dash**: across the field in a frame, through whatever is in the way | you are suddenly over there |
+| cannon | `marathon` | **lance**: one enormous shot through everything | a boss dies |
+| overload | `feral` | **frenzy**: a point of life for double damage, five seconds | the ship turns red |
+| phoenix | secret | **blast**: everything on the screen | the screen clears |
+| chimera | secret | **chimera**: a sweep and a volley at once | both |
+
+Three rules came out of writing them. Nothing may be a plain volley, or the key
+is the trigger again. Everything that LASTS has to be visible on the ship - the
+hull takes the effect's colour, one colour each - because an effect nobody can
+see is an effect nobody trusts. And the HUD names the verb rather than saying
+"ability", ready or not: the space bar is the same for all forty-one forms and
+this key is the one that is not.
+
+The guards are `TestEveryAbilityDoesSomethingAndNoneOfThemIsJustAVolley`, which
+presses `x` for every branch and fails if the state comes back the same, and
+`TestTheAbilitiesThatLastRunOut`, because an effect that never ends is not an
+ability, it is the gun getting better for free.
 
 ## One kit per form, and how that is proved
 
@@ -412,6 +454,11 @@ be done inside the tick.
 nowhere else, so five runs is five setbacks and no more - and the one line printed
 to the shell on the way out names the level the pet is on now rather than
 repeating the news five times.
+
+**The menu is a box in the middle of the screen.** It was one line at the bottom,
+in the row the help lives in, with the field frozen behind it - and it was
+reported as a crash, which is exactly what that looks like. `ESCOGE UNA MEJORA`
+in a bordered box over the middle of the field cannot be read as a hang.
 
 **The upgrades die with the run.** `ToSave` clears the three counts on `Over`,
 which is the same rule `Fresh` has: the gun you built belongs to the run that

@@ -288,31 +288,33 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 		case <-ticker.C:
 		}
 
-		// Everything that has arrived since the last frame, with an ACTION
-		// winning over a direction.
+		// Everything that has arrived since the last frame, sorted into the two
+		// things a frame can carry: where you are going and what you did.
 		//
-		// One tick can only carry one key, and a terminal cannot say that two
-		// are held at once. Movement latches - see driftFor - so a direction
-		// dropped here costs nothing, while a dropped shot is a press the player
-		// made and the game ignored. So firing wins, and you can shoot without
-		// stopping.
-		in := None
+		// It used to carry one key and prefer the action, which threw away a
+		// direction every time a shot and an arrow arrived in the same
+		// twenty-five milliseconds - which is most of the time, since a held
+		// arrow repeats at about the frame rate. Whichever of the two was
+		// dropped, something the player did did not happen.
+		move, act := None, None
 		for drained := false; !drained; {
 			select {
 			case k := <-sc.Keys:
-				if k == FocusIn || k == FocusOut {
+				switch k {
+				case FocusIn, FocusOut:
 					// Not a key: the window's own news, and the tick has no
 					// business hearing it.
 					if sc.Focus != nil {
 						sc.Focus(k == FocusIn)
 					}
-					continue
-				}
-				if k == Quit {
+				case Quit:
 					return g, 0
-				}
-				if in == None || in == Left || in == Right {
-					in = k
+				case Left, Right, Up, Down, Stop:
+					// The brake is a movement key, not an action: it belongs
+					// with the arrows or it never reaches moveShip at all.
+					move = k
+				default:
+					act = k
 				}
 			default:
 				drained = true
@@ -346,7 +348,7 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 			}
 		}
 
-		g = Tick(g, in)
+		g = TickWith(g, move, act)
 		draw()
 
 		if g.Phase == Over {

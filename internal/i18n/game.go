@@ -37,6 +37,13 @@ type Game struct {
 	// columns.
 	LevelUp string
 	GotKit  string
+	// The level-up box, which is a box and not a line because a line at the
+	// bottom of the screen with the field frozen behind it reads as a crash -
+	// and was reported as one.
+	UpChoose string
+	UpPower  string
+	UpRate   string
+	UpMag    string
 	// Again is the offer on the game-over screen. It goes on the same row as
 	// GameOver, so the two of them together have to fit sixty columns.
 	Again string
@@ -74,6 +81,10 @@ type Game struct {
 	// names they were drawn with, the way a Zaku is a Zaku in every language:
 	// translating "zángano" would be translating a proper noun.
 	Families map[string]string
+	// Abilities is one name per ability id, and the HUD prints it whether the
+	// ability is ready or not: the space bar is the same for everybody and this
+	// is the key that is not, so it says what it is.
+	Abilities map[string]string
 }
 
 // G is the game's catalogue for the language in use.
@@ -105,6 +116,10 @@ var spanishGame = Game{
 	LostALevel:     "tu bicho baja al nivel %d",
 	Records:        "mejor oleada %d · mejores puntos %d · partidas %d",
 	LevelUp:        "mejora: 1 potencia · 2 cadencia · 3 cargador",
+	UpChoose:       "ESCOGE UNA MEJORA",
+	UpPower:        "potencia · +1 de daño",
+	UpRate:         "cadencia · disparas más seguido",
+	UpMag:          "cargador · +3 balas",
 	GotKit:         "botiquín a bordo · e para gastarlo",
 	Again:          "espacio otra · q salir",
 
@@ -135,6 +150,24 @@ var spanishGame = Game{
 		"phoenix":  "fénix",
 		"chimera":  "quimera",
 	},
+	Abilities: map[string]string{
+		"sweep":    "barrido",
+		"turret":   "torreta",
+		"turret2":  "dos torretas",
+		"invuln":   "intocable",
+		"threerow": "barrido triple",
+		"blast":    "fogonazo",
+		"chimera":  "quimera",
+		"pulse":    "empujón",
+		"shield":   "escudo",
+		"mark":     "dardos",
+		"rush":     "desboque",
+		"mirror":   "espejo",
+		"net":      "red",
+		"dash":     "embestida",
+		"lance":    "lanza",
+		"frenzy":   "furia",
+	},
 }
 
 var englishGame = Game{
@@ -158,6 +191,10 @@ var englishGame = Game{
 	LostALevel:     "your creature drops to level %d",
 	Records:        "best wave %d · best score %d · runs %d",
 	LevelUp:        "upgrade: 1 power · 2 rate · 3 magazine",
+	UpChoose:       "CHOOSE AN UPGRADE",
+	UpPower:        "power · +1 damage",
+	UpRate:         "rate · shoot more often",
+	UpMag:          "magazine · +3 rounds",
 	GotKit:         "health kit aboard · e to use it",
 	Again:          "space for another · q to quit",
 
@@ -187,5 +224,23 @@ var englishGame = Game{
 		"overload": "overload",
 		"phoenix":  "phoenix",
 		"chimera":  "chimera",
+	},
+	Abilities: map[string]string{
+		"sweep":    "sweep",
+		"turret":   "turret",
+		"turret2":  "two turrets",
+		"invuln":   "untouchable",
+		"threerow": "triple sweep",
+		"blast":    "blast",
+		"chimera":  "chimera",
+		"pulse":    "shove",
+		"shield":   "shield",
+		"mark":     "darts",
+		"rush":     "overdrive",
+		"mirror":   "mirror",
+		"net":      "net",
+		"dash":     "dash",
+		"lance":    "lance",
+		"frenzy":   "frenzy",
 	},
 }

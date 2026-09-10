@@ -28,12 +28,15 @@ func hud(g Game, cols int) string {
 		theme.Fg(theme.Bad) + "♥" + theme.Reset + " " +
 			theme.Bar(float64(g.HP), float64(g.Kit.MaxHP), 8, theme.Bad, theme.Empty),
 		magazine(g, w),
+		// The ability comes before the score and the name: it is the half of the
+		// HUD that changes and the half you act on, and at eighty columns with a
+		// long form name it was the part joinFit dropped.
+		ability(g, w),
 		theme.Fg(theme.Number) + fmt.Sprintf(w.HUDScore, g.Score) + theme.Reset,
 		theme.Fg(pet.RampOf(g.Form).Body[0]) +
 			pet.NameIn(i18n.Current(), g.Form) + theme.Reset +
 			theme.Fg(theme.Dim) + fmt.Sprintf(" %s%d ", initial(i18n.S().Level), g.Level) + theme.Reset +
 			theme.Fg(theme.Ident) + familyName(g.Kit) + theme.Reset,
-		ability(g, w),
 	}
 	if g.Kits > 0 {
 		// Only when you have one: a permanent "kits 0" is a line of HUD spent
@@ -80,13 +83,46 @@ func familyName(k Kit) string {
 	return k.Family
 }
 
+// ability is the one slot in the HUD that is not the same for everybody, so it
+// names the verb rather than saying the word "ability": the space bar is common
+// to all forty-one forms and this key is not.
 func ability(g Game, w i18n.Game) string {
+	name := w.Abilities[g.Kit.Special]
+	if name == "" {
+		name = w.HUDAbility
+	}
+	if left, colour, running := runningEffect(g); running {
+		return theme.Fg(colour) + theme.Bold + name + theme.Reset + " " +
+			theme.Bar(left, 1, 6, colour, theme.Empty)
+	}
 	if g.Ready == 0 {
-		return theme.Fg(theme.Emph) + w.HUDAbility + " " + w.HUDReady + theme.Reset
+		return theme.Fg(theme.Emph) + name + " " + w.HUDReady + theme.Reset
 	}
 	left := float64(g.Kit.Cooldown-g.Ready) / float64(max(g.Kit.Cooldown, 1))
-	return theme.Fg(theme.Dim) + w.HUDAbility + theme.Reset + " " +
+	return theme.Fg(theme.Dim) + name + theme.Reset + " " +
 		theme.Bar(left, 1, 6, theme.Emph, theme.Empty)
+}
+
+// runningEffect is whichever of the abilities that LAST is running, how much of
+// it is left, and the colour it paints. One colour each, and the ship is painted
+// the same one.
+func runningEffect(g Game) (left float64, colour theme.Colour, running bool) {
+	for _, e := range []struct {
+		left, full int
+		colour     theme.Colour
+	}{
+		{g.Invuln, invulnFor, theme.Emph},
+		{g.Shield, shieldFor, theme.Link},
+		{g.Rage, rageFor, theme.Bad},
+		{g.Rush, rushFor, theme.Number},
+		{g.Mirror, mirrorFor, theme.Mode},
+		{g.Net, netFor, theme.Quota},
+	} {
+		if e.left > 0 {
+			return float64(e.left) / float64(max(e.full, 1)), e.colour, true
+		}
+	}
+	return 0, theme.Emph, false
 }
 
 // joinFit joins the parts it can afford, most important first, and drops the
@@ -213,6 +249,9 @@ func field(g Game, cols int) []string {
 		gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
 	}
 	drawShip(gr, g)
+	if g.Phase == Choosing {
+		choose(gr, g, cols)
+	}
 	return gr.lines()
 }
 
@@ -329,14 +368,22 @@ func drawShip(gr grid, g Game) {
 	ramp := pet.RampOf(g.Form)
 	ink := theme.Fg(ramp.Body[clamp(vital.Rank, 0, len(ramp.Body)-1)])
 	eye := theme.Fg(ramp.Lit(vital.Rank))
-	if g.Invuln > 0 {
-		// The mole's ability, and the only time the ship is not its own colour:
-		// invulnerable has to be visible or it is a mechanic nobody trusts.
-		ink = theme.Fg(theme.Emph)
+	if _, colour, running := runningEffect(g); running {
+		// The one time the ship is not its own colour. An ability you cannot see
+		// on the thing you are steering is one nobody trusts.
+		ink = theme.Fg(colour)
 	}
 
 	art := ShipArt(g.Kit.Family, vital)
 	row := g.Row
+	if g.Mirror > 0 {
+		// The twin branch's second ship, two steps down the ramp: it fires with
+		// you and it cannot be hit.
+		ghost := theme.Fg(ramp.Body[clamp(vital.Rank+2, 0, len(ramp.Body)-1)])
+		for i, line := range art {
+			gr.blit(row+i, g.ghostAt(), line, ghost)
+		}
+	}
 	for i, line := range art {
 		if i == 1 {
 			// The hull is solid; the crest and the tail are not, so the sky
@@ -351,6 +398,60 @@ func drawShip(gr grid, g Game) {
 			gr.put(row+1, g.Ship+j, string(r), eye)
 		}
 	}
+}
+
+// choose is the level-up box: the field frozen behind it and the three picks in
+// the middle of the screen.
+//
+// It was one line at the bottom, in the row the help lives in, and it was
+// reported as a crash - which is exactly what a frozen field under a line nobody
+// reads looks like. A box in the middle cannot be missed.
+func choose(gr grid, g Game, cols int) {
+	w := i18n.G()
+	rows := []string{
+		w.UpChoose,
+		"",
+		"1  " + w.UpPower,
+		"2  " + w.UpRate,
+		"3  " + w.UpMag,
+	}
+	wide := 0
+	for _, row := range rows {
+		if n := theme.Width(row); n > wide {
+			wide = n
+		}
+	}
+	wide += 6 // two of padding either side, and the two walls
+	if wide > cols {
+		wide = cols
+	}
+	left := (cols - wide) / 2
+	top := (g.Field.Rows - len(rows) - 2) / 2
+	if top < 0 {
+		top = 0
+	}
+
+	ink := theme.Fg(theme.Emph)
+	edge := theme.Fg(theme.Ident)
+	gr.fill(top, left, "┌"+strings.Repeat("─", wide-2)+"┐", edge)
+	for i, row := range rows {
+		pad := wide - 4 - theme.Width(row)
+		if pad < 0 {
+			pad = 0
+		}
+		if i == 0 {
+			// The title is centred and the picks are not: a list that wanders
+			// about the box is a list nobody can run an eye down.
+			side := pad / 2
+			row = strings.Repeat(" ", side) + row + strings.Repeat(" ", pad-side)
+		} else {
+			row += strings.Repeat(" ", pad)
+		}
+		gr.fill(top+1+i, left, "│ ", edge)
+		gr.fill(top+1+i, left+2, row, ink)
+		gr.fill(top+1+i, left+wide-2, " │", edge)
+	}
+	gr.fill(top+len(rows)+1, left, "└"+strings.Repeat("─", wide-2)+"┘", edge)
 }
 
 // help is the key row, or the banner when there is one to show.
