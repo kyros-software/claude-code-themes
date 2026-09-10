@@ -185,6 +185,39 @@ somewhere you can still get to.
       exterminator   days running in the green  2/15
 ```
 
+### `ccpet invade`
+
+A shmup where the ship is **the creature you have right now**. Its trade decides
+the weapon, its mark refines it, its level scales it - so feeding the pet is how
+you get a better gun, and the forty-one forms all play differently.
+
+```
+oleada 12 · ♥ ██████░░ · puntos 8400 · cazabugs n4 rastreador · habilidad ████░░
+
+ ▚╲   ╱▞                       ▪            ▰▰
+ ▗▟███▙▖      ·        »              ·
+▐█ > < █▌  ·         ·           ◆          ▬▬▬
+ ▝▀▀▀▀▀▘      ·                             ▪
+ ▝▝   ▘▘                  ∘
+
+↑↓ mover · espacio habilidad · p pausa · q salir
+```
+
+The gun is automatic and the **ability** is what you time - terminal key repeat
+is too uneven across emulators for holding a key to feel like anything. Every
+fifth wave a **rival** turns up: one of the forty-one forms you are not, drawn
+with its own sprite and firing the kit that form would fly. There is no last
+wave; a run ends when the swarm outgrows your kit, and the record is how far you
+got.
+
+It needs its own terminal - at least 60x18 - because a statusline refreshes once
+a second and cannot read a keypress. Inside tmux, `ccpet invade --split` opens it
+in a pane beside Claude.
+
+**Losing costs the creature a level.** Not the shape: you stay whatever you
+evolved into, but the kit drops a step until you feed it back up. It never costs
+more than a day's feeding, and quitting is not losing.
+
 ## The themes
 
 | Theme | Accent | Look |
@@ -294,6 +327,9 @@ are no longer read, and are now `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
   what is not, and why `pet.json` is the same file in both
 - [runtime.md](docs/design/runtime.md) — why Go, where the time goes, the
   `pet.json` lock and why the binaries are in the repo
+- [invaders.md](docs/design/invaders.md) — `ccpet invade`: why the ship is the
+  creature you already have, one kit per form, thirty-five enemies composed from
+  seven bodies and five traits, and the one rule the game breaks
 - [audit-log.md](docs/audit-log.md) — history: the audit of the Python version
 - [thresholds.md](docs/design/thresholds.md) — **unimplemented**: the design
   canvas's 97-form tree, why its rule puts 27 of the 42 marks out of reach, and
