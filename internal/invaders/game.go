@@ -780,6 +780,14 @@ func (g Game) tickWeapon(in Key) Game {
 	} else {
 		g.Ammo--
 		g.Cool = g.Kit.Cadence
+		if g.Ammo == 0 {
+			// The magazine empties and the reload starts on its own. It used to
+			// wait for one more press of fire, which is a press that does
+			// nothing - and a key that does nothing is read as the game having
+			// stopped listening. `r` still exists, for reloading a magazine that
+			// is not empty yet.
+			g.Loading = g.Kit.Reload
+		}
 	}
 	g = g.volley(g.Kit.Shots)
 	if g.Mirror > 0 {

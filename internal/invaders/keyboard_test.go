@@ -32,6 +32,12 @@ func TestTheRepeatSettingIsReadOutOfXset(t *testing.T) {
 		t.Errorf("this desktop's delay is %dms and ours is %dms: there would be nothing to fix",
 			delay, ourDelay)
 	}
+	// And ours has to be longer than a deliberate chord, or a window manager
+	// shortcut held for a tenth of a second repeats and fires two or three
+	// times - which is how ctrl+super+up stopped switching workspace.
+	if ourDelay < 150 {
+		t.Errorf("a repeat delay of %dms is inside the length of a keyboard shortcut", ourDelay)
+	}
 }
 
 // Anything else is left alone rather than guessed at: a desktop whose xset says

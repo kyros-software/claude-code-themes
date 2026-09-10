@@ -25,8 +25,22 @@ import (
 // why run.go turns on focus reporting. Typing in another window is never affected,
 // and every exit path restores it - a normal quit, a signal, the window being
 // closed, or a panic in the tick.
+// ourDelay is how long a key has to be held before it starts repeating, and it
+// is a compromise between two things that pull opposite ways.
+//
+// Short is what a game wants: the delay is dead time at the start of every hold,
+// and at the desktop's own five hundred milliseconds a held arrow gave one column
+// and then looked broken. Eighty was the first try and it broke something else -
+// a window manager chord like Cinnamon's ctrl+super+up, which switches workspace,
+// is held for something like a tenth of a second by a human hand, and at eighty
+// it fired two or three times: you switch workspace and come straight back, which
+// reads as the shortcut not working at all.
+//
+// Two hundred is longer than a deliberate chord and much shorter than the wait
+// that started this. Anybody who would rather their keyboard was left alone
+// entirely has CCPET_NO_XSET.
 const (
-	ourDelay = 80
+	ourDelay = 200
 	ourRate  = 40
 )
 

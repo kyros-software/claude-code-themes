@@ -383,8 +383,15 @@ default autorepeat **delay** is 500ms - `xset q` says so - so holding an arrow
 gave one column, half a second of nothing, and then a smooth glide. The tap and
 the hold were both right; the gap between them was unplayable.
 
-So the game borrows the setting: `xset r rate 80 40` while it has the focus, and
-the desktop's own numbers back the moment it loses it. Which is why the alternate
+So the game borrows the setting: `xset r rate 200 40` while it has the focus, and
+the desktop's own numbers back the moment it loses it.
+
+Two hundred and not eighty, which was the first try and broke something else.
+Cinnamon's `switch-to-workspace-up` is `ctrl+super+up`; a human holds a chord like
+that for about a tenth of a second, and at eighty milliseconds it repeated two or
+three times - you switch workspace and come straight back, which reads as the
+shortcut having stopped working. The delay has to be longer than a deliberate
+chord and much shorter than the half second that started this. Which is why the alternate
 screen also turns on **focus reporting** (`CSI ?1004h`): the terminal then sends
 `CSI I` when the window is focused and `CSI O` when it is not, `loop` takes those
 out of the key stream before the tick ever sees them - the tick has no idea what a

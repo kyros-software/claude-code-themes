@@ -226,8 +226,8 @@ to.
 
 **A magazine, not a hose.** You get so many rounds and then you stand still and
 reload, which is a real cost when six ships are coming down at their own angles.
-`r` reloads early; firing on empty starts the reload for you. A fast gun reloads
-fast: the wait is six shots' worth of its own cadence.
+It reloads itself the moment it runs dry, and `r` reloads early. A fast gun
+reloads fast: the wait is six shots' worth of its own cadence.
 
 **The score buys upgrades.** Every few hundred points the game stops, puts a box
 in the middle of the screen and offers three - power, rate, magazine. The gun you
@@ -255,8 +255,9 @@ A terminal is never told that a key was released, so "holding" is really the
 operating system repeating the key and "letting go" is that stream stopping. The
 delay before a held key starts repeating is half a second on a default desktop,
 which is half a second of a ship that looks broken - so while its window has the
-focus the game shortens it (`xset r rate 80 40`) and puts your setting back the
-instant it loses focus, on every way out, including the window being closed.
+focus the game shortens it (`xset r rate 200 40`, longer than a window-manager
+chord so those keep working) and puts your setting back the instant it loses
+focus, on every way out, including the window being closed.
 `CCPET_NO_XSET=1` turns that off; the game still plays, with a pause before a hold
 gets going.
 

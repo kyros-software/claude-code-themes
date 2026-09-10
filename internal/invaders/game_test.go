@@ -1133,3 +1133,39 @@ func TestTheSecondShipFiresTheSameVolleyAsTheFirst(t *testing.T) {
 		}
 	}
 }
+
+// The magazine reloads itself the moment it runs dry. It used to wait for one
+// more press of fire to start, which is a press that does nothing - and a key
+// that does nothing is read as the game having stopped listening.
+func TestTheMagazineReloadsItselfTheMomentItRunsDry(t *testing.T) {
+	g := aGame(t, "spark", 1)
+	for i := 0; i < 2000 && g.Ammo > 0; i++ {
+		g = Tick(g, Fire)
+	}
+	if g.Ammo != 0 {
+		t.Fatalf("it never emptied: %d rounds", g.Ammo)
+	}
+	if g.Loading == 0 {
+		t.Fatal("the magazine ran dry and nothing started reloading it")
+	}
+
+	// And it fills without anybody pressing anything.
+	g = drive(g, None, g.Kit.Reload+1)
+	if g.Ammo != g.Kit.Cap {
+		t.Errorf("after the reload it has %d of %d rounds", g.Ammo, g.Kit.Cap)
+	}
+}
+
+// `r` is still there for a magazine that is not empty yet, which is the whole
+// point of it: reloading early, on your own terms.
+func TestReloadingEarlyStillWorks(t *testing.T) {
+	g := aGame(t, "marathon", 4)
+	g = Tick(g, Fire)
+	if g.Ammo == g.Kit.Cap {
+		t.Fatal("it did not fire")
+	}
+	g = Tick(g, Rearm)
+	if g.Loading == 0 {
+		t.Error("r did not start a reload on a half-full magazine")
+	}
+}
