@@ -337,11 +337,12 @@ func TestAtZeroHpTheRunEndsAndTheRecordsKeepTheBestWave(t *testing.T) {
 	}
 }
 
-// What a kill is worth is what its stage is worth, off the canvas.
-func TestAKillIsWorthWhatItsStageIsWorth(t *testing.T) {
+// What a kill is worth is the arcade's value for that species, priced up by how
+// deep the stage is.
+func TestAKillIsWorthItsSpeciesTimesItsStage(t *testing.T) {
 	g := aGame(t, "spark", 1)
 	m := g.Squad.Members[0]
-	want := Stages[Troops[m.Species].Stage-1].Points
+	want := Troops[m.Species].Points * g.Wave.Stage
 
 	after := g.killMember(m)
 	if got := after.Score - g.Score; got != want {
@@ -369,5 +370,74 @@ func TestTheTickNeverTouchesThePetOrTheTerminal(t *testing.T) {
 		if !strings.Contains(src, allowed) {
 			t.Errorf("game.go no longer uses %q; check this list is still right", allowed)
 		}
+	}
+}
+
+// You have to be able to shoot without stopping.
+//
+// A terminal has no key-up event and cannot say that two keys are held at once:
+// hold left and the operating system streams left, press fire and it starts
+// repeating fire instead, so the creature stops dead. Momentum is the way round
+// it - and this is the test that says so, because it is the difference between
+// a shmup and a turn-based game.
+func TestFiringDoesNotStopYouMoving(t *testing.T) {
+	g := aGame(t, "spark", 3)
+	g.Ship = 30
+
+	// Two arrows to get it sliding, then nothing but the fire key.
+	g = Tick(g, Left)
+	g = Tick(g, Left)
+	was := g.Ship
+	for i := 0; i < 6; i++ {
+		g = Tick(g, Fire)
+	}
+	if g.Ship >= was {
+		t.Errorf("it stopped at column %d the moment it fired, was %d", g.Ship, was)
+	}
+	if len(g.Shots) == 0 {
+		t.Error("and it did not fire either")
+	}
+}
+
+// The slide is short, and the other arrow cuts it off at once: a creature that
+// kept going would be one you cannot line up.
+func TestTheSlideStopsAndReversesOnDemand(t *testing.T) {
+	g := aGame(t, "spark", 3)
+	g.Ship = 30
+
+	g = drive(Tick(g, Left), None, driftFor+2)
+	stopped := g.Ship
+	g = drive(g, None, 20)
+	if g.Ship != stopped {
+		t.Errorf("it slid from %d to %d with no key held", stopped, g.Ship)
+	}
+	if g.Drift != 0 {
+		t.Errorf("it is still drifting %d with nothing pressed", g.Drift)
+	}
+
+	back := drive(Tick(g, Right), None, 4)
+	if back.Ship <= g.Ship {
+		t.Errorf("the other arrow did not reverse it: %d then %d", g.Ship, back.Ship)
+	}
+
+	// And a tap is a nudge, not a journey.
+	tap := aGame(t, "spark", 3)
+	tap.Ship = 30
+	tap = drive(Tick(tap, Left), None, 40)
+	if moved := 30 - tap.Ship; moved < 2 || moved > 7 {
+		t.Errorf("one tap moved %d columns, want a nudge", moved)
+	}
+}
+
+// The wall stops the slide rather than letting it push against nothing.
+func TestTheSlideStopsAtTheWall(t *testing.T) {
+	g := aGame(t, "spark", 3)
+	g.Ship = 1
+	g = drive(Tick(g, Left), None, 30)
+	if g.Ship != 0 {
+		t.Errorf("it ended at column %d", g.Ship)
+	}
+	if g.Drift != 0 || g.Sliding != 0 {
+		t.Error("it is still trying to walk into the wall")
 	}
 }

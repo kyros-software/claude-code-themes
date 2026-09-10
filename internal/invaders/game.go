@@ -35,12 +35,22 @@ const (
 
 const (
 	// moveWait is ticks between one column of movement and the next.
-	//
-	// One, so a held key moves a column a frame - twenty a second, about four
-	// seconds to cross a wide terminal, which is roughly what the arcade's
-	// cannon does. At two it read as sluggish, and sluggish in a game where
-	// moving IS aiming is the difference between missing and being cheated.
 	moveWait = 1
+
+	// driftFor is how long the creature keeps sliding after the last arrow.
+	//
+	// A terminal has no key-up event and no way to say two keys are down at
+	// once: holding left sends a stream of bytes, and the moment you press the
+	// fire key the operating system starts repeating THAT instead, so you stop
+	// dead. Momentum is the way round it - the creature keeps going for four
+	// tenths of a second, which covers the press, and the opposite arrow still
+	// reverses it instantly.
+	//
+	// A tap is six columns, about the gap between two invaders: coarse enough
+	// to sweep with, fine enough to line one up. Holding the key refreshes the
+	// slide on every autorepeat, so a held arrow crosses the screen in under
+	// four seconds.
+	driftFor = 6
 
 	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a
 	// good margin: you are meant to be able to shoot your way out of one.
@@ -114,6 +124,8 @@ type Game struct {
 
 	Ship     int // the leftmost column of the creature
 	MoveWait int
+	Drift    int // -1, 0 or 1: the way it is still sliding
+	Sliding  int // ticks of slide left
 	HP       int
 	Reload   int // ticks until you may fire again
 	Ready    int // ticks until the ability is ready; 0 is ready
@@ -281,24 +293,32 @@ func Tick(g Game, in Key) Game {
 }
 
 func (g Game) moveShip(in Key) Game {
+	switch in {
+	case Left:
+		g.Drift, g.Sliding = -1, driftFor
+	case Right:
+		g.Drift, g.Sliding = 1, driftFor
+	}
+
 	if g.MoveWait > 0 {
 		g.MoveWait--
 	}
-	if g.MoveWait > 0 {
+	if g.Sliding > 0 {
+		g.Sliding--
+	} else {
+		g.Drift = 0
+	}
+	if g.Drift == 0 || g.MoveWait > 0 {
 		return g
 	}
-	switch in {
-	case Left:
-		if g.Ship > 0 {
-			g.Ship--
-			g.MoveWait = moveWait
-		}
-	case Right:
-		if g.Ship < g.Field.ShipColMax() {
-			g.Ship++
-			g.MoveWait = moveWait
-		}
+
+	next := g.Ship + g.Drift
+	if next < 0 || next > g.Field.ShipColMax() {
+		g.Drift, g.Sliding = 0, 0
+		return g
 	}
+	g.Ship = next
+	g.MoveWait = moveWait
 	return g
 }
 
@@ -708,11 +728,12 @@ func (g Game) hitsBoss(s Shot) bool {
 		s.X >= g.Boss.X && s.X < g.Boss.X+BossCols
 }
 
-// killMember scores one of the block. What it is worth is what its stage is
-// worth, off the canvas.
+// killMember scores one of the block: the arcade's own value for that species,
+// multiplied by how deep the stage is. A squid on the top row is worth three
+// octopuses, at every stage.
 func (g Game) killMember(m Member) Game {
 	g.Kills++
-	g.Score += Stages[Troops[m.Species].Stage-1].Points
+	g.Score += Troops[m.Species].Points * g.Wave.Stage
 	return g
 }
 

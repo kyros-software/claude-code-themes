@@ -23,13 +23,39 @@ type Palette struct {
 	Eye    theme.Colour
 }
 
-// Troop is one of the forty: three rows of five cells, two leg frames.
+// Troop is one of the three the arcade came with: twelve cells across, four
+// rows down, two frames.
+//
+// The art is the real thing - the 8x8 and 11x8 pixel grids of the 1978 cabinet -
+// packed two pixel rows to a text row with half blocks, and centred in a common
+// twelve so the block stays a grid. The canvas's own forty bugs were tried here
+// first and thrown out: they were not what a person means by Space Invaders.
+//
+// There are three because the arcade had three. What changes with the waves is
+// the colour and what they are worth, which is what Stages is for.
 type Troop struct {
-	Name, Desc        string
-	Stage             int // 1..8, into Stages
-	Top               string
-	Left, Eyes, Right string
-	Legs              [2]string
+	Name, Desc string
+	Points     int // the arcade's own: 30 for the squid, 20, 10
+	Frames     [2][TroopRows]string
+}
+
+// Troops are the three, in the order the arcade stacks them: the squid on top.
+var Troops = []Troop{
+	{Name: "squid", Desc: "the narrow one at the top", Points: 30,
+		Frames: [2][TroopRows]string{
+			{"    ▄██▄    ", "  ▄█▀██▀█▄  ", "  ▀▀█▀▀█▀▀  ", "  ▄▀▄▀▀▄▀▄  "},
+			{"    ▄██▄    ", "  ▄█▀██▀█▄  ", "  ▀█▀██▀█▀  ", "  ▀▄    ▄▀  "},
+		}},
+	{Name: "crab", Desc: "arms out sideways", Points: 20,
+		Frames: [2][TroopRows]string{
+			{"  ▀▄   ▄▀   ", " ▄█▀███▀█▄  ", "█▀███████▀█ ", "▀ ▀▄▄ ▄▄▀ ▀ "},
+			{"▄ ▀▄   ▄▀ ▄ ", "█▄█▀███▀█▄█ ", "▀█████████▀ ", " ▄▀     ▀▄  "},
+		}},
+	{Name: "octopus", Desc: "the wide dome", Points: 10,
+		Frames: [2][TroopRows]string{
+			{" ▄▄▄████▄▄▄ ", "███▀▀██▀▀███", "▀▀▀██▀▀██▀▀▀", "▄▄▀▀ ▀▀ ▀▀▄▄"},
+			{" ▄▄▄████▄▄▄ ", "███▀▀██▀▀███", "▀▀███▀▀███▀▀", " ▀█▄ ▀▀ ▄█▀ "},
+		}},
 }
 
 // Boss is one of the thirty-five: five rows of nine cells, two leg frames.
@@ -98,138 +124,6 @@ var Ranks = [5]Palette{
 		Ramp:  [7]theme.Colour{theme.Hex("#ff9fa2"), theme.Hex("#f2777a"), theme.Hex("#d15d61"), theme.Hex("#a94a4e"), theme.Hex("#85393d"), theme.Hex("#6b2d31"), theme.Hex("#4d3f41")},
 		Tones: [3]theme.Colour{theme.Hex("#ff9fa2"), theme.Hex("#f2777a"), theme.Hex("#d15d61")},
 		Eye:   theme.Hex("#ffd9da")},
-}
-
-// Troops are the forty that come down in formation.
-var Troops = []Troop{
-	// stage 1 · avanzada
-	{Name: "pip", Desc: "cuerpo mínimo", Stage: 1,
-		Top: "▗▄▄▄▖", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "chit", Desc: "hombros caídos", Stage: 1,
-		Top: "╲███╱", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "dot", Desc: "flota, sin brazos", Stage: 1,
-		Top: "◦███◦", Left: " ", Eyes: "> <", Right: " ",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "nib", Desc: "techo plano", Stage: 1,
-		Top: "▛▀▀▀▜", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "tac", Desc: "dos cuernos", Stage: 1,
-		Top: "▲███▲", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘▄▝ ", " ▝▄▘ "}},
-	// stage 2 · zumbido
-	{Name: "zip", Desc: "dos sensores", Stage: 2,
-		Top: "◦███◦", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "buz", Desc: "alas cortas", Stage: 2,
-		Top: "╲███╱", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "kri", Desc: "aguja arriba", Stage: 2,
-		Top: "│███│", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "nub", Desc: "lomo liso", Stage: 2,
-		Top: "▄███▄", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "gli", Desc: "planea al bajar", Stage: 2,
-		Top: "╱███╲", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ╲ ╱ ", " ╱ ╲ "}},
-	// stage 3 · enjambre
-	{Name: "vex", Desc: "cresta hueca", Stage: 3,
-		Top: "╭───╮", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "sim", Desc: "clon del anterior", Stage: 3,
-		Top: "▗▟█▙▖", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{"▘ ▄ ▝", "▝ ▄ ▘"}},
-	{Name: "pod", Desc: "vaina cerrada", Stage: 3,
-		Top: "═███═", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "mox", Desc: "cuatro patas", Stage: 3,
-		Top: "╲███╱", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{"▘▘ ▝▝", "▝▝ ▘▘"}},
-	{Name: "tik", Desc: "punta corta", Stage: 3,
-		Top: "^███^", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	// stage 4 · falange
-	{Name: "hex", Desc: "casco abierto", Stage: 4,
-		Top: "╭───╮", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "bar", Desc: "plancha entera", Stage: 4,
-		Top: "█████", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "cog", Desc: "dos remaches", Stage: 4,
-		Top: "▄███▄", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "rig", Desc: "mástil", Stage: 4,
-		Top: "│███│", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "lat", Desc: "hombreras", Stage: 4,
-		Top: "▛▀▀▀▜", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{"▘▘ ▝▝", "▝▝ ▘▘"}},
-	// stage 5 · espectros
-	{Name: "wisp", Desc: "sin brazos", Stage: 5,
-		Top: "◦███◦", Left: " ", Eyes: "> <", Right: " ",
-		Legs: [2]string{" ╲ ╱ ", " ╱ ╲ "}},
-	{Name: "fant", Desc: "núcleo visible", Stage: 5,
-		Top: "◈███◈", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "velo", Desc: "cola larga", Stage: 5,
-		Top: "╲███╱", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{"▄ ▄ ▄", "▘ ▄ ▝"}},
-	{Name: "nulo", Desc: "come un disparo", Stage: 5,
-		Top: "▄███▄", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "eco", Desc: "copia al de al lado", Stage: 5,
-		Top: "▗▄▄▄▖", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{"▘ ▄ ▝", "▝ ▄ ▘"}},
-	// stage 6 · forja
-	{Name: "clav", Desc: "cuatro patas cortas", Stage: 6,
-		Top: "│███│", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{"▘▘ ▝▝", "▝▝ ▘▘"}},
-	{Name: "yunq", Desc: "base ancha", Stage: 6,
-		Top: "█████", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "tuer", Desc: "gira al bajar", Stage: 6,
-		Top: "╱███╲", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "remo", Desc: "dos barras", Stage: 6,
-		Top: "═███═", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "brasa", Desc: "punta caliente", Stage: 6,
-		Top: "^███^", Left: "▗", Eyes: "> <", Right: "▖",
-		Legs: [2]string{" ▘▄▝ ", " ▝▄▘ "}},
-	// stage 7 · rescoldo
-	{Name: "pav", Desc: "dos llamas", Stage: 7,
-		Top: "^███^", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "ascua", Desc: "brasa suelta", Stage: 7,
-		Top: "◦███◦", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "flama", Desc: "cresta de fuego", Stage: 7,
-		Top: "╱███╲", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "humo", Desc: "se disipa", Stage: 7,
-		Top: "▗▄▄▄▖", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ╲ ╱ ", " ╱ ╲ "}},
-	{Name: "chis", Desc: "cuerpo torcido", Stage: 7,
-		Top: "▞███▚", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	// stage 8 · sangre
-	{Name: "garra", Desc: "cuatro uñas", Stage: 8,
-		Top: "╲███╱", Left: "▟", Eyes: "> <", Right: "▙",
-		Legs: [2]string{"▘▘ ▝▝", "▝▝ ▘▘"}},
-	{Name: "col", Desc: "dos cuernos", Stage: 8,
-		Top: "▲███▲", Left: "█", Eyes: "> <", Right: "█",
-		Legs: [2]string{" ▄ ▄ ", " ▘ ▝ "}},
-	{Name: "fauc", Desc: "mandíbula ancha", Stage: 8,
-		Top: "▟███▙", Left: "▛", Eyes: "> <", Right: "▜",
-		Legs: [2]string{" ▘ ▝ ", " ▝ ▘ "}},
-	{Name: "vena", Desc: "blindaje macizo", Stage: 8,
-		Top: "█████", Left: "▐", Eyes: "> <", Right: "▌",
-		Legs: [2]string{"▘   ▝", "▝   ▘"}},
-	{Name: "fin", Desc: "el previo al jefe", Stage: 8,
-		Top: "◈███◈", Left: "▗", Eyes: "> <", Right: "▖",
-		Legs: [2]string{" ▘▄▝ ", " ▝▄▘ "}},
 }
 
 // Bosses are the thirty-five bigger ones. Rank 5 is the four that close a wave.

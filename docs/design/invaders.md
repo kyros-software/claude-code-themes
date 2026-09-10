@@ -171,30 +171,30 @@ because the space bar is the only thing the player times: the weapon is automati
 on purpose, since terminal key repeat is uneven across emulators and holding a
 key to shoot feels broken through no fault of ours.
 
-## Forty off the canvas, mixed by stage
+## The arcade's three, not forty of our own
 
-The bestiary is not invented here. It comes off the design canvas as
-`Bichitos por Stage`: **forty troop sprites in eight stages**, three rows of five
-cells with two leg frames, plus a seven-tone ramp and a points value per stage.
-The bigger ones come from `Sprites Marcianitos v2`: **thirty-five in five ranks**,
-five rows of nine cells, the last four of which the canvas calls *jefes*.
+The swarm is the 1978 cabinet's own bestiary: **squid, crab, octopus**, two
+frames each, from their real pixel grids - 8x8 for the squid, 11x8 for the other
+two - packed two pixel rows to a text row with half blocks and centred in a
+common twelve cells.
 
-They are drawn the way the canvas says to draw them: the body in the stage's own
-tone and the three cells of eyes in the light one. That is the only thing that
-breaks the flat colour, and it is what makes a screen of thirty-three readable at
-a glance.
+A set of forty was tried first, off the design canvas, drawn five cells by three
+with `> <` eyes. It was more inventive and it was wrong: it did not look like
+Space Invaders, which is the one thing a game called invade has to do. The
+canvas's own bosses are still in here, and the pet is still the cannon - that
+part is the joke - but the things coming down are the things everybody pictures.
 
-A wave is **not** a stage, though the canvas groups them that way. It mixes the
-stages up to the one it has reached, deepest at the top and one shallower each
-row down, so a later wave looks like an army rather than like a colour swatch.
-The line-up is deterministic in the wave number and not in the seed, which means
-wave twelve is the same twelve every time you reach it - and a wave you can learn
-is worth more than a wave that is fresh.
+They need the width. A crab is eleven pixels across and there is no honest way to
+draw one in five, so a block is **six columns rather than eleven** and each
+member is three times the sprite it replaced. The screen carries about as much
+paint as before; it just spends it on shapes people recognise.
 
-A guard test measures every one of the seventy-five sprites: each row exactly as
-many cells wide as its grid claims, eyes on every one of them, and two leg frames
-that differ. They arrive as pipe-separated strings pasted out of a canvas, which
-is a format that loses a character quietly.
+Three species and not forty, because the arcade had three. What a later wave
+changes is the **colour and the price**, not the shape: the stage climbs every
+four waves through the canvas's eight palettes, and a kill pays its species'
+arcade value - 30, 20, 10 - multiplied by the stage. So the top row is worth
+three of the bottom one at every depth, which is the arcade's own reason to shoot
+the squids first.
 
 ## The bosses climb with the stages
 

@@ -193,21 +193,22 @@ the pet is how you get a better gun, and the forty-one forms all play
 differently.
 
 ```
-oleada 12 · ♥ ██████░░ · puntos 580 · cazabugs n4 rastreador · habilidad lista
+oleada 21 · ♥ ████████ · puntos 1080 · cazabugs n4 rastreador · habilidad lista
 
-  ═███═ ═███═ ═███═ ═███═ ═███═       ═███═       ═███═
-  ▐> <▌ ▐> <▌ ▐> <▌ ▐> <▌ ▐> <▌       ▐> <▌       ▐> <▌
-  ▘   ▝ ▘   ▝ ▘   ▝ ▘   ▝ ▘   ▝       ▘   ▝       ▘   ▝
+    ▄██▄         ▄██▄         ▄██▄         ▄██▄         ▄██▄
+  ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄     ▄█▀██▀█▄
+  ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀     ▀▀█▀▀█▀▀
+  ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄     ▄▀▄▀▀▄▀▄
 
-        ◈███◈ ◈███◈       ◈███◈ ◈███◈       ◈███◈
-        ▐> <▌ ▐> <▌       ▐> <▌ ▐> <▌       ▐> <▌
-         ▘ ▝   ▘ ▝         ▘ ▝   ▘ ▝         ▘ ▝
-     ╽
-                          ╿
-
+  ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀      ▀▄   ▄▀
+ ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄    ▄█▀███▀█▄
+█▀███████▀█  █▀███████▀█  █▀███████▀█  █▀███████▀█  █▀███████▀█
+▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀  ▀ ▀▄▄ ▄▄▀ ▀
+                                  ╽
+                    ╿
                        ▗▟███▙▖
                       ▐█ > < █▌
-                       ▘▘▀▀▀▝▝
+                       ▝▝▀▀▀▘▘
 
 ←→ mover · espacio disparar · x habilidad · p pausa · q salir
 ```
@@ -217,10 +218,11 @@ so a miss costs you the time it takes to reach the top. The swarm walks sideways
 steps down at the walls and comes down faster as you empty it. Bombs cost you
 life; the block landing on you ends the run.
 
-The forty enemies and the thirty-five bosses come off the design canvas, in eight
-stages and five ranks. A wave mixes the stages up to the one it has reached,
-deepest row on top, and it is the same line-up every time you reach it. Every
-fifth wave a boss, climbing the ranks as the stages climb.
+The swarm is the arcade's own - squid, crab and octopus, from the 1978 pixel
+grids - and what a later wave changes is the colour and the price rather than the
+shape: a kill pays its species' value times how deep the stage is, so the top row
+is always worth three of the bottom. Every fifth wave a boss, one of
+thirty-five off the design canvas, climbing the ranks as the stages climb.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
 a second and cannot read a keypress. Inside tmux, `ccpet invade --split` opens it

@@ -139,28 +139,23 @@ func TestADyingCreatureLiesDown(t *testing.T) {
 	}
 }
 
-// The block is drawn with the canvas's own sprites, and the three cells of eyes
-// are the only thing that breaks the flat colour.
-func TestTheBlockIsDrawnWithTheCanvasSprites(t *testing.T) {
+// The block is drawn with the arcade's own sprites, in the stage's colour.
+func TestTheBlockIsDrawnWithTheArcadeSprites(t *testing.T) {
 	f := aField(t, 80, 24)
 	g := NewGame(f, "spark", 1, Save{Wave: 1, Seed: 1})
 	frame := strings.Join(Render(g, 80), "\n")
 	plain := theme.Strip(frame)
 
 	species := Troops[g.Wave.Species[0]]
-	if !strings.Contains(plain, strings.TrimSpace(species.Top)) {
-		t.Errorf("the top row of a %s is not in the frame", species.Name)
-	}
-	if !strings.Contains(plain, strings.TrimSpace(species.Eyes)) {
-		t.Errorf("the eyes of a %s are not in the frame", species.Name)
+	for i, row := range species.Frames[g.Squad.Frame()] {
+		if !strings.Contains(plain, strings.TrimSpace(row)) {
+			t.Errorf("row %d of a %s is not in the frame", i, species.Name)
+		}
 	}
 
-	pal := Stages[species.Stage-1]
-	if !strings.Contains(frame, theme.Fg(pal.Eye)) {
-		t.Error("the eyes are not painted in the stage's light tone")
-	}
+	pal := Stages[g.Wave.Stage-1]
 	if !strings.Contains(frame, theme.Fg(pal.Tones[0])) {
-		t.Error("the bodies are not painted in the stage's tone")
+		t.Error("the block is not painted in the stage's tone")
 	}
 }
 

@@ -28,13 +28,12 @@ const (
 
 	// A troop sprite and the cell it lives in.
 	//
-	// Five cells wide and three tall, exactly as the canvas draws it. Trimming
-	// it to its middle three was tried and thrown away: the shoulders are what
-	// tells the forty species apart - trimmed, they collapse into five
-	// silhouettes and two of them stop walking. The block is made smaller by
-	// having fewer columns, not by drawing worse bugs.
-	TroopCols = 5
-	TroopRows = 3
+	// Twelve cells across and four down: the arcade's own pixel grids, packed
+	// two pixel rows to a text row. They need the width - a crab is eleven
+	// pixels wide and there is no honest way to draw one in five - so a block is
+	// six across rather than eleven, and each of them is three times the sprite.
+	TroopCols = 12
+	TroopRows = 4
 	cellCols  = TroopCols + 1
 	cellRows  = TroopRows + 1
 
@@ -77,10 +76,10 @@ func (f Field) FormationCols() int {
 }
 
 func (f Field) FormationRows() int {
-	// The floor, the creature, and four rows of daylight between the block and
-	// the creature when it starts. Two rows is the fewest worth calling a
-	// formation, five is the arcade's.
-	return clamp((f.Rows-ShipRows-4)/cellRows, 2, 5)
+	// The floor, the creature, and six rows of daylight between the block and
+	// the creature when it starts - the descent has to be worth watching. Two
+	// rows is the fewest worth calling a formation, five is the arcade's.
+	return clamp((f.Rows-ShipRows-6)/cellRows, 2, 5)
 }
 
 // BlockCols is how wide the whole formation is, in cells.
@@ -116,7 +115,7 @@ func WaveFor(n int, f Field) Wave {
 		Step: clamp(26-n/2, 5, 40),
 		Drop: clamp(70-n, 14, 70),
 	}
-	w.Species = speciesFor(n, f.FormationRows(), stage)
+	w.Species = speciesFor(f.FormationRows())
 	if w.Boss {
 		w.BossOf = bossFor(n, stage)
 		w.BossHP = 30 + 20*(n/5)
@@ -150,34 +149,18 @@ func bossFor(n, stage int) int {
 	return first + (n/5-1)%count
 }
 
-// speciesFor picks one troop species per formation row.
+// speciesFor stacks the three the way the arcade stacks them: the squid on the
+// top row, the crab under it, octopuses the rest of the way down.
 //
-// The canvas groups the forty by stage, but a wave is not a stage: it mixes the
-// three stages up to the one it has reached, deepest at the top, so a later wave
-// looks like an army rather than like a colour swatch. Deterministic in the wave
-// number, so wave twelve is the same wave every time you reach it - which is
-// what makes a wave something you can learn.
-func speciesFor(n, rows, stage int) []int {
+// It does not vary with the wave, and that is the point of using the arcade's
+// bestiary rather than forty of our own - what a later wave changes is the
+// colour and what they are worth, not the shape. See Wave.Stage.
+func speciesFor(rows int) []int {
 	out := make([]int, rows)
 	for r := 0; r < rows; r++ {
-		// The top row is the deepest stage there is, and each row down is one
-		// stage shallower, floored at the first.
-		s := clamp(stage-r, 1, len(Stages))
-		perStage := len(Troops) / len(Stages)
-		pick := mix(n, r) % perStage
-		out[r] = (s-1)*perStage + pick
+		out[r] = clamp(r, 0, len(Troops)-1)
 	}
 	return out
-}
-
-// mix is a small deterministic hash, so a wave's line-up depends on the wave and
-// not on the seed: two players on wave twelve meet the same twelve.
-func mix(a, b int) int {
-	h := uint32(a)*2654435761 + uint32(b)*40503
-	h ^= h >> 13
-	h *= 2246822519
-	h ^= h >> 16
-	return int(h & 0x7fffffff)
 }
 
 // Member is one of the block: where it sits in the grid and what is left of it.

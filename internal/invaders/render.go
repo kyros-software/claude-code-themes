@@ -208,24 +208,21 @@ func field(g Game, cols int) []string {
 	return gr.lines()
 }
 
-// drawSquad paints the block: every living member in its stage's tone, with the
-// three cells of eyes in the light one.
+// drawSquad paints the block: every living member in the wave's stage tone, one
+// colour each, which is what a screen of them needs to stay readable.
 func drawSquad(gr grid, g Game) {
 	frame := g.Squad.Frame()
+	pal := Stages[clamp(g.Wave.Stage-1, 0, len(Stages)-1)]
 	for _, m := range g.Squad.Members {
-		t := Troops[m.Species]
-		pal := Stages[t.Stage-1]
 		// A member that has taken a hit and lived shows it by sinking down the
 		// ramp, which is the same trick the pet uses for its own seven states.
 		tone := pal.Tones[clamp(g.Wave.HP-m.HP, 0, len(pal.Tones)-1)]
-		ink, eye := theme.Fg(tone), theme.Fg(pal.Eye)
+		ink := theme.Fg(tone)
 
 		x, y := g.Squad.At(m)
-		gr.blit(y, x, t.Top, ink)
-		gr.blit(y+1, x, t.Left, ink)
-		gr.blit(y+1, x+1, t.Eyes, eye)
-		gr.blit(y+1, x+4, t.Right, ink)
-		gr.blit(y+2, x, t.Legs[frame], ink)
+		for i, row := range Troops[m.Species].Frames[frame] {
+			gr.blit(y+i, x, row, ink)
+		}
 	}
 }
 

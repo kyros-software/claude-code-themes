@@ -155,38 +155,67 @@ func TestAWaveIsTheSameLineUpEveryTimeYouReachIt(t *testing.T) {
 	}
 }
 
-// The canvas groups the forty by stage, but a wave is not a stage: it mixes the
-// stages up to the one it has reached, deepest at the top. Without that a later
-// wave is a colour swatch rather than an army.
-func TestALaterWaveMixesStagesWithTheDeepestOnTop(t *testing.T) {
-	f := aField(t, 80, 40) // tall, so there are five rows to look at
-	w := WaveFor(40, f)
+// The three stack the way the arcade stacks them, and what a later wave changes
+// is the colour and the price rather than the shape. That is the trade made by
+// using the arcade's bestiary instead of forty of our own.
+func TestTheThreeStackTheWayTheArcadeStacksThem(t *testing.T) {
+	f := aField(t, 80, 40)
+	w := WaveFor(41, f)
 	if len(w.Species) < 3 {
 		t.Fatalf("only %d rows to check", len(w.Species))
 	}
-
-	stages := make([]int, len(w.Species))
-	for i, s := range w.Species {
-		stages[i] = Troops[s].Stage
-	}
-	for i := 1; i < len(stages); i++ {
-		if stages[i] > stages[i-1] {
-			t.Errorf("row %d is stage %d under a row of stage %d", i, stages[i], stages[i-1])
+	for i, want := range []string{"squid", "crab", "octopus"} {
+		if got := Troops[w.Species[i]].Name; got != want {
+			t.Errorf("row %d is a %s, want a %s", i, got, want)
 		}
 	}
-	seen := map[int]bool{}
-	for _, s := range stages {
-		seen[s] = true
-	}
-	if len(seen) < 2 {
-		t.Errorf("wave 40 fields only stage %v", stages)
+	for _, s := range w.Species[3:] {
+		if Troops[s].Name != "octopus" {
+			t.Errorf("the rows under the crab are %s, want octopuses", Troops[s].Name)
+		}
 	}
 
-	// And an early wave is all first-stage, because there is nothing else yet.
-	for _, s := range WaveFor(1, f).Species {
-		if Troops[s].Stage != 1 {
-			t.Errorf("wave 1 fields a stage %d species", Troops[s].Stage)
+	// The line-up does not change with the wave; the stage does.
+	early, late := WaveFor(1, f), WaveFor(41, f)
+	for i := range early.Species {
+		if early.Species[i] != late.Species[i] {
+			t.Error("the shapes change with the wave, which the arcade's three do not")
 		}
+	}
+	if late.Stage <= early.Stage {
+		t.Errorf("wave 41 is stage %d and wave 1 is stage %d", late.Stage, early.Stage)
+	}
+}
+
+// A squid is worth three octopuses, at every stage, which is the arcade's own
+// arithmetic and the reason to shoot the top row first.
+func TestTheTopRowPaysBest(t *testing.T) {
+	f := aField(t, 80, 40)
+	g := NewGame(f, "spark", 1, Save{Wave: 21, Seed: 1}) // not a multiple of five: a boss wave has no block
+
+	byName := map[string]int{}
+	for _, m := range g.Squad.Members {
+		before := g
+		after := before.killMember(m)
+		byName[Troops[m.Species].Name] = after.Score - before.Score
+	}
+	if byName["squid"] <= byName["crab"] || byName["crab"] <= byName["octopus"] {
+		t.Errorf("a squid pays %d, a crab %d, an octopus %d",
+			byName["squid"], byName["crab"], byName["octopus"])
+	}
+	// And a deeper stage pays more for the same species.
+	shallow := NewGame(f, "spark", 1, Save{Wave: 1, Seed: 1})
+	deep := NewGame(f, "spark", 1, Save{Wave: 41, Seed: 1})
+	one := func(g Game) int {
+		for _, m := range g.Squad.Members {
+			if Troops[m.Species].Name == "octopus" {
+				return g.killMember(m).Score - g.Score
+			}
+		}
+		return 0
+	}
+	if one(deep) <= one(shallow) {
+		t.Errorf("an octopus pays %d on wave 1 and %d on wave 41", one(shallow), one(deep))
 	}
 }
 

@@ -178,6 +178,14 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 		case <-ticker.C:
 		}
 
+		// Everything that has arrived since the last frame, with an ACTION
+		// winning over a direction.
+		//
+		// One tick can only carry one key, and a terminal cannot say that two
+		// are held at once. Movement latches - see driftFor - so a direction
+		// dropped here costs nothing, while a dropped shot is a press the player
+		// made and the game ignored. So firing wins, and you can shoot without
+		// stopping.
 		in := None
 		for drained := false; !drained; {
 			select {
@@ -185,7 +193,9 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 				if k == Quit {
 					return g, 0
 				}
-				in = k
+				if in == None || in == Left || in == Right {
+					in = k
+				}
 			default:
 				drained = true
 			}
