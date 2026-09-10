@@ -20,21 +20,17 @@ const (
 	HUDRows  = 1
 	HelpRows = 1
 
-	// The creature at the bottom is pet.DrawCompact with its top row left off:
-	// two rows of nine cells.
+	// The creature at the bottom is pet.DrawTiny: two rows of five cells, its
+	// mark over its eyes.
 	//
-	// The five-row card is the pet's portrait and this is its cannon, so it gets
-	// the small form the statusline uses - and then one row less again, because
-	// beside invaders that are a single cell it was still the tallest thing on
-	// the field. The row dropped is the dome; what is kept is the face and the
-	// feet, which the design canvas says is what tells one form from another:
-	// "la marca de arriba y el numero de patas". The mark is carried by the
-	// colour instead, which is the same trade DrawCompact itself makes.
-	ShipRows = pet.CompactRows - 1
-	ShipCols = pet.SpriteWidth
-
-	// shipFrom is the first row of the compact sprite that gets drawn.
-	shipFrom = pet.CompactRows - ShipRows
+	// The five-row card is the pet's portrait and this is its cannon. Cropping
+	// the compact form was tried and is not the same thing as drawing a smaller
+	// one: at nine cells it was still nearly twice the gap between two invaders,
+	// where the arcade's cannon is about one of them wide. DrawTiny is a fourth
+	// size in internal/pet rather than a crop out here, because that package is
+	// the only thing that knows how to draw the creature.
+	ShipRows = pet.TinyRows
+	ShipCols = pet.TinyWidth
 
 	// A troop and the cell it lives in: one glyph, in a cell five across and two
 	// down.

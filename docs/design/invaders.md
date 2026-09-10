@@ -36,30 +36,37 @@ lines, guarded on tmux being present, and never a dependency.
 
 ## The creature is small, and it is at the bottom
 
-It is `pet.DrawCompact` with its top row left off: **two rows of nine cells**.
-The five-row card is the pet's portrait; this is its cannon, and a cannon that
-took a quarter of the screen would leave nowhere to dodge to.
+It is `pet.DrawTiny`: **two rows of five cells**, its mark over its eyes. The
+five-row card is the pet's portrait; this is its cannon, and beside invaders that
+are a single glyph each it has to be about one of them wide, which is what the
+arcade's cannon is.
 
-The row dropped is the dome. What is kept is the face and the feet, which the
-design canvas says is what tells one form from another - *"la marca de arriba y
-el numero de patas"* - and the mark is carried by the colour instead, which is
-the same trade `DrawCompact` itself makes to get from five rows to three. Beside
-invaders that are a single cell, three rows was still the tallest thing on the
-field.
+Getting there took three goes and the first two were the same mistake - cropping
+a big drawing instead of making a small one. The compact form is three rows of
+nine; dropping its top row gave two of nine, which is still nearly twice the gap
+between two invaders.
 
-Everything else follows from the block having to fit above it. The floor is
-**60x18**, and inside it:
+The third go asked whether the sprite could simply be **scaled**, and it is a
+fair question with an arithmetic answer: the block glyphs really are pixels -
+each is a 2x2 patch - so a 9x3 sprite is an 18x6 image and halving it is a
+downsample, not guesswork. It was tried. The result is mush: four of the
+forty-one came out as the same five glyphs, and every one of them lost its eyes,
+which at this size ARE the creature. **A cell is the floor of what a terminal can
+draw, and the compact form is already standing on it.** Anything smaller has to
+be drawn, not derived.
 
-| | how it is derived | at 80x24 |
-| --- | --- | --- |
-| formation columns | `(cols-2)/6`, clamped to 4..11 | 11, the arcade's number |
-| formation rows | `(rows-ship-4)/4`, clamped to 2..5 | 3 |
-| the creature | three rows on the floor, nine wide | 3x9 |
+So `DrawTiny` is a fourth size inside `internal/pet`, next to the other three,
+because that package is the only thing that knows how to draw the creature and
+the only place with the tests to keep it honest. It carries the two things the
+design canvas says tell one form from another: *"la marca de arriba"* - the
+middle five cells of the crest, which distinguishes 31 of the 41 on its own - and
+the colour, standing in for the foot count it has no room for. The forms that do
+collide are a mark and its title, or two of one branch, and the ramp separates
+those.
 
-Both are derived rather than fixed so that the game is the same shape of problem
-in a narrow window as in a wide one, and so the block always starts clear of the
-creature. Below the floor it refuses and says both pairs of numbers rather than
-drawing a mess.
+The first draft of it drew a shoulder either side of the eyes and nothing else,
+and gave **forty of the forty-one the same five glyphs**. That is what the test
+in `internal/pet` is guarding against.
 
 ## Two ways to lose, and the second one is the clock
 

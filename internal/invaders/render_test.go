@@ -111,16 +111,10 @@ func TestTheCreatureIsTheFormsOwnSpriteAndItsOwnRamp(t *testing.T) {
 	for _, form := range []string{"spark", "wasp", "phoenix", "marathon"} {
 		g := NewGame(f, form, 4, Save{Wave: 1, Seed: 1})
 		frame := strings.Join(Render(g, 80), "\n")
-		compact := pet.DrawCompact(form, g.Vital(), g.Frame/8, false)
-		for i, row := range compact[shipFrom:] {
+		for i, row := range pet.DrawTiny(form, g.Vital(), g.Frame/8, false) {
 			if !strings.Contains(frame, row) {
-				t.Errorf("%s: sprite row %d is not in the frame", form, i)
+				t.Errorf("%s: tiny row %d is not in the frame", form, i)
 			}
-		}
-		// And the row it does not draw is genuinely not drawn, or it is three
-		// rows tall after all.
-		if top := compact[0]; strings.Contains(frame, top) && strings.TrimSpace(theme.Strip(top)) != "" {
-			t.Errorf("%s: the dome row is still being drawn", form)
 		}
 	}
 }
@@ -132,8 +126,7 @@ func TestADyingCreatureLiesDown(t *testing.T) {
 	g := NewGame(f, "bughunter", 4, Save{Wave: 1, Seed: 1})
 	g.HP = 0
 	frame := strings.Join(Render(g, 80), "\n")
-	ko := pet.DrawCompact("bughunter", pet.KO, g.Frame/8, false)
-	down := ko[shipFrom:]
+	down := pet.DrawTiny("bughunter", pet.KO, g.Frame/8, false)
 	for i, row := range down {
 		if !strings.Contains(frame, row) {
 			t.Errorf("row %d of the k.o. creature is not in the frame", i)
@@ -142,7 +135,7 @@ func TestADyingCreatureLiesDown(t *testing.T) {
 
 	g.HP = g.Kit.MaxHP
 	if up := strings.Join(Render(g, 80), "\n"); strings.Contains(up, down[len(down)-1]) {
-		t.Error("a creature at full life is lying down")
+		t.Error("a creature at full life has its eyes shut")
 	}
 }
 

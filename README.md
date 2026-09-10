@@ -207,8 +207,8 @@ oleada 21 · ♥ ████████ · puntos 4860 · cazabugs n4 rastread
                               ╽
 
               ╿ ╿
-                      ▐█ > < █▌
-                       ▝▝▀▀▀▘▘
+                        ╲   ╱
+                        █> <█
 
 ←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir
 ```
