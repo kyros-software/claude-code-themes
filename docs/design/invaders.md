@@ -1,15 +1,17 @@
 # `ccpet invade`
 
-Space Invaders played with the pet you already have. The creature sits at the
-bottom of the screen and runs along the floor; the swarm comes down from the top
-in a block that walks sideways and steps down at the walls. Your form decides the
-weapon, its mark refines it and its level scales it. A boss stands at every fifth
-wave, and there is no last one.
+A terminal shooter played with the pet you already have. A representation of your
+creature sits at the bottom and runs along the floor; a fleet of ten kinds of
+enemy ship comes down from the top, each falling and drifting and shooting on its
+own clock. Your form decides the weapon, its mark refines it and its level scales
+it. Asteroids fall on everybody, health kits fall for you, the score buys
+upgrades, a boss off the design canvas stands at every fifth wave, and there is no
+last one.
 
-You aim it and you fire it. The first draft did neither - the gun fired by
-itself and tracked the nearest enemy, and the player's only verb was to move -
-which left nothing to be good at. Now moving IS the aiming: a shot leaves the
-middle of the creature and goes straight up.
+You aim it and you fire it. The first draft did neither - the gun fired by itself
+and tracked the nearest enemy, and the player's only verb was to move - which left
+nothing to be good at. Now moving IS the aiming: a shot leaves the middle of the
+ship and goes straight up.
 
 ## Why this is not the statusline
 
@@ -34,53 +36,57 @@ emulator's own tab key, because the two own different terminals. Inside tmux it
 can be one keystroke instead, which is what `ccpet invade --split` is for - ten
 lines, guarded on tmux being present, and never a dependency.
 
-## The creature keeps its crest, and it is at the bottom
+## The player is a representation of the creature, not the creature
 
-It is `pet.DrawCard`: four rows of nine cells, the crest over the three compact
-ones. It is by a distance the biggest thing on the field, and that is the point
-of the whole exercise - the swarm is the arcade's, and the thing shooting back at
-it is your pet.
+For a while the cannon WAS the pet: `pet.DrawCard`, four rows of nine cells,
+crest and antennae and its own colour ramp. It is the best drawing in the repo
+and it was the wrong thing to fly.
 
-Three smaller versions were built and thrown away, and the third is the one worth
-recording.
+| | the creature | the representation |
+| --- | --- | --- |
+| size | 9x4 | 5x3 |
+| drawn by | `internal/pet` | `ship.go`, in the fleet's own line art |
+| identity | the whole sprite | colour, silhouette and eyes |
+| against a 5-cell enemy | twice its width | its width |
 
-Cropping the compact form to two rows lost little and gained little. Then the
-fair question: can the sprite not just be **scaled**? It can, and it is
-arithmetic rather than guesswork - the block glyphs really are pixels, each one a
-2x2 patch, so a 9x3 sprite is an 18x6 image and halving it is a downsample. It
-was tried. Four of the forty-one came out as the same five glyphs and every one
-of them lost its eyes. **A cell is the floor of what a terminal can draw, and the
-compact form is already standing on it**: anything smaller has to be drawn, not
-derived.
+Three things carry the identity now, and each of them says something the player
+already knows:
 
-So a five-cell version was drawn - the middle of the crest over the eyes - and it
-worked, in the sense that it fitted and told 31 of the 41 apart. It was still the
-wrong answer, and finding out why is what settled the design: what the creature
-has to keep is its **crest**, the antennae and horns that say which of the
-forty-one it is, and the crest is precisely the thing `DrawCompact` throws away
-to get down to three rows.
+- the **colour** is the form's own ramp, so a bughunter is the bughunter's green
+- the **silhouette** is the weapon's family, so the thirteen fly visibly apart
+- the **eyes** are the health: `o o`, then `- -`, then `x x` when the run is over
 
-Hence the card, which is the compact form with the crest put back on. The
-direction was down and the answer was up.
+```
+   \ /        -+-        [^]         |          ^-v
+  <o o>      [o o]      |o o|       =o o=      {o o]
+   /^\        /_\        /|\         /_\         /v\
+  homing     steady     turret      cannon     chimera
+```
 
-## Two ways to lose, and the second one is the clock
+Getting here took four goes at the player and three at the enemy, and the order
+matters: the creature stopped being the ship the moment the enemies stopped being
+one block. Nine cells of pet against fifty-five one-glyph invaders was a joke
+that read; nine cells of pet against a fleet of five-cell ships was just a wide
+target.
+
+What was NOT done, twice tried: shrinking the sprite. Cropping the compact form
+to two rows lost the crest, and a true downsample - the block glyphs are 2x2
+pixel patches, so halving a sprite is arithmetic rather than guesswork - turned
+four of the forty-one into the same five glyphs. The answer was not a smaller
+creature. It was a different drawing that means the same thing.
+
+## Two ways to lose, and neither of them is the clock
 
 Bombs whittle you down: one life each, two from a boss, and you can dodge them.
-That is the slow way.
+A ship that reaches the floor costs one more, or two if it comes down on top of
+you, and then it is gone. Letting one through is a mistake, not a defeat: a fleet
+is individuals.
 
-The fast way is that **they land**. When the block reaches the creature's row the
-run is over, whatever life you had left. It is the arcade's own rule and it is
-what stops a slow gun from simply waiting a wave out - without it, a patient
-player with a weak kit could clear any wave eventually, and the descent would be
-scenery.
-
-The block walks sideways at the wave's own pace and steps down a row every time
-it reaches a wall, and it **quickens as it empties**: the last three come down
-fast. That is the arcade's most famous accident, kept on purpose, because an
-almost-cleared screen must not be a slow one. Clearing a flank also widens the
-block's runway, since the edges are taken from the members that are still alive -
-which is what makes shooting the outside columns first a tactic rather than a
-habit.
+The fast way is a **boss landing**. When one reaches your row the run is over
+whatever life was left, and that is the fight lost rather than a slip. It is the
+last thing left of the arcade's "they land and it is over" rule, and it is kept
+for exactly one reason: without it a patient player with a weak gun could stand
+under a boss for as long as it took, and the descent would be scenery.
 
 ## There is no last wave
 
@@ -95,58 +101,116 @@ not - `TestARunPlaysItselfUntilTheLadderOutgrowsIt` plays a run to its end and
 fails if the autopilot survives, because a ladder that never wins is a game with
 no ending.
 
-## Two axes are capped and two are not
+## Three axes are capped and one is not
 
 That asymmetry is the whole of the difficulty design.
 
 ```
-Stage(n)   = min(1 + (n-1)/4, 8)          // which of the canvas's eight it draws from
-HP(n)      = 1 + (n-1)/10                 // hit points per member; no ceiling
-Step(n)    = clamp(26 - n/2, 5, 40)       // ticks between sideways steps
-Drop(n)    = clamp(70 - n, 14, 70)        // ticks between bombs
+Stage(n)   = min(1 + (n-1)/4, 8)          // how deep into the fleet it may draw
+Count(n)   = clamp(6 + n, 6, 30)          // ships released over the wave
+Every(n)   = clamp(60 - 2n, 12, 60)       // ticks between releases
+Pack(n)    = clamp(1 + n/12, 1, 3)        // ships per release
+Tough(n)   = (n-1)/6                      // hit points added to each; NO ceiling
+Haste(n)   = min(1 + n/50, 2)             // multiplier on fall and drift
 Boss(n)    = n % 5 == 0
-BossHP(n)  = 30 + 20*(n/5)                // no ceiling
+BossHP(n)  = 45 + 40*(n/5)                // no ceiling
 ```
 
-**Capped**: how fast the block walks and how often it bombs, because past a point
-faster is not harder, it is unreactable; and the size of the block, which is the
-terminal's business and not the wave's.
+**Capped**: the pace of the releases, the speed of the ships, and how many are
+allocated at once. The first two because past a point faster is not harder, it is
+unreadable; the third because `release` cannot ask for memory without a limit off
+a wave number that came out of a file.
 
-**Uncapped**: the hit points of a member and of a boss. A kit tops out at level
-6, so there comes a wave your damage cannot clear before the block lands. That is
-the ending, at a point nobody typed.
+**Uncapped**: the hit points. A kit tops out at level 6 plus whatever upgrades a
+run has bought, so there comes a wave whose ships you cannot clear before they
+are on top of you. That is the ending, at a point nobody typed.
 
-## The rule that makes it a game rather than a hose
+Measured with the autopilot, which is a poor player on purpose - it does not
+dodge, it does not pick off what is about to land, and it spends its ability the
+moment it is ready:
 
-Only two of your presses may be in the air at once.
+| form | level | waves reached |
+| --- | --- | --- |
+| `spark` | 1 | 5 |
+| `pattern` | 2 | 5 |
+| `bughunter` | 4 | 12-13 |
+| `architect` | 4 | 15-18 |
+| `marathon` | 5 | 13-14 |
+| `wasp` | 6 | 13-18 |
+| `leviathan` | 6 | 22-23 |
 
-The arcade allowed exactly one shot on the screen, and that is what turns every
-press into a decision: miss, and you wait for it to reach the top before you may
-try again. Two is the concession to a terminal, where a frame is fifty
-milliseconds and one would feel like lag rather than like discipline.
+Two things to read off that table. The pet's level is worth roughly four waves a
+rung, which is what makes feeding it worth doing; and the first boss is a real
+gate at level one, which is intended - a larva is meant to lose to it.
 
-It is not a detail. Measured with an autopilot, without any cap at all a
-level-six title cleared **forty-five waves in three minutes** - four seconds a
-wave - because nothing limited how much lead was in the air. With it the same
-creature takes ten to fifteen seconds a wave, and a run is a session:
+## The magazine, which replaced a cap on shots in the air
 
-| form | level | wave reached | seconds per wave |
-| --- | --- | --- | --- |
-| `spark` | 1 | 5 | 40 |
-| `refactor` | 3 | 10 | 35 |
-| `bughunter` | 4 | 25 | 29 |
-| `marathon` | 4 | 50 | 16 |
-| `wasp` | 6 | 65 | 14 |
-| `phoenix` | 5 | 160 | 10 |
+Something has to make a press cost something, or the game is a hose.
 
-A person plays better than the autopilot, so these are floors. The spread across
-forms is the point: `marathon` is the cannon family, and a shot that pierces
-three deep is worth more against a block eleven wide than a faster gun is.
+The arcade's answer was **one shot on the screen at a time**: miss, and you wait
+for it to reach the top. This had it as two - fifty milliseconds a frame makes one
+feel like lag rather than like discipline - counted in projectiles so that a
+seven-shot volley still fits.
 
-One volley always fits under the cap whatever the ceiling says, and that is not
-pedantry: a `loom` at level six fires seven projectiles at a time, and with a
-flat cap of six it could never fire at all - every press refused, for the length
-of the run. Its own playability test caught it.
+The reference's answer is a **magazine**, and for a fleet it is the better one.
+What limits you is how much you can shoot before you have to stand still and
+reload, not how far your last shot has travelled - and standing still is a real
+cost when six ships are coming down at their own angles.
+
+| | rounds | cadence | empties in | reloads in |
+| --- | --- | --- | --- | --- |
+| `spark` at level 1 | 9 | 12 | 108 ticks | 70 |
+| `bolt` at level 6 | 14 | 2 | 28 ticks | 20 |
+| `marathon` at level 5 | 13 | 8 | 104 ticks | 48 |
+
+A press spends one round whatever the volley fires, so the capacity does not
+depend on `Shots`. That was a bug for about ten minutes: tying it to the volley
+width made a level-four form - where `Shots` goes up - come out with a *smaller*
+magazine than it had at level three, which is a level that makes you weaker.
+
+The reload is six shots' worth of cadence rather than a flat number, and that is
+the second thing that was wrong here. At a flat 64 ticks a `bolt` - four ticks a
+shot - spent two thirds of its life reloading while a `marathon` barely noticed.
+Two thirds of the whole magazine was the next try and it wobbled: integer
+division drifted the ratio a point either way between levels, which showed up as
+a level that fires slower over a magazine than the level below it. Six times the
+cadence has neither problem, and the guard is
+`TestNoLevelEverMakesAFormWeaker`, which measures the SUSTAINED rate - rounds
+per tick counting the reload - and not the reload on its own.
+
+Firing on an empty magazine starts the reload rather than doing nothing, and it
+does so ahead of the cadence check: whether the gun reloads itself must not
+depend on exactly which tick you pressed on.
+
+## Three upgrades, and a menu that stops the world
+
+The score buys them, at 300 points and then further apart. The three are the
+reference's own - **power**, **rate**, **magazine** - and they are the run's own
+gun rather than the pet's: the kit that comes out of `KitFor` is the base, and
+`boost` is applied on top.
+
+The field freezes while the menu is up. A choice made with a bomb in the air is
+not a choice, and the alternative - a menu over a running game - is a menu you
+learn to answer with the same key every time to get back to the fight.
+
+They are persisted **by kind** in `invaders.json` (`up_power`, `up_speed`,
+`up_mag`) and replayed through `boost` on the way back in. That is not
+over-engineering: the arena pauses and resumes a run every single turn, and
+coming back after twenty waves with the pet's bare kit would read as the game
+having forgotten what you built.
+
+## Kits and rocks: two things that fall on their own
+
+A **health kit** every minute, which is the reference's rate. It falls, you catch
+it by flying into it, it goes in the hold - up to three - and `e` spends one for
+a third of your maximum life. It is not spent on a full hull: a kit thrown away
+for nothing is a kit somebody swears at.
+
+An **asteroid** every twenty-two seconds, and it is on nobody's side. It does not
+shoot and it does not aim; when it breaks it throws six meteoroids that hurt the
+first thing they touch, which is as often one of theirs as it is you. Breaking
+one scores nothing, deliberately: if it paid, the safest way to farm the game
+would be to stand still and shoot rocks.
 
 ## One kit per form, and how that is proved
 
@@ -180,54 +244,59 @@ because the space bar is the only thing the player times: the weapon is automati
 on purpose, since terminal key repeat is uneven across emulators and holding a
 key to shoot feels broken through no fault of ours.
 
-## One glyph an invader, and why it took three tries
+## Ten ships, and why the block went
 
-The swarm is the arcade's three - squid, crab, octopus - drawn in **one cell
-each**. Two bigger versions were built and thrown away first, and both were
-wrong in a way that only shows when you look at a screen:
+The enemy has been four things. The order is worth keeping because each version
+was a real answer to the version before it.
 
-| try | what it was | why it went |
+| | what it was | why it went |
 | --- | --- | --- |
-| forty, off the design canvas | 5x3 cells, `> <` eyes, eight stages | inventive, and it did not look like Space Invaders - the one thing a game called invade has to do |
-| the arcade's own pixel grids | 11x8 pixels packed into 12x4 cells with half blocks | looked exactly right and was **enormous**: one invader three times the creature you steer |
-| one glyph | `Ψ` `Ж` `Щ` | the cabinet's own arithmetic fits: eleven columns by five rows, fifty-five on screen |
+| 1 | the canvas's forty sprites, 5x3 | did not read as the genre at all |
+| 2 | the arcade's pixel grids in half blocks, 12x4 | read perfectly, and one of them was three times the size of the player |
+| 3 | one glyph an invader, 11x5 marching as a block | read perfectly and was the arcade - and a block is ONE decision on screen at a time |
+| 4 | ten line-art ships, flying free | what the reference plays like, which is what was asked for |
 
-At one cell the silhouette is gone and what is left is a glyph picked for its
-shape: antennae, arms out, legs down. What it buys is the formation - the real
-one, the one everybody pictures - and a creature at the bottom that is plainly
-the biggest thing in the game, which is the joke.
+Three is not a worse game than four. It is a different one, and the difference is
+worth naming: a block moves as one thing, so there is exactly one thing to read
+and the skill is in choosing an order to shoot it in. A fleet is ten kinds of
+ship arriving in ones and twos, each with its own fall, its own drift and its own
+gun, so what is in front of you is never the same twice.
 
-Three species and not forty because the arcade had three. What a later wave
-changes is the **colour and the price**: the stage climbs every four waves
-through the canvas's eight palettes, and a kill pays its species' arcade value -
-30, 20, 10 - multiplied by the stage. So the top row is worth three of the bottom
-one at every depth, which is the arcade's own reason to shoot the squids first.
+```
+ _^_      \_ _/      ^        ^^^      /\ /\     \__ __/    .-----.
+ <o>      <ooo>     /o\      <-o->     (-o-)     -<ooo>-    |o-o-o|
+                     v        v v      \/ \/     /  v  \    '--v--'
+zángano   avispa    lanza    arpía    tejedora   cazador    yunque
+```
 
-One thing had to be given back. A one-cell target hit by a one-cell bullet is not
-the arcade's game, it is a coin toss: the cabinet's aliens are eight to twelve
-pixels across and its bullet is one. So an invader is **three cells wide to a
-bullet** and one to the eye. On a five-cell pitch that leaves two columns of
-clear air between neighbours, so aiming still means something and a miss is still
-yours.
+Ten and not forty. Forty of anything is forty things nobody can balance and
+forty rows of a table that all look alike after the fifteenth; ten is enough that
+a wave is a mix and few enough that each one can be given a job. They come out
+stage by stage - `Wave.Unlocked` - so wave one is drones and wasps and by stage
+eight the whole zoo is out.
 
-## A shot has to hit every row it crosses
+The bosses did not change. They are still the thirty-five off the design canvas,
+5x9 block-drawing sprites with two leg frames, and they now carry a life bar in
+the HUD: ninety hit points with no bar is a fight you cannot tell you are
+winning, and the sprite's own colour ramp says the same thing far too slowly.
 
-A bullet travels 1.1 rows a tick, which means it does not land on every row: over
-a flight it steps clean over about one row in eleven. Testing only the row it
-landed on therefore misses, at random, whichever row the arithmetic happens to
-skip - and the row it skipped most visibly was the top one, at field row zero,
-because the next step takes the bullet off the field, where it was thrown away
-before anything was tested against it.
+## A shot travels 1.1 rows a tick, and nothing it passes is one row tall
 
-From the outside that is a top row you cannot kill until the block drops a step,
-which is how it was reported after five minutes of play. It is also the kind of
-bug that hides: every other row worked, and the one that did not moved around
-with the height of the terminal.
+This was a bug the user found: *"the top row could not be killed until the block
+dropped a step"*. A shot moves faster than a row per tick, so testing only the
+row it landed on stepped clean over about one row in eleven - and the row it
+stepped over most often was the top one, where the next step took it off the
+field and it was thrown away untested.
 
-So a shot now resolves against every row between where it was a tick ago and
-where it is, lowest first, and it is culled after that rather than before. The
-regression test fires at a lone invader on every row of five different terminal
-heights; against the old code it fails thirteen times.
+The fix then was a sweep: check every row the shot crossed, lowest first, and
+keep it past the top edge until the hits are resolved. The fix now is
+structural - **every craft in the fleet is at least two rows tall**, so a step of
+1.1 always lands inside one - and the guard moved with it, into
+`TestEveryShipCanFlyAndBeKilled`, which refuses a one-row ship and says why.
+
+The other half is still tested from the outside:
+`TestAShotHitsTheShipItPassesThrough` fires at every one of the ten and fails if
+any of them can be shot through.
 
 ## Moving and firing at once, which a terminal does not want to allow
 
@@ -474,23 +543,28 @@ diffing: sixty by eighteen is about ten kilobytes a frame and two hundred a
 second, which is nothing, and a shadow buffer buys a whole class of stale-cell
 bugs for no measurable gain.
 
-Colour is emitted per RUN and not per cell. A row of eleven identical sprites is
-one colour and sixty-odd glyphs; wrapping each of them cost about ten kilobytes a
-frame and two hundred a second, which is fine on a local terminal and is not fine
-down an ssh connection.
+Colour is emitted per RUN and not per cell. A sky of forty stars is one colour and
+forty glyphs; wrapping each of them cost about ten kilobytes a frame and two
+hundred a second, which is fine on a local terminal and is not fine down an ssh
+connection.
 
 The alternate screen and the cursor come back on every path, including a panic
 and a signal. A game that leaves your terminal with no cursor is worse than one
 that crashes.
 
-The frame counter is divided by eight before it reaches `pet.DrawCompact`,
-because the walk cycle is `step%12 < 4`, calibrated for a statusline that
-refreshes once a second. Handed a raw twenty-a-second counter, the feet strobe.
+Every sprite is painted cell by cell now, the ship included, and that is a
+simplification the representation bought. While the cannon was `pet.DrawCard` the
+grid needed a second channel - whole painted rows the assembly had to step over -
+because `internal/pet` hands back a finished row rather than cells, and
+re-implementing its painter here would have been a second copy of the one thing
+that package is for. The ship is five cells of line art now, so the channel is
+gone and so is the class of bug where something drawn afterwards landed inside
+those nine columns.
 
-The creature is the one thing not painted cell by cell: `pet.DrawCompact` hands
-back a whole painted row, so it claims nine columns of the grid and the assembly
-steps over them. Re-implementing its painter to get cells would be a second copy
-of the one thing `internal/pet` is for.
+Blanks in a sprite are transparent, and one is not: the hull's middle row is
+`<o o>`, and with a transparent gap a star sailed between the eyes and read as a
+hole in the ship. `fill` paints the blanks, `blit` skips them, and the crest and
+the tail still let the sky through the way they should.
 
 One bug here is worth recording because three width tests all passed over it.
 `theme.Truncate` counts the bytes of an escape sequence as visible width and cuts

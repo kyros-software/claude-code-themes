@@ -187,51 +187,67 @@ somewhere you can still get to.
 
 ### `ccpet invade`
 
-Space Invaders, where the cannon is **the creature you have right now**. Its
-trade decides the weapon, its mark refines it, its level scales it - so feeding
-the pet is how you get a better gun, and the forty-one forms all play
-differently.
+A terminal shooter where the cannon is **the creature you have right now** - or
+rather a representation of it: five cells and three rows, in the same line art as
+the fleet. Its colour is your form's own, its silhouette is your weapon's family,
+and its eyes are its health. Your trade decides the gun, its mark refines it, its
+level scales it - so feeding the pet is how you get a better one, and the
+forty-one forms all play differently.
 
 ```
-oleada 21 · ♥ ████████ · puntos 4860 · cazabugs n4 rastreador · habilidad lista
+oleada 14 · ♥ █████░░░ · ≡ 7/18 · ✚1 · puntos 1860 · cazabugs n4 rastreador
+                           ^^^                                        ^
+               .          <-o->                                      /o\
+                           v v     /\ /\            .                 v
+                                   (-o-)
+                                   \/ \/                \_ _/
+           /\ /\                                        <ooo>  .-.
+           (-o-)                                              (o o)
+·          \/ \/                                               '-'
+         ·
+            ✚╽                                            .
+                                           ·
+                ·                                   ·                \_ _/
+                                                                   · <ooo>
+                       ╿
+                  ·
+     ·
+                      ^
+·                    \^/
+          .         <o o> .                     ·       .
+                     /^\         ·
 
-       Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ    Ψ
-
-       Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж
-
-       Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж    Ж
-
-       Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ
-
-       Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ    Щ
-                              ╽
-
-              ╿ ╿
-                      ▚╲   ╱▞
-                      ▗▟███▙▖
-                     ▐█ > < █▌
-                      ▝▝▀▀▀▘▘
-
-←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir
+←→ · ␣ tiro · x poder · r carga · e cura · p pausa · q salir
 ```
 
-You move and you shoot, and **only two of your shots may be in the air at once** -
-so a miss costs you the time it takes to reach the top. The arrows are a
-throttle rather than a nudge: one sets the creature going and it keeps going, and
-down is the brake. That is the only way a terminal will let you fire and move at
-the same time, since it cannot report two keys held at once. The swarm walks sideways,
-steps down at the walls and comes down faster as you empty it. Bombs cost you
-life; the block landing on you ends the run.
+**Ten kinds of enemy ship**, each falling and drifting and shooting on its own
+clock, arriving in ones and later in twos and threes. They come out stage by
+stage: wave one is drones and wasps, and by stage eight the whole fleet is out.
+Every fifth wave a boss, one of thirty-five off the design canvas, climbing the
+ranks as the stages climb. There is no last wave - the record is the one you got
+to.
 
-The swarm is the arcade's own - squid, crab and octopus, one glyph each, eleven
-columns by five rows, the cabinet's fifty-five - and what a later wave changes is
-the colour and the price rather than the shape: a kill pays its species' value times how deep the stage is, so the top row
-is always worth three of the bottom. Every fifth wave a boss, one of
-thirty-five off the design canvas, climbing the ranks as the stages climb.
+**A magazine, not a hose.** You get so many rounds and then you stand still and
+reload, which is a real cost when six ships are coming down at their own angles.
+`r` reloads early; firing on empty starts the reload for you. A fast gun reloads
+fast: the wait is six shots' worth of its own cadence.
+
+**The score buys upgrades.** Every few hundred points the game stops and offers
+three - power, rate, magazine - and the gun you build is saved with the run, so
+quitting and coming back keeps it.
+
+**Two things fall on their own.** A health kit a minute: catch it by flying into
+it, `e` spends one. And an asteroid, which is on nobody's side - break it and it
+throws meteoroids that hurt whatever they touch, including whatever of theirs was
+underneath.
+
+The arrows are a throttle rather than a nudge: one press sets the ship going and
+it keeps going, and down is the brake. That is the only way a terminal will let
+you fire and move at once, since it cannot report two keys held at the same time.
 
 It needs its own terminal - at least 60x18 - because a statusline refreshes once
-a second and cannot read a keypress. Inside tmux, `ccpet invade --split` opens it
-in a pane beside Claude.
+a second and cannot read a keypress. `ccpet arena on` opens it for you while
+Claude works; inside tmux, `ccpet invade --split` puts it in a pane.
 
 **Losing costs the creature a level.** Not the shape: you stay whatever you
 evolved into, but the kit drops a step until you feed it back up. It never costs
@@ -367,9 +383,10 @@ are no longer read, and are now `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
   what is not, and why `pet.json` is the same file in both
 - [runtime.md](docs/design/runtime.md) — why Go, where the time goes, the
   `pet.json` lock and why the binaries are in the repo
-- [invaders.md](docs/design/invaders.md) — `ccpet invade`: why the cannon is the
-  creature you already have, one kit per form, the seventy-five sprites off the
-  canvas, and the one rule the game breaks
+- [invaders.md](docs/design/invaders.md) — `ccpet invade`: why the ship is a
+  representation of the creature and not the creature, one kit per form, the ten
+  ships and the thirty-five bosses, the magazine, and the one rule the game
+  breaks
 - [audit-log.md](docs/audit-log.md) — history: the audit of the Python version
 - [thresholds.md](docs/design/thresholds.md) — **unimplemented**: the design
   canvas's 97-form tree, why its rule puts 27 of the 42 marks out of reach, and

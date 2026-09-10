@@ -3,7 +3,7 @@ package invaders
 import "github.com/kyros-software/claude-code-themes/internal/pet"
 
 // The tick. No terminal, no files, no clock: this file takes a state and a key
-// and returns the next state, which is what makes the waves, the kits and the
+// and returns the next state, which is what makes the fleet, the kits and the
 // life rules testable without a tty.
 //
 // It must never write pet.json either. A run does cost the creature a level, but
@@ -20,6 +20,11 @@ const (
 	Stop
 	Fire
 	Ability
+	Rearm // reload the magazine before it runs out
+	Heal  // spend a health kit
+	One   // the three upgrade picks
+	Two
+	Three
 	Pause
 	Quit
 )
@@ -31,6 +36,10 @@ const (
 	Playing Phase = iota
 	Cleared
 	Paused
+	// Choosing is the level-up menu: the field is frozen and the only keys that
+	// mean anything are the three picks. Frozen rather than running underneath,
+	// because a choice made while a bomb is in the air is not a choice.
+	Choosing
 	Over
 )
 
@@ -38,7 +47,7 @@ const (
 	// moveWait is ticks between one column of movement and the next.
 	moveWait = 1
 
-	// The creature LATCHES: an arrow sets it going and it keeps going until you
+	// The ship LATCHES: an arrow sets it going and it keeps going until you
 	// point it the other way or tell it to stop.
 	//
 	// This is the only thing that works. A terminal has no key-up event and no
@@ -47,13 +56,14 @@ const (
 	// left never comes back until you let go and press it again. Momentum for a
 	// few tenths of a second was tried first and is not enough: hold the fire
 	// key and you still coast to a halt.
-	//
-	// So the arrows are a throttle rather than a nudge, and the down arrow is
-	// the brake. It is not how the arcade felt, and it is the only way to fire
-	// and move at once down a pipe that only ever reports one key.
 
-	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a
-	// good margin: you are meant to be able to shoot your way out of one.
+	// shotSpeed and bombSpeed are rows per tick. A shot outruns a bomb by a good
+	// margin: you are meant to be able to shoot your way out of one.
+	//
+	// A shot crosses more than a row a tick, which used to mean it could step
+	// clean over a one-row target - the bug that made the top row of the old
+	// block unkillable. It cannot happen to a fleet: every craft in it is at
+	// least two rows tall, so a step of 1.1 always lands inside one.
 	shotSpeed = 1.1
 	bombSpeed = 0.42
 
@@ -65,9 +75,36 @@ const (
 
 	sweepDamage = 8
 
-	// bombDrop is what one bomb costs, and landDrop what a boss's volley does.
+	// bombDrop is what one of their bombs costs, bossDrop one of a boss's, and
+	// landDrop what it costs to let one reach the floor.
 	bombDrop = 1
 	bossDrop = 2
+	landDrop = 1
+	ramDrop  = 2
+
+	// The two things that fall out of the sky on their own. A health kit a
+	// minute is the reference's own rate; the rocks are more often because they
+	// are as much a hazard as a gift.
+	kitEvery  = 60 * TicksPerSecond
+	rockEvery = 22 * TicksPerSecond
+	kitsMax   = 3
+
+	// sparkLife is an explosion, moteLife a meteoroid: one is decoration and
+	// gone in half a second, the other crosses the field hurting things.
+	sparkLife = 8
+	moteLife  = 30
+
+	// upStep is the score between one level-up offer and the next, and it grows
+	// with the number already taken.
+	upStep = 300
+)
+
+// The three upgrades, which are the reference's three: more damage, a quicker
+// gun, a bigger magazine.
+const (
+	UpPower = 1
+	UpSpeed = 2
+	UpCap   = 3
 )
 
 // Shot is one of yours, travelling up.
@@ -95,9 +132,47 @@ type Turret struct {
 	Damage int
 }
 
-// BossState is the one big sprite that closes every fifth wave.
+// Alien is one enemy ship in the air: which craft it is, where it is, how it is
+// drifting and when it fires next.
+type Alien struct {
+	Of        int
+	X, Y      float64
+	Vx        float64
+	HP, MaxHP int
+	Fire      int
+}
+
+// Craft is the kind of ship this is.
+func (a Alien) Craft() Craft { return Fleet[clamp(a.Of, 0, len(Fleet)-1)] }
+
+// Stone is an asteroid on its way down. It is on nobody's side.
+type Stone struct {
+	X, Y, Vx  float64
+	HP, MaxHP int
+}
+
+// Mote is a fleck of something: an explosion spark when Hurt is zero, and a
+// meteoroid off a broken asteroid when it is not.
+type Mote struct {
+	X, Y, Vx, Vy float64
+	Life         int
+	Hurt         int
+}
+
+// Drop is a health kit falling. Catching it puts it in the hold; the Heal key
+// spends it.
+type Drop struct{ X, Y float64 }
+
+// Star is the sky. It does nothing at all, and the game looks half finished
+// without it.
+type Star struct {
+	X, Y float64
+	V    float64
+}
+
+// BossState is the one big sprite off the canvas that closes every fifth wave.
 type BossState struct {
-	Of    int // index into Bosses
+	Of    int
 	X, Y  float64
 	Dir   int
 	HP    int
@@ -122,26 +197,41 @@ type Game struct {
 	Frame int
 	Rand  uint64
 
-	Ship     int // the leftmost column of the creature
+	Ship     int // the leftmost column of the ship
 	MoveWait int
 	Drift    int // -1, 0 or 1: the way it is going, until told otherwise
 	HP       int
-	Reload   int // ticks until you may fire again
+	Ammo     int // rounds in the magazine
+	Loading  int // ticks left of a reload, 0 when loaded
+	Cool     int // ticks until the gun may fire again
 	Ready    int // ticks until the ability is ready; 0 is ready
 	Invuln   int
 	Revived  bool
+	Kits     int // health kits in the hold
 
 	Score int
 	Kills int
 	Rest  int
 
-	Squad   Formation
-	Boss    BossState
-	Started int // members the wave began with, for the block's pace
+	// The upgrades taken, counted by kind so that a run resumed off disk comes
+	// back with the gun the player built rather than the one the pet gave it.
+	Power, Quick, Mag int
+	NextUp            int
 
+	Released int // ships of this wave that have been let out
+	Next     int // ticks to the next release
+	RockIn   int
+	KitIn    int
+
+	Aliens  []Alien
+	Boss    BossState
 	Shots   []Shot
 	Bombs   []Bomb
 	Turrets []Turret
+	Stones  []Stone
+	Motes   []Mote
+	Drops   []Drop
+	Stars   []Star
 
 	Banner string
 }
@@ -156,45 +246,92 @@ const (
 	BannerLanded  = "landed"
 	BannerClaude  = "claude"
 	BannerPaused  = "paused"
+	BannerChoose  = "choose"
+	BannerKit     = "kit"
 )
 
+// Ups is how many upgrades have been taken, of any kind.
+func (g Game) Ups() int { return g.Power + g.Quick + g.Mag }
+
 // NewGame starts or resumes a run. The form and level are the pet's, read once:
-// the ship is whatever creature you have right now, and it does not change
-// mid-run even if a hook feeds the pet while you play.
+// the ship represents whatever creature you have right now, and it does not
+// change mid-run even if a hook feeds the pet while you play.
 func NewGame(f Field, form string, level int, s Save) Game {
 	kit := KitFor(form, level)
-	hp := s.HP
-	if hp < 1 || hp > kit.MaxHP {
-		hp = kit.MaxHP
-	}
-	seed := s.Seed
-	if seed == 0 {
-		seed = 0x9E3779B97F4A7C15
-	}
 	g := Game{
-		Field: f, Kit: kit, Form: form, Level: level,
+		Field: f, Form: form, Level: level,
 		Phase: Playing,
-		Rand:  seed,
+		Rand:  seedOf(s),
 		Ship:  f.ShipColMax() / 2,
-		HP:    hp,
 		Score: s.Score, Kills: s.Kills,
 		Revived: s.Revived,
+		Power:   s.Power, Quick: s.Speed, Mag: s.Mag,
 	}
+	// The upgrades are re-applied on the way in, in a fixed order, so that a
+	// resumed run flies exactly the gun it quit with.
+	g.Kit = kit
+	for i := 0; i < g.Power; i++ {
+		g.Kit = boost(g.Kit, UpPower)
+	}
+	for i := 0; i < g.Quick; i++ {
+		g.Kit = boost(g.Kit, UpSpeed)
+	}
+	for i := 0; i < g.Mag; i++ {
+		g.Kit = boost(g.Kit, UpCap)
+	}
+
+	hp := s.HP
+	if hp < 1 || hp > g.Kit.MaxHP {
+		hp = g.Kit.MaxHP
+	}
+	g.HP = hp
+	g.Ammo = g.Kit.Cap
+	g.NextUp = s.Score + upStep*(g.Ups()+1)
+	g.Stars = sky(f, &g.Rand)
 	return g.startWave(s.Wave)
+}
+
+func seedOf(s Save) uint64 {
+	if s.Seed == 0 {
+		return 0x9E3779B97F4A7C15
+	}
+	return s.Seed
+}
+
+// sky scatters the background. One star every five columns, at one of three
+// speeds, which is enough to read as depth and not enough to read as weather -
+// one every three was weather.
+func sky(f Field, rand *uint64) []Star {
+	stars := make([]Star, 0, f.Cols/5+1)
+	for i := 0; i < f.Cols/5+1; i++ {
+		stars = append(stars, Star{
+			X: float64(roll(rand, f.Cols)),
+			Y: float64(roll(rand, f.Rows)),
+			V: []float64{0.06, 0.14, 0.26}[roll(rand, 3)],
+		})
+	}
+	return stars
 }
 
 // startWave sets up the wave at the top of it, which is the only granularity a
 // run ever resumes at.
 func (g Game) startWave(n int) Game {
 	g.Wave = WaveFor(n, g.Field)
+	g.Aliens = nil
 	g.Shots = nil
 	g.Bombs = nil
 	g.Turrets = nil
+	g.Stones = nil
+	g.Motes = nil
+	g.Drops = nil
 	g.Rest = 0
 	g.Phase = Playing
 	g.Banner = ""
 	g.Boss = BossState{}
-	g.Squad = Formation{}
+	g.Released = 0
+	g.Next = 0
+	g.RockIn = rockEvery
+	g.KitIn = kitEvery
 
 	if g.Wave.Boss {
 		g.Boss = BossState{
@@ -202,17 +339,13 @@ func (g Game) startWave(n int) Game {
 			Dir: 1, HP: g.Wave.BossHP, MaxHP: g.Wave.BossHP,
 			Fire: g.Kit.Cadence, Alive: true,
 		}
-		g.Started = 1
 		g.Banner = BannerBoss
-		return g
 	}
-	g.Squad = NewFormation(g.Wave, g.Field)
-	g.Started = len(g.Squad.Members)
 	return g
 }
 
-// Vital is the ship's state for pet.DrawCompact: HP drives it, so the creature
-// visibly droops as it is worn down and lies down when the run is over.
+// Vital is the ship's state, which is what its eyes show: HP drives it, so the
+// representation droops as the run wears on and its eyes go out when it is over.
 func (g Game) Vital() pet.Vital {
 	if g.Kit.MaxHP <= 0 {
 		return pet.Vitals[0]
@@ -221,11 +354,11 @@ func (g Game) Vital() pet.Vital {
 	return pet.StateFor(100 * hurt)
 }
 
-// Muzzle is the column your shots leave from: the middle of the creature.
+// Muzzle is the column your shots leave from: the middle of the ship.
 func (g Game) Muzzle() float64 { return float64(g.Ship) + float64(ShipCols)/2 }
 
 // ToSave is the run as it goes to disk: the top of the wave it is on, with the
-// life it had.
+// life, the score and the gun it had.
 func (g Game) ToSave(prev Save) Save {
 	out := prev
 	out.Wave = g.Wave.N
@@ -234,6 +367,7 @@ func (g Game) ToSave(prev Save) Save {
 	out.Kills = g.Kills
 	out.Revived = g.Revived
 	out.Seed = g.Rand
+	out.Power, out.Speed, out.Mag = g.Power, g.Quick, g.Mag
 	if g.Wave.N > out.BestWave {
 		out.BestWave = g.Wave.N
 	}
@@ -246,6 +380,7 @@ func (g Game) ToSave(prev Save) Save {
 		out.Score = 0
 		out.Kills = 0
 		out.Revived = false
+		out.Power, out.Speed, out.Mag = 0, 0, 0
 		out.Runs = prev.Runs + 1
 	}
 	return out.sane()
@@ -262,6 +397,8 @@ func Tick(g Game, in Key) Game {
 			g.Banner = ""
 		}
 		return g
+	case Choosing:
+		return g.choose(in)
 	}
 	if in == Pause {
 		g.Phase = Paused
@@ -270,6 +407,9 @@ func Tick(g Game, in Key) Game {
 	}
 
 	g.Frame++
+	// The sky moves through everything, including the pause between waves: a
+	// frozen starfield reads as a hung game.
+	g = g.moveStars()
 	if g.Rest > 0 {
 		g.Rest--
 		if g.Rest == 0 {
@@ -281,14 +421,83 @@ func Tick(g Game, in Key) Game {
 	g = g.moveShip(in)
 	g = g.tickWeapon(in)
 	g = g.tickAbility(in)
+	g = g.tickHeal(in)
+	g = g.release()
 	g = g.moveShots()
 	g = g.moveTurrets()
-	g = g.moveSquad()
+	g = g.moveAliens()
 	g = g.moveBoss()
-	g = g.dropBombs()
+	g = g.moveStones()
+	g = g.moveMotes()
+	g = g.moveDrops()
 	g = g.moveBombs()
 	g = g.resolveHits()
+	g = g.offerUpgrade()
 	return g.bookkeep()
+}
+
+// choose is the level-up menu: three keys, and nothing else happens until one
+// of them is pressed.
+func (g Game) choose(in Key) Game {
+	pick := 0
+	switch in {
+	case One:
+		pick = UpPower
+	case Two:
+		pick = UpSpeed
+	case Three:
+		pick = UpCap
+	default:
+		return g
+	}
+	g.Kit = boost(g.Kit, pick)
+	switch pick {
+	case UpPower:
+		g.Power++
+	case UpSpeed:
+		g.Quick++
+	case UpCap:
+		g.Mag++
+	}
+	// A bigger magazine you have to reload for is not a reward.
+	if g.Ammo < g.Kit.Cap {
+		g.Ammo = g.Kit.Cap
+	}
+	g.NextUp = g.Score + upStep*(g.Ups()+1)
+	g.Phase = Playing
+	g.Banner = ""
+	return g
+}
+
+// boost is one upgrade applied to a kit. Pure, so NewGame can replay a run's
+// upgrades from the three counts on disk.
+func boost(k Kit, pick int) Kit {
+	switch pick {
+	case UpPower:
+		k.Damage++
+	case UpSpeed:
+		k.Cadence = k.Cadence * 4 / 5
+		if k.Cadence < 2 {
+			k.Cadence = 2
+		}
+	case UpCap:
+		k.Cap += 3
+		k.Reload -= 4
+		if k.Reload < 20 {
+			k.Reload = 20
+		}
+	}
+	return k
+}
+
+// offerUpgrade stops the game to ask, once the score has passed the next mark.
+func (g Game) offerUpgrade() Game {
+	if g.Phase != Playing || g.Score < g.NextUp {
+		return g
+	}
+	g.Phase = Choosing
+	g.Banner = BannerChoose
+	return g
 }
 
 func (g Game) moveShip(in Key) Game {
@@ -320,50 +529,41 @@ func (g Game) moveShip(in Key) Game {
 	return g
 }
 
-// volleysInFlight is how many of your PRESSES may be in the air at once.
+// tickWeapon is the gun: a magazine, a cadence and a reload.
 //
-// This is the rule that makes it a game rather than a hose. The arcade allowed
-// exactly one shot on the screen, and that is what turns every press into a
-// decision: miss, and you wait for it to reach the top before you may try again.
-// Two is the concession to a terminal, where a frame is 50ms and one would feel
-// like lag rather than like discipline.
-//
-// Measured: without any cap a level-six title cleared forty-five waves in three
-// minutes - four seconds a wave - because nothing limited how much lead was in
-// the air.
-const volleysInFlight = 2
-
-// InFlight is that cap counted in projectiles, since a wide kit fires several at
-// once and half a volley is not a thing.
-//
-// One volley always fits, whatever the ceiling says. A loom at level six fires
-// seven at a time, and with a flat cap of six it could never fire at all: the
-// whole-volley check would refuse every press for the length of the run. Its own
-// playability test caught that, which is the reason that test exists.
-func (k Kit) InFlight() int {
-	n := clamp(volleysInFlight*k.Shots, 2, 6)
-	if n < k.Shots {
-		n = k.Shots
-	}
-	return n
-}
-
-// tickWeapon is the gun, and the gun is yours: it fires when you press and not
-// before.
-//
-// The first draft fired by itself and aimed by itself, which left the player one
-// verb - move - and nothing to be good at. The kit still decides everything
-// about the shot; what it no longer decides is when.
+// The old rule was a cap on how many of your PRESSES could be in the air at
+// once, which is the arcade's discipline. This is the reference's instead, and it
+// is a better fit for a fleet: what limits you is how much you can shoot before
+// you have to stand still and reload, not how far your last shot has travelled.
+// Firing on empty starts the reload for you, so nobody loses a run to not having
+// read the help row.
 func (g Game) tickWeapon(in Key) Game {
-	if g.Reload > 0 {
-		g.Reload--
+	if g.Cool > 0 {
+		g.Cool--
 	}
-	// The whole volley has to fit, or a wide kit would creep past the cap one
-	// projectile at a time - which its own test caught.
-	if in != Fire || g.Reload > 0 || len(g.Shots)+g.Kit.Shots > g.Kit.InFlight() {
+	if g.Loading > 0 {
+		g.Loading--
+		if g.Loading == 0 {
+			g.Ammo = g.Kit.Cap
+		}
 		return g
 	}
-	g.Reload = g.Kit.Cadence
+	if in == Rearm && g.Ammo < g.Kit.Cap {
+		g.Loading = g.Kit.Reload
+		return g
+	}
+	// Empty comes before the cadence: pressing fire on an empty magazine has to
+	// start the reload even in the tick after a shot, or whether the gun reloads
+	// itself depends on exactly when you pressed - which is unlearnable.
+	if in == Fire && g.Ammo <= 0 {
+		g.Loading = g.Kit.Reload
+		return g
+	}
+	if in != Fire || g.Cool > 0 {
+		return g
+	}
+	g.Ammo--
+	g.Cool = g.Kit.Cadence
 	return g.volley(g.Kit.Shots)
 }
 
@@ -380,7 +580,7 @@ func (g *Game) damageFor() int {
 	return damage
 }
 
-// volley fires n shots, spread across the creature's own width.
+// volley fires n shots, spread across the ship's own width.
 func (g Game) volley(n int) Game {
 	if n < 1 {
 		n = 1
@@ -390,9 +590,8 @@ func (g Game) volley(n int) Game {
 	for i := 0; i < n; i++ {
 		x := g.Muzzle()
 		if n > 1 {
-			// Spread across the creature, never wider than it is.
 			span := float64(ShipCols - 3)
-			x = float64(g.Ship) + 1.5 + span*float64(i)/float64(n-1)
+			x = float64(g.Ship) + 1 + span*float64(i)/float64(n-1)
 		}
 		shots = append(shots, Shot{
 			X: x, Y: top,
@@ -422,7 +621,7 @@ func (g Game) tickAbility(in Key) Game {
 	case AbilitySweep:
 		g = g.column(g.Ship, ShipCols, sweepDamage)
 	case AbilityThree:
-		g = g.column(g.Ship-cellCols, ShipCols+2*cellCols, sweepDamage)
+		g = g.column(g.Ship-ShipCols, 3*ShipCols, sweepDamage)
 	case AbilityTurret, AbilityTurret2:
 		n := 1
 		if g.Kit.Special == AbilityTurret2 {
@@ -430,7 +629,7 @@ func (g Game) tickAbility(in Key) Game {
 		}
 		turrets := append([]Turret{}, g.Turrets...)
 		for i := 0; i < n; i++ {
-			col := clamp(g.Ship+2+i*4, 0, g.Field.Cols-1)
+			col := clamp(g.Ship+1+i*3, 0, g.Field.Cols-1)
 			turrets = append(turrets, Turret{Col: col, Life: turretLife, Next: turretCadence, Damage: g.Kit.Damage})
 		}
 		g.Turrets = turrets
@@ -447,35 +646,148 @@ func (g Game) tickAbility(in Key) Game {
 	return g
 }
 
+// tickHeal spends a kit out of the hold, and only when there is something to
+// heal: a kit thrown away on full life is a kit somebody swears at.
+func (g Game) tickHeal(in Key) Game {
+	if in != Heal || g.Kits <= 0 || g.HP >= g.Kit.MaxHP {
+		return g
+	}
+	g.Kits--
+	g.HP += g.Kit.MaxHP / 3
+	if g.HP < 1 {
+		g.HP = 1
+	}
+	if g.HP > g.Kit.MaxHP {
+		g.HP = g.Kit.MaxHP
+	}
+	g.Banner = BannerKit
+	return g
+}
+
 // column hurts everything standing over a stretch of the field, which is what a
 // beam fired straight up is.
 func (g Game) column(from, width, damage int) Game {
-	to := from + width
-	if g.Boss.Alive && float64(to) > g.Boss.X && float64(from) < g.Boss.X+BossCols {
+	to := float64(from + width)
+	left := float64(from)
+
+	if g.Boss.Alive && to > g.Boss.X && left < g.Boss.X+BossCols {
 		g.Boss.HP -= damage
 		if g.Boss.HP <= 0 {
 			g = g.killBoss()
 		}
 	}
-	next := make([]Member, 0, len(g.Squad.Members))
-	for _, m := range g.Squad.Members {
-		x, _ := g.Squad.At(m)
-		if x+TroopCols > from && x < to {
-			m.HP -= damage
-			if m.HP <= 0 {
-				g = g.killMember(m)
+	alive := make([]Alien, 0, len(g.Aliens))
+	for _, a := range g.Aliens {
+		if to > a.X && left < a.X+float64(a.Craft().W) {
+			a.HP -= damage
+			if a.HP <= 0 {
+				g = g.killAlien(a)
 				continue
 			}
 		}
-		next = append(next, m)
+		alive = append(alive, a)
 	}
-	g.Squad.Members = next
+	g.Aliens = alive
+
+	stones := make([]Stone, 0, len(g.Stones))
+	for _, s := range g.Stones {
+		if to > s.X && left < s.X+float64(Rock.W) {
+			s.HP -= damage
+			if s.HP <= 0 {
+				g = g.breakStone(s)
+				continue
+			}
+		}
+		stones = append(stones, s)
+	}
+	g.Stones = stones
+	return g
+}
+
+// release lets the wave out a ship at a time, and drops the two things that
+// arrive on their own clock.
+func (g Game) release() Game {
+	if g.RockIn > 0 {
+		g.RockIn--
+	} else {
+		g.RockIn = rockEvery
+		g.Stones = append(append([]Stone{}, g.Stones...), Stone{
+			X:  float64(roll(&g.Rand, max(g.Field.Cols-Rock.W, 1))),
+			Y:  0,
+			Vx: Rock.Drift * pick(&g.Rand),
+			HP: Rock.HP + g.Wave.Tough, MaxHP: Rock.HP + g.Wave.Tough,
+		})
+	}
+	if g.KitIn > 0 {
+		g.KitIn--
+	} else {
+		g.KitIn = kitEvery
+		g.Drops = append(append([]Drop{}, g.Drops...), Drop{
+			X: float64(roll(&g.Rand, max(g.Field.Cols-1, 1))), Y: 0,
+		})
+	}
+
+	if g.Released >= g.Wave.Count {
+		return g
+	}
+	if g.Next > 0 {
+		g.Next--
+		return g
+	}
+	g.Next = g.Wave.Every
+
+	// Ones at first and twos or threes later: what makes a late wave hard is
+	// how much arrives together, and it is a gentler axis than speed because
+	// what you have to do about it - pick an order and shoot it - is the same
+	// thing you were already doing.
+	pool := g.Wave.Unlocked()
+	aliens := append([]Alien{}, g.Aliens...)
+	// A lane each, so a pack of three arrives spread across the width. Without
+	// it two ships regularly spawned on the same columns and came down as one
+	// unreadable smear of line art.
+	lane := max(g.Field.Cols/max(g.Wave.Pack, 1), 1)
+	for i := 0; i < g.Wave.Pack && g.Released < g.Wave.Count; i++ {
+		of := pool[roll(&g.Rand, len(pool))]
+		c := Fleet[of]
+		g.Released++
+		aliens = append(aliens, Alien{
+			Of: of,
+			X:  float64(clamp(lane*i+roll(&g.Rand, max(lane-c.W, 1)), 0, max(g.Field.Cols-c.W, 0))),
+			Y:  0,
+			Vx: c.Drift * g.Wave.Haste * pick(&g.Rand),
+			HP: c.HP + g.Wave.Tough, MaxHP: c.HP + g.Wave.Tough,
+			Fire: c.Cadence,
+		})
+	}
+	g.Aliens = aliens
+	return g
+}
+
+// pick is -1 or 1: which way something that has just arrived is drifting.
+func pick(rand *uint64) float64 {
+	if roll(rand, 2) == 0 {
+		return -1
+	}
+	return 1
+}
+
+func (g Game) moveStars() Game {
+	stars := make([]Star, 0, len(g.Stars))
+	for _, s := range g.Stars {
+		s.Y += s.V
+		if s.Y >= float64(g.Field.Rows) {
+			s.Y = 0
+			s.X = float64(roll(&g.Rand, max(g.Field.Cols, 1)))
+		}
+		stars = append(stars, s)
+	}
+	g.Stars = stars
 	return g
 }
 
 func (g Game) moveShots() Game {
 	next := make([]Shot, 0, len(g.Shots))
-	target, found := g.nearestColumn()
+	target, found := g.nearest()
 	for _, s := range g.Shots {
 		if s.Homing && found && g.Frame%2 == 0 {
 			if target < s.X-0.5 {
@@ -485,25 +797,25 @@ func (g Game) moveShots() Game {
 			}
 		}
 		s.Y -= shotSpeed
-		// Kept even once it is off the top: what it crossed on the way has not
-		// been resolved yet. resolveHits culls it afterwards.
+		if s.Y < 0 {
+			continue
+		}
 		next = append(next, s)
 	}
 	g.Shots = next
 	return g
 }
 
-// nearestColumn is the column a homing shot leans towards: the lowest thing on
-// the field, because that is what is about to land on you.
-func (g Game) nearestColumn() (float64, bool) {
+// nearest is the column a homing shot leans towards: the lowest thing in the
+// air, because that is what is about to reach the floor.
+func (g Game) nearest() (float64, bool) {
 	best, low, found := 0.0, -1.0, false
 	if g.Boss.Alive {
 		best, low, found = g.Boss.X+BossCols/2, g.Boss.Y, true
 	}
-	for _, m := range g.Squad.Members {
-		x, y := g.Squad.At(m)
-		if !found || float64(y) > low {
-			best, low, found = float64(x)+TroopCols/2, float64(y), true
+	for _, a := range g.Aliens {
+		if !found || a.Y > low {
+			best, low, found = a.X+float64(a.Craft().W)/2, a.Y, true
 		}
 	}
 	return best, found
@@ -530,26 +842,94 @@ func (g Game) moveTurrets() Game {
 	return g
 }
 
-// moveSquad walks the block sideways and steps it down at the walls.
-func (g Game) moveSquad() Game {
-	if len(g.Squad.Members) == 0 {
-		return g
-	}
-	if g.Squad.Wait > 0 {
-		g.Squad.Wait--
-		return g
-	}
-	g.Squad.Wait = StepEvery(g.Wave, len(g.Squad.Members), g.Started)
-	g.Squad.Steps++
+// moveAliens falls, drifts, bounces off the walls, fires, and works out what
+// happens to the ones that reach the floor.
+func (g Game) moveAliens() Game {
+	alive := make([]Alien, 0, len(g.Aliens))
+	bombs := append([]Bomb{}, g.Bombs...)
 
-	left, right := g.Squad.Edges()
-	if (g.Squad.Dir > 0 && right >= g.Field.Cols) || (g.Squad.Dir < 0 && left <= 0) {
-		g.Squad.Dir = -g.Squad.Dir
-		g.Squad.Y++
-		return g
+	for _, a := range g.Aliens {
+		c := a.Craft()
+		a.Y += c.Fall * g.Wave.Haste
+		a.X += a.Vx
+		if a.X < 0 {
+			a.X, a.Vx = 0, -a.Vx
+		}
+		if right := float64(g.Field.Cols - c.W); a.X > right {
+			a.X, a.Vx = right, -a.Vx
+		}
+
+		if a.Fire > 0 {
+			a.Fire--
+		} else {
+			a.Fire = c.Cadence
+			bombs = append(bombs, Bomb{
+				X: a.X + float64(c.W)/2, Y: a.Y + float64(c.H), Hurt: bombDrop,
+			})
+		}
+
+		// The floor. One that comes down on top of you costs more than one that
+		// slips past at the far end of the row, and both of them are gone.
+		if a.Y >= float64(g.Field.ShipRow()) {
+			if a.X+float64(c.W) > float64(g.Ship) && a.X < float64(g.Ship+ShipCols) {
+				g = g.wound(ramDrop)
+			} else {
+				g = g.wound(landDrop)
+			}
+			g = g.burst(a.X+float64(c.W)/2, a.Y, 0)
+			continue
+		}
+		alive = append(alive, a)
 	}
-	g.Squad.X += float64(g.Squad.Dir)
+	g.Aliens = separate(alive, g.Field)
+	g.Bombs = bombs
 	return g
+}
+
+// separate pushes two ships apart when they have drifted into each other.
+//
+// They fly on their own clocks and nothing stops two of them arriving at the same
+// columns, and line art on top of line art is not two ships that overlap - it is
+// one shape nobody can read. A frame with a tejedora inside an avispa is what
+// sent this in.
+//
+// Cheap on purpose: one pass, the pair swaps direction and the lower one is
+// nudged clear. It is not a physics engine and it does not have to be, because
+// the drift is what carries them apart a tick later.
+func separate(aliens []Alien, f Field) []Alien {
+	for i := range aliens {
+		for j := i + 1; j < len(aliens); j++ {
+			a, b := aliens[i], aliens[j]
+			aw, bw := float64(a.Craft().W), float64(b.Craft().W)
+			ah, bh := float64(a.Craft().H), float64(b.Craft().H)
+			if a.X+aw <= b.X || b.X+bw <= a.X {
+				continue
+			}
+			if a.Y+ah <= b.Y || b.Y+bh <= a.Y {
+				continue
+			}
+			if a.X <= b.X {
+				aliens[i].X -= 0.5
+				aliens[j].X += 0.5
+			} else {
+				aliens[i].X += 0.5
+				aliens[j].X -= 0.5
+			}
+			if aliens[i].Vx*aliens[j].Vx > 0 {
+				// Going the same way, so one of them has to turn or they travel
+				// locked together for the rest of the wave.
+				aliens[j].Vx = -aliens[j].Vx
+			}
+			// The nudge is still inside the walls. Without this the pair by the
+			// left edge walked each other off the field, which the autopilot's
+			// invariant sweep caught at tick 6082 of a run.
+			for _, k := range [2]int{i, j} {
+				aliens[k].X = clampf(aliens[k].X, 0,
+					float64(max(f.Cols-aliens[k].Craft().W, 0)))
+			}
+		}
+	}
+	return aliens
 }
 
 func (g Game) moveBoss() Game {
@@ -572,7 +952,7 @@ func (g Game) moveBoss() Game {
 		g.Boss.Fire--
 		return g
 	}
-	g.Boss.Fire = clamp(g.Wave.Drop/2, 8, 60)
+	g.Boss.Fire = clamp(40-g.Wave.N/2, 8, 60)
 	bombs := append([]Bomb{}, g.Bombs...)
 	for _, dx := range [3]float64{1, BossCols / 2, BossCols - 2} {
 		bombs = append(bombs, Bomb{X: g.Boss.X + dx, Y: g.Boss.Y + BossRows, Hurt: bossDrop})
@@ -581,35 +961,76 @@ func (g Game) moveBoss() Game {
 	return g
 }
 
-// dropBombs lets the lowest member of a random column fire down the screen.
-func (g Game) dropBombs() Game {
-	if len(g.Squad.Members) == 0 || g.Frame%max(g.Wave.Drop, 1) != 0 {
-		return g
-	}
-	lowest := map[int]Member{}
-	for _, m := range g.Squad.Members {
-		if cur, ok := lowest[m.Col]; !ok || m.Row > cur.Row {
-			lowest[m.Col] = m
+func (g Game) moveStones() Game {
+	next := make([]Stone, 0, len(g.Stones))
+	for _, s := range g.Stones {
+		s.Y += Rock.Fall
+		s.X += s.Vx
+		if s.X < 0 {
+			s.X, s.Vx = 0, -s.Vx
 		}
-	}
-	cols := make([]int, 0, len(lowest))
-	for col := range lowest {
-		cols = append(cols, col)
-	}
-	if len(cols) == 0 {
-		return g
-	}
-	// Sorted, because ranging a map is not the same order twice and the tick
-	// has to be reproducible from its seed.
-	for i := 1; i < len(cols); i++ {
-		for j := i; j > 0 && cols[j] < cols[j-1]; j-- {
-			cols[j], cols[j-1] = cols[j-1], cols[j]
+		if right := float64(g.Field.Cols - Rock.W); s.X > right {
+			s.X, s.Vx = right, -s.Vx
 		}
+		if s.Y >= float64(g.Field.ShipRow()) {
+			if s.X+float64(Rock.W) > float64(g.Ship) && s.X < float64(g.Ship+ShipCols) {
+				g = g.wound(ramDrop)
+			}
+			g = g.breakStone(s)
+			continue
+		}
+		next = append(next, s)
 	}
-	m := lowest[cols[roll(&g.Rand, len(cols))]]
-	x, y := g.Squad.At(m)
-	g.Bombs = append(append([]Bomb{}, g.Bombs...),
-		Bomb{X: float64(x) + TroopCols/2, Y: float64(y + TroopRows), Hurt: bombDrop})
+	g.Stones = next
+	return g
+}
+
+// moveMotes walks the sparks and the meteoroids. A spark is decoration; a
+// meteoroid hurts the first thing it touches, whoever's side it is on.
+func (g Game) moveMotes() Game {
+	next := make([]Mote, 0, len(g.Motes))
+	for _, m := range g.Motes {
+		m.Life--
+		if m.Life <= 0 {
+			continue
+		}
+		m.X += m.Vx
+		m.Y += m.Vy
+		if m.X < 0 || m.X >= float64(g.Field.Cols) || m.Y < 0 || m.Y >= float64(g.Field.Rows) {
+			continue
+		}
+		if m.Hurt > 0 {
+			if hit, ok := g.alienAt(m.X, m.Y); ok {
+				g = g.hurtAlien(hit, m.Hurt)
+				continue
+			}
+			if g.hitsShip(m.X, m.Y) {
+				g = g.wound(m.Hurt)
+				continue
+			}
+		}
+		next = append(next, m)
+	}
+	g.Motes = next
+	return g
+}
+
+func (g Game) moveDrops() Game {
+	next := make([]Drop, 0, len(g.Drops))
+	for _, d := range g.Drops {
+		d.Y += 0.12
+		if d.Y >= float64(g.Field.Rows) {
+			continue
+		}
+		if g.hitsShip(d.X, d.Y) {
+			if g.Kits < kitsMax {
+				g.Kits++
+			}
+			continue
+		}
+		next = append(next, d)
+	}
+	g.Drops = next
 	return g
 }
 
@@ -620,9 +1041,9 @@ func (g Game) moveBombs() Game {
 		if b.Y >= float64(g.Field.Rows) {
 			continue
 		}
-		if int(b.Y) >= g.Field.ShipRow() &&
-			b.X >= float64(g.Ship) && b.X < float64(g.Ship+ShipCols) {
+		if g.hitsShip(b.X, b.Y) {
 			g = g.wound(b.Hurt)
+			g = g.burst(b.X, b.Y, 0)
 			continue
 		}
 		next = append(next, b)
@@ -631,28 +1052,69 @@ func (g Game) moveBombs() Game {
 	return g
 }
 
-// resolveHits walks the shots against the block and the boss.
+// hitsShip is the ship's hitbox: the whole middle row, and only the three
+// middle cells of the crest and the tail.
 //
-// The members are indexed by row first, once, so a shot only ever looks at the
-// rows it is passing through.
+// The corners are cosmetic on purpose. A five-cell box would mean the tips of
+// the antennae kill you, which is unreadable in a moving frame - the same rule
+// the creature's own crest and feet had when it was the ship.
+func (g Game) hitsShip(x, y float64) bool {
+	col, row := int(x), int(y)
+	if col < g.Ship || col >= g.Ship+ShipCols {
+		return false
+	}
+	switch row - g.Field.ShipRow() {
+	case 1:
+		return true
+	case 0, 2:
+		return col >= g.Ship+1 && col <= g.Ship+ShipCols-2
+	}
+	return false
+}
+
+// alienAt is the index of whatever is in the air at a point, if anything.
+func (g Game) alienAt(x, y float64) (int, bool) {
+	for i, a := range g.Aliens {
+		c := a.Craft()
+		if x >= a.X && x < a.X+float64(c.W) && y >= a.Y && y < a.Y+float64(c.H) {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// hurtAlien takes hit points off one of them by index, and scores it if that was
+// the last of them.
+func (g Game) hurtAlien(i, damage int) Game {
+	if i < 0 || i >= len(g.Aliens) {
+		return g
+	}
+	aliens := append([]Alien{}, g.Aliens...)
+	aliens[i].HP -= damage
+	if aliens[i].HP > 0 {
+		g.Aliens = aliens
+		return g
+	}
+	dead := aliens[i]
+	g.Aliens = append(aliens[:i:i], aliens[i+1:]...)
+	return g.killAlien(dead)
+}
+
+// resolveHits walks your shots against the fleet, the boss and the rocks.
 func (g Game) resolveHits() Game {
 	if len(g.Shots) == 0 {
 		return g
 	}
-	members := append([]Member{}, g.Squad.Members...)
-	byRow := make(map[int][]int, len(members))
-	for i := range members {
-		_, y := g.Squad.At(members[i])
-		for row := y; row < y+TroopRows; row++ {
-			byRow[row] = append(byRow[row], i)
-		}
-	}
+	aliens := append([]Alien{}, g.Aliens...)
+	stones := append([]Stone{}, g.Stones...)
 
 	shots := make([]Shot, 0, len(g.Shots))
 	for _, s := range g.Shots {
 		alive := true
+
 		if g.Boss.Alive && g.hitsBoss(s) {
 			g.Boss.HP -= s.Damage
+			g = g.burst(s.X, s.Y, 0)
 			s.Hit++
 			if s.Hit > s.Pierce {
 				alive = false
@@ -665,45 +1127,28 @@ func (g Game) resolveHits() Game {
 			}
 			continue
 		}
-		// Every row the shot crossed this tick, lowest first.
-		//
-		// It travels more than a row a tick, so testing only the row it landed
-		// on steps straight over about one row in eleven - and the row it steps
-		// over most visibly is the top one, where the next step takes it off the
-		// field entirely and it is thrown away untested. That is a top row you
-		// cannot shoot until the block drops a step, which is exactly what it
-		// looked like from the outside.
-		for row := crossedTop(s, g.Field); row >= crossedLow(s) && alive; row-- {
-			hit := -1
-			for _, i := range byRow[row] {
-				if members[i].HP <= 0 {
-					continue
-				}
-				x, _ := g.Squad.At(members[i])
-				if s.X < float64(x)-TroopHit/2 || s.X >= float64(x)+TroopHit/2+1 {
-					continue
-				}
-				hit = i
-				break
-			}
-			if hit < 0 {
+
+		for i := range aliens {
+			if aliens[i].HP <= 0 {
 				continue
 			}
-			i := hit
-			members[i].HP -= s.Damage
+			c := aliens[i].Craft()
+			if s.X < aliens[i].X || s.X >= aliens[i].X+float64(c.W) {
+				continue
+			}
+			if s.Y < aliens[i].Y || s.Y >= aliens[i].Y+float64(c.H) {
+				continue
+			}
+			aliens[i].HP -= s.Damage
+			g = g.burst(s.X, s.Y, 0)
 			if s.Splash > 0 {
-				// Sideways, along the row, and not up and down: a formation is
-				// three rows deep and eleven wide, so a vertical splash is
-				// either nothing or the whole column.
-				for j := range members {
-					if j == i || members[j].HP <= 0 {
+				for j := range aliens {
+					if j == i || aliens[j].HP <= 0 {
 						continue
 					}
-					if members[j].Row != members[i].Row {
-						continue
-					}
-					if abs(members[j].Col-members[i].Col) <= s.Splash {
-						members[j].HP -= s.Damage
+					if absf(aliens[j].X-aliens[i].X) <= float64(s.Splash)+float64(c.W) &&
+						absf(aliens[j].Y-aliens[i].Y) <= float64(s.Splash) {
+						aliens[j].HP -= s.Damage
 					}
 				}
 			}
@@ -711,44 +1156,55 @@ func (g Game) resolveHits() Game {
 			if s.Hit > s.Pierce {
 				alive = false
 			}
+			break
 		}
-		// Off the top of the field, having crossed everything it was going to.
-		if alive && s.Y >= 0 {
+
+		if alive {
+			for i := range stones {
+				if stones[i].HP <= 0 {
+					continue
+				}
+				if s.X < stones[i].X || s.X >= stones[i].X+float64(Rock.W) {
+					continue
+				}
+				if s.Y < stones[i].Y || s.Y >= stones[i].Y+float64(Rock.H) {
+					continue
+				}
+				stones[i].HP -= s.Damage
+				s.Hit++
+				if s.Hit > s.Pierce {
+					alive = false
+				}
+				break
+			}
+		}
+
+		if alive {
 			shots = append(shots, s)
 		}
 	}
 	g.Shots = shots
 
-	next := make([]Member, 0, len(members))
-	for _, m := range members {
-		if m.HP > 0 {
-			next = append(next, m)
+	kept := make([]Alien, 0, len(aliens))
+	for _, a := range aliens {
+		if a.HP > 0 {
+			kept = append(kept, a)
 			continue
 		}
-		g = g.killMember(m)
+		g = g.killAlien(a)
 	}
-	g.Squad.Members = next
+	g.Aliens = kept
+
+	rocks := make([]Stone, 0, len(stones))
+	for _, s := range stones {
+		if s.HP > 0 {
+			rocks = append(rocks, s)
+			continue
+		}
+		g = g.breakStone(s)
+	}
+	g.Stones = rocks
 	return g
-}
-
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
-// crossedTop and crossedLow are the rows a shot swept this tick: it was one
-// shotSpeed lower a tick ago, and it is here now.
-func crossedTop(s Shot, f Field) int {
-	return clamp(int(s.Y+shotSpeed), 0, f.Rows-1)
-}
-
-func crossedLow(s Shot) int {
-	if s.Y < 0 {
-		return 0
-	}
-	return int(s.Y)
 }
 
 func (g Game) hitsBoss(s Shot) bool {
@@ -756,26 +1212,57 @@ func (g Game) hitsBoss(s Shot) bool {
 		s.X >= g.Boss.X && s.X < g.Boss.X+BossCols
 }
 
-// killMember scores one of the block: the arcade's own value for that species,
-// multiplied by how deep the stage is. A squid on the top row is worth three
-// octopuses, at every stage.
-func (g Game) killMember(m Member) Game {
-	g.Kills++
-	g.Score += Troops[m.Species].Points * g.Wave.Stage
+// burst is an explosion: sparks when hurt is zero, meteoroids when it is not.
+func (g Game) burst(x, y float64, hurt int) Game {
+	n, life := 5, sparkLife
+	if hurt > 0 {
+		n, life = 6, moteLife
+	}
+	motes := append([]Mote{}, g.Motes...)
+	for i := 0; i < n; i++ {
+		motes = append(motes, Mote{
+			X: x, Y: y,
+			Vx:   (float64(roll(&g.Rand, 9)) - 4) / 10,
+			Vy:   (float64(roll(&g.Rand, 9)) - 4) / 10,
+			Life: life - roll(&g.Rand, 3),
+			Hurt: hurt,
+		})
+	}
+	g.Motes = motes
 	return g
+}
+
+// killAlien scores one of the fleet: its own value, multiplied by how deep the
+// stage is, so the same drone is worth more in a later wave.
+func (g Game) killAlien(a Alien) Game {
+	g.Kills++
+	g.Score += a.Craft().Points * g.Wave.Stage
+	return g.burst(a.X+float64(a.Craft().W)/2, a.Y+float64(a.Craft().H)/2, 0)
+}
+
+// breakStone throws the meteoroids. It scores nothing: a rock is not a kill, and
+// paying for one would make the safest way to farm the game standing still and
+// shooting stones.
+func (g Game) breakStone(s Stone) Game {
+	return g.burst(s.X+float64(Rock.W)/2, s.Y+float64(Rock.H)/2, 1)
 }
 
 func (g Game) killBoss() Game {
 	g.Kills++
 	g.Boss.Alive = false
 	g.Boss.HP = 0
-	g.Score += Ranks[Bosses[g.Boss.Of].Rank-1].Points
-	return g
+	// The arrival banner goes with it. Leaving it up meant a dead boss was still
+	// being announced as coming down, for the rest of the wave.
+	if g.Banner == BannerBoss {
+		g.Banner = ""
+	}
+	g.Score += Ranks[Bosses[clamp(g.Boss.Of, 0, len(Bosses)-1)].Rank-1].Points
+	return g.burst(g.Boss.X+BossCols/2, g.Boss.Y+BossRows/2, 0)
 }
 
 // wound takes life, unless the mole's ability is up.
 func (g Game) wound(hp int) Game {
-	if g.Invuln > 0 {
+	if g.Invuln > 0 || g.Phase == Over {
 		return g
 	}
 	g.HP -= hp
@@ -797,23 +1284,17 @@ func (g Game) wound(hp int) Game {
 	return g
 }
 
-// bookkeep closes a wave when there is nothing left of it, and ends the run when
-// the block lands.
+// bookkeep closes a wave when everything it held is gone, and ends the run when
+// a boss reaches the floor.
 func (g Game) bookkeep() Game {
 	if g.Phase != Playing {
 		return g
 	}
 
-	// They land on you. This is the other way to lose, and the one the arcade
-	// is famous for: bombs whittle you down, but the block arriving is over
-	// whatever life you had left. It is also what stops a slow gun from simply
-	// waiting the wave out.
-	if len(g.Squad.Members) > 0 && g.Squad.Bottom() >= g.Field.ShipRow() {
-		g.HP = 0
-		g.Phase = Over
-		g.Banner = BannerLanded
-		return g
-	}
+	// A boss landing is over, whatever life you had left. The fleet's own ships
+	// only cost life when they get through - it is a wave of individuals and
+	// letting one past should not be the end of a run - but a boss coming down
+	// on top of you is the fight lost.
 	if g.Boss.Alive && int(g.Boss.Y)+BossRows >= g.Field.ShipRow() {
 		g.HP = 0
 		g.Phase = Over
@@ -821,7 +1302,7 @@ func (g Game) bookkeep() Game {
 		return g
 	}
 
-	if len(g.Squad.Members) > 0 || g.Boss.Alive {
+	if g.Released < g.Wave.Count || len(g.Aliens) > 0 || g.Boss.Alive {
 		return g
 	}
 
@@ -839,5 +1320,13 @@ func (g Game) bookkeep() Game {
 	g.Rest = clearedFor
 	g.Shots = nil
 	g.Bombs = nil
+	g.Motes = nil
 	return g
+}
+
+func absf(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }

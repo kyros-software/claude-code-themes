@@ -28,11 +28,23 @@ func drive(g Game, in Key, n int) Game {
 	return g
 }
 
-// pilot is a player: it lines the creature up under whatever is lowest and
-// shoots. Deliberately simple - a person dodges bombs and picks off the flanks
-// to give the block room, and this does neither - so the waves it reaches are a
-// floor and not a forecast.
+// pilot is a player: it lines the ship up under whatever is lowest, shoots,
+// reloads when it is empty and spends a kit when it is hurt. Deliberately simple
+// - a person dodges bombs, picks off the ships that are about to land and saves
+// the ability for a crowd, and this does none of that - so the waves it reaches
+// are a floor and not a forecast.
 func pilot(g Game) Key {
+	if g.Phase == Choosing {
+		// Always the magazine, because the pilot's weakness is standing still
+		// reloading and that is the upgrade that shortens it.
+		return Three
+	}
+	if g.Ammo == 0 && g.Loading == 0 {
+		return Rearm
+	}
+	if g.Kits > 0 && g.HP*2 <= g.Kit.MaxHP {
+		return Heal
+	}
 	if g.Ready == 0 && g.Kit.Special != AbilityVolley {
 		return Ability
 	}
@@ -54,15 +66,16 @@ func pilot(g Game) Key {
 	return Fire
 }
 
+// lowestColumn is whatever is closest to the floor, which is what a pilot with
+// one gun should be shooting at.
 func lowestColumn(g Game) (float64, bool) {
 	if g.Boss.Alive {
 		return g.Boss.X + BossCols/2, true
 	}
-	best, low, found := 0.0, -1, false
-	for _, m := range g.Squad.Members {
-		x, y := g.Squad.At(m)
-		if !found || y > low {
-			best, low, found = float64(x), y, true
+	best, low, found := 0.0, -1.0, false
+	for _, a := range g.Aliens {
+		if !found || a.Y > low {
+			best, low, found = a.X+float64(a.Craft().W)/2, a.Y, true
 		}
 	}
 	return best, found
@@ -142,11 +155,17 @@ func TestARunPlaysItselfUntilTheLadderOutgrowsIt(t *testing.T) {
 		if g.Ship < 0 || g.Ship > g.Field.ShipColMax() {
 			t.Fatalf("tick %d: the creature is at column %d", ticks, g.Ship)
 		}
-		for _, m := range g.Squad.Members {
-			x, y := g.Squad.At(m)
-			if y < 0 || x+TroopCols > g.Field.Cols+cellCols {
-				t.Fatalf("tick %d: a member at %d,%d", ticks, x, y)
+		for _, a := range g.Aliens {
+			if a.Y < 0 || a.X < 0 || a.X+float64(a.Craft().W) > float64(g.Field.Cols) {
+				t.Fatalf("tick %d: a %s at %g,%g of %d columns",
+					ticks, a.Craft().Name, a.X, a.Y, g.Field.Cols)
 			}
+		}
+		if g.Ammo < 0 || g.Ammo > g.Kit.Cap {
+			t.Fatalf("tick %d: %d rounds of %d", ticks, g.Ammo, g.Kit.Cap)
+		}
+		if g.Kits < 0 || g.Kits > kitsMax {
+			t.Fatalf("tick %d: %d kits in the hold", ticks, g.Kits)
 		}
 	}
 	if g.Phase != Over {

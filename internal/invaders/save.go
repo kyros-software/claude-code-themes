@@ -21,6 +21,12 @@ import (
 // multiplications the curve is made of.
 const MaxWave = 10000
 
+// MaxUps is as many upgrades of one kind as a save may claim. Sanity, like
+// MaxWave: they are replayed one at a time when a run resumes, and a corrupt
+// file saying a billion would be a billion trips through boost before the first
+// frame.
+const MaxUps = 500
+
 // Save is a run between sessions, and the records that outlive it.
 //
 // Its own file and not a corner of pet.json: that file has strict
@@ -36,6 +42,14 @@ type Save struct {
 	Runs      int    `json:"runs"`
 	Revived   bool   `json:"revived"`
 	Seed      uint64 `json:"seed"`
+
+	// The upgrades taken in the run, counted by kind. They are here because a
+	// run is quit and resumed all the time - the arena pauses it every turn -
+	// and coming back with the pet's bare kit after building a gun for twenty
+	// waves would read as the game having forgotten.
+	Power int `json:"up_power"`
+	Speed int `json:"up_speed"`
+	Mag   int `json:"up_mag"`
 }
 
 // SavePath is ~/.claude/invaders.json, through config.Dir like everything else.
@@ -71,6 +85,9 @@ func LoadSave(path string) Save {
 		Runs:      asInt(doc["runs"]),
 		Revived:   doc["revived"] == true,
 		Seed:      uint64(asInt(doc["seed"])),
+		Power:     asInt(doc["up_power"]),
+		Speed:     asInt(doc["up_speed"]),
+		Mag:       asInt(doc["up_mag"]),
 	}
 	return s.sane()
 }
@@ -89,6 +106,11 @@ func (s Save) sane() Save {
 			*n = 0
 		}
 	}
+	// The upgrades are replayed one at a time on the way in, so a hand-edited
+	// file saying a million of them would be a million passes through boost.
+	for _, n := range []*int{&s.Power, &s.Speed, &s.Mag} {
+		*n = clamp(*n, 0, MaxUps)
+	}
 	if s.BestWave > MaxWave {
 		s.BestWave = MaxWave
 	}
@@ -98,7 +120,8 @@ func (s Save) sane() Save {
 	return s
 }
 
-// Fresh is wave one at full life, keeping the records and counting the run.
+// Fresh is wave one at full life, keeping the records and counting the run. The
+// upgrades are not kept: they were built by the run that just ended.
 func (s Save) Fresh(maxHP int, seed uint64) Save {
 	return Save{
 		Wave: 1, HP: maxHP,
@@ -126,6 +149,9 @@ func StoreSave(s Save, path string) error {
 	doc["runs"] = s.Runs
 	doc["revived"] = s.Revived
 	doc["seed"] = s.Seed
+	doc["up_power"] = s.Power
+	doc["up_speed"] = s.Speed
+	doc["up_mag"] = s.Mag
 
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {

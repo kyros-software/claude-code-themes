@@ -23,30 +23,82 @@ type Palette struct {
 	Eye    theme.Colour
 }
 
-// Troop is one of the three the arcade came with, drawn in a single cell.
+// Craft is one enemy ship: line art, three to nine cells across, flying on its
+// own and shooting back.
 //
-// One glyph each, and that is the whole sprite. Two bigger drawings were tried
-// and thrown out on the way here: the canvas's own forty, five cells by three,
-// which did not look like Space Invaders at all; and the arcade's real pixel
-// grids packed into half blocks at twelve cells by four, which looked exactly
-// right and were enormous - one of them was three times the creature you steer.
+// This replaced the arcade's marching block, and the block replaced a canvas of
+// forty drawn sprites before it. What each version was for is worth keeping
+// straight. The canvas sprites were five cells by three and did not read as
+// Space Invaders. The block did, at one glyph a member, fifty-five of them
+// stepping down together - and its whole shape is that it moves as ONE thing,
+// so there is exactly one decision on screen at a time.
 //
-// At one cell the silhouette is gone and what is left is a glyph chosen for its
-// shape: a squid with its antennae, a crab with its arms out, an octopus with
-// its legs down. What it buys is the arcade's own arithmetic - eleven columns by
-// five rows, fifty-five of them on the screen at once - and a creature at the
-// bottom that is unmistakably the biggest thing in the game, which is the joke.
-type Troop struct {
+// A fleet is the other game. Ten kinds, each with its own fall, its own drift
+// and its own gun, arriving in ones and twos: what is in front of you is never
+// the same twice, and every ship on the field is a separate thing to read. That
+// is what the reference plays like, and it is what was asked for.
+//
+// Every row is exactly W cells wide - TestEverySpriteIsTheWidthItClaims says so
+// - because the painter blits rows and a short row would leave the hull open.
+type Craft struct {
 	Name, Desc string
-	Points     int    // the arcade's own: 30 for the squid, 20, 10
-	Glyph      string // one cell, and TestEverySpriteIsTheWidthItClaims says so
+	Rows       []string
+	W, H       int
+	HP         int     // before the wave's own bonus
+	Fall       float64 // rows per tick
+	Drift      float64 // cells per tick, sideways, bouncing off the walls
+	Cadence    int     // ticks between its shots
+	Points     int
+	Stage      int // the first stage it turns up in
 }
 
-// Troops are the three, in the order the arcade stacks them: the squid on top.
-var Troops = []Troop{
-	{Name: "squid", Desc: "antennae up, the narrow one at the top", Points: 30, Glyph: "\u03a8"},
-	{Name: "crab", Desc: "arms out sideways", Points: 20, Glyph: "\u0416"},
-	{Name: "octopus", Desc: "the wide one, legs down", Points: 10, Glyph: "\u0429"},
+// Fleet is the ten, in the order they are unlocked. A wave draws from those
+// whose Stage it has reached, so wave one is drones and wasps and by stage
+// eight the whole zoo is out - the same progression the block had through its
+// colours, except now the shapes change too.
+var Fleet = []Craft{
+	{Name: "zángano", Desc: "el que llega primero, y el que menos vale", Stage: 1,
+		W: 3, H: 2, HP: 1, Fall: 0.06, Drift: 0.12, Cadence: 90, Points: 10,
+		Rows: []string{"_^_", "<o>"}},
+	{Name: "avispa", Desc: "rápida de lado, no aguanta nada", Stage: 1,
+		W: 5, H: 2, HP: 1, Fall: 0.09, Drift: 0.25, Cadence: 80, Points: 15,
+		Rows: []string{"\\_ _/", "<ooo>"}},
+	{Name: "lanza", Desc: "baja recta y deprisa", Stage: 2,
+		W: 3, H: 3, HP: 2, Fall: 0.13, Drift: 0.04, Cadence: 70, Points: 20,
+		Rows: []string{" ^ ", "/o\\", " v "}},
+	{Name: "arpía", Desc: "cruza mientras cae", Stage: 3,
+		W: 5, H: 3, HP: 2, Fall: 0.07, Drift: 0.30, Cadence: 60, Points: 25,
+		Rows: []string{" ^^^ ", "<-o->", " v v "}},
+	{Name: "tejedora", Desc: "la que no está donde apuntaste", Stage: 4,
+		W: 5, H: 3, HP: 3, Fall: 0.06, Drift: 0.36, Cadence: 65, Points: 30,
+		Rows: []string{"/\\ /\\", "(-o-)", "\\/ \\/"}},
+	{Name: "cazador", Desc: "dispara más que ninguno de su tamaño", Stage: 5,
+		W: 7, H: 3, HP: 3, Fall: 0.08, Drift: 0.20, Cadence: 50, Points: 35,
+		Rows: []string{"\\__ __/", "-<ooo>-", "/  v  \\"}},
+	{Name: "yunque", Desc: "lento y duro: hay que dedicarle tiempo", Stage: 5,
+		W: 7, H: 3, HP: 5, Fall: 0.04, Drift: 0.10, Cadence: 75, Points: 40,
+		Rows: []string{".-----.", "|o-o-o|", "'--v--'"}},
+	{Name: "mantis", Desc: "cae a plomo y dispara al caer", Stage: 6,
+		W: 5, H: 4, HP: 5, Fall: 0.10, Drift: 0.22, Cadence: 45, Points: 45,
+		Rows: []string{" ^ ^ ", "\\o o/", " \\_/ ", "  v  "}},
+	{Name: "coraza", Desc: "seis impactos, y ni se despeina", Stage: 7,
+		W: 7, H: 4, HP: 6, Fall: 0.05, Drift: 0.12, Cadence: 55, Points: 55,
+		Rows: []string{"___ ___", "[o-o-o]", "'-|-|-'", "  v v  "}},
+	{Name: "abisal", Desc: "el más grande que no es un jefe", Stage: 8,
+		W: 9, H: 4, HP: 8, Fall: 0.04, Drift: 0.16, Cadence: 40, Points: 80,
+		Rows: []string{"/^\\   /^\\", "<-o---o->", " \\_|_|_/ ", "   v v   "}},
+}
+
+// Rock is an asteroid: it does not shoot and it does not aim, it just comes
+// down - and when it breaks it throws meteoroids at everything, including at
+// whatever alien happened to be underneath it.
+//
+// Straight from the reference, and worth stealing: it is the one thing on the
+// field that is not on anybody's side.
+var Rock = Craft{
+	Name: "roca", Desc: "no dispara, pero al romperse reparte",
+	W: 5, H: 3, HP: 4, Fall: 0.05, Drift: 0.08, Points: 25,
+	Rows: []string{" .-. ", "(o o)", " '-' "},
 }
 
 // Boss is one of the thirty-five: five rows of nine cells, two leg frames.

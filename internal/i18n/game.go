@@ -15,6 +15,7 @@ type Game struct {
 	HUDLife    string
 	HUDAbility string
 	HUDReady   string
+	Reloading  string
 
 	// The banners.
 	Paused         string
@@ -31,6 +32,11 @@ type Game struct {
 	// a level will read the panel tomorrow and think the theme has a bug.
 	LostALevel string // takes the level it dropped to
 	Records    string // takes the best wave, the best score and the runs
+	// LevelUp is the three-way choice the score buys, and GotKit is a health
+	// kit caught. Both are banners, so both have to fit on one row at sixty
+	// columns.
+	LevelUp string
+	GotKit  string
 
 	// The refusals.
 	TooSmall string // takes the columns and rows wanted, then the ones there are
@@ -43,16 +49,24 @@ type Game struct {
 	ArenaUsage string
 	NoTerminal string
 
-	// The help row.
-	Help string
+	// The help row, twice: the whole thing, and one that fits in a narrow
+	// window. The renderer prints the longest that fits rather than truncating,
+	// because a key row that ends mid-word has stopped being a key row - and
+	// with a magazine and a health kit to explain, the full one is ninety
+	// columns in Spanish.
+	Help  string
+	Tight string
 
 	// Families is one name per weapon family, keyed by the id in
-	// internal/invaders/kit.go, and Traits one per enemy trait. Maps and not
-	// fields because the ids belong to the resolver and the bestiary; a name
-	// missing from either is caught by the guards in strings_test.go, which
-	// learned to walk a map the day this file arrived.
+	// internal/invaders/kit.go. A map and not thirteen fields because the ids
+	// belong to the resolver; a name missing from either language is caught by
+	// the guards in strings_test.go, which learned to walk a map the day this
+	// file arrived.
+	//
+	// The enemies are NOT here. The fleet and the thirty-five bosses carry the
+	// names they were drawn with, the way a Zaku is a Zaku in every language:
+	// translating "zángano" would be translating a proper noun.
 	Families map[string]string
-	Traits   map[string]string
 }
 
 // G is the game's catalogue for the language in use.
@@ -70,6 +84,7 @@ var spanishGame = Game{
 	HUDLife:    "vida",
 	HUDAbility: "habilidad",
 	HUDReady:   "lista",
+	Reloading:  "recargando",
 
 	Paused:         "en pausa",
 	PausedByClaude: "en pausa: Claude ha terminado de responder",
@@ -82,6 +97,8 @@ var spanishGame = Game{
 	GameOver:       "fin de la partida en la oleada %d",
 	LostALevel:     "tu bicho baja al nivel %d",
 	Records:        "mejor oleada %d · mejores puntos %d · partidas %d",
+	LevelUp:        "mejora: 1 potencia · 2 cadencia · 3 cargador",
+	GotKit:         "botiquín a bordo · e para gastarlo",
 
 	TooSmall: "hacen falta %dx%d y este terminal es %dx%d",
 	NoTTY:    "invade necesita un terminal de verdad, no una tubería",
@@ -92,7 +109,8 @@ var spanishGame = Game{
 	ArenaUsage: "uso: ccpet arena [on|off]",
 	NoTerminal: "no hay ningún emulador de terminal en el que abrir el juego (o dime cuál con CCPET_ARENA_TERM)",
 
-	Help: "←→ mover · ↓ parar · espacio disparar · x habilidad · p pausa · q salir",
+	Help:  "←→ mover · ↓ parar · espacio tirar · x habilidad · r recargar · e curar · p pausa · q salir",
+	Tight: "←→ · ␣ tiro · x poder · r carga · e cura · p pausa · q salir",
 
 	Families: map[string]string{
 		"single":   "único",
@@ -109,13 +127,6 @@ var spanishGame = Game{
 		"phoenix":  "fénix",
 		"chimera":  "quimera",
 	},
-	Traits: map[string]string{
-		"plain":    "recto",
-		"weaver":   "ondulante",
-		"darter":   "lanzado",
-		"plated":   "blindado",
-		"splitter": "divisible",
-	},
 }
 
 var englishGame = Game{
@@ -125,6 +136,7 @@ var englishGame = Game{
 	HUDLife:    "life",
 	HUDAbility: "ability",
 	HUDReady:   "ready",
+	Reloading:  "reloading",
 
 	Paused:         "paused",
 	PausedByClaude: "paused: Claude has finished answering",
@@ -137,6 +149,8 @@ var englishGame = Game{
 	GameOver:       "game over on wave %d",
 	LostALevel:     "your creature drops to level %d",
 	Records:        "best wave %d · best score %d · runs %d",
+	LevelUp:        "upgrade: 1 power · 2 rate · 3 magazine",
+	GotKit:         "health kit aboard · e to use it",
 
 	TooSmall: "needs %dx%d and this terminal is %dx%d",
 	NoTTY:    "invade needs a real terminal, not a pipe",
@@ -147,7 +161,8 @@ var englishGame = Game{
 	ArenaUsage: "usage: ccpet arena [on|off]",
 	NoTerminal: "no terminal emulator here to open the game in (or name one in CCPET_ARENA_TERM)",
 
-	Help: "←→ move · ↓ stop · space fire · x ability · p pause · q quit",
+	Help:  "←→ move · ↓ stop · space fire · x ability · r reload · e heal · p pause · q quit",
+	Tight: "←→ · ␣ fire · x power · r load · e heal · p pause · q quit",
 
 	Families: map[string]string{
 		"single":   "single",
@@ -163,12 +178,5 @@ var englishGame = Game{
 		"overload": "overload",
 		"phoenix":  "phoenix",
 		"chimera":  "chimera",
-	},
-	Traits: map[string]string{
-		"plain":    "straight",
-		"weaver":   "weaving",
-		"darter":   "darting",
-		"plated":   "plated",
-		"splitter": "splitting",
 	},
 }

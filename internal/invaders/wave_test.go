@@ -2,278 +2,205 @@ package invaders
 
 import "testing"
 
-// The creature runs along the floor and the block comes down at it. This is the
-// geometry every other test in here assumes.
-func TestTheCreatureStandsOnTheFloorAndTheBlockStartsAtTheTop(t *testing.T) {
+// The ship stands on the floor and the fleet arrives at the top, which is the
+// whole geometry of the thing.
+func TestTheShipStandsOnTheFloorAndTheFleetArrivesAtTheTop(t *testing.T) {
 	f := aField(t, 80, 24)
 	if f.Rows != 24-HUDRows-HelpRows {
-		t.Fatalf("the field is %d rows of a 24 row terminal", f.Rows)
+		t.Errorf("a 24-row terminal gives a field of %d rows", f.Rows)
+	}
+	if got, want := f.ShipRow(), f.Rows-ShipRows; got != want {
+		t.Errorf("the ship starts at row %d, want %d", got, want)
 	}
 	if f.ShipRow()+ShipRows != f.Rows {
-		t.Errorf("the creature sits at row %d of %d and is %d tall", f.ShipRow(), f.Rows, ShipRows)
+		t.Error("the ship does not reach the floor")
 	}
-	if f.ShipColMax()+ShipCols != f.Cols {
-		t.Errorf("the creature may reach column %d of %d", f.ShipColMax(), f.Cols)
-	}
-
-	fm := NewFormation(WaveFor(1, f), f)
-	if fm.Y != 0 {
-		t.Errorf("the block starts at row %v", fm.Y)
-	}
-	if fm.Bottom() >= f.ShipRow() {
-		t.Errorf("the block starts already on top of the creature: %d against %d",
-			fm.Bottom(), f.ShipRow())
-	}
-	left, right := fm.Edges()
-	if left < 0 || right > f.Cols {
-		t.Errorf("the block starts spanning %d..%d of %d columns", left, right, f.Cols)
+	if got := f.ShipColMax(); got != f.Cols-ShipCols {
+		t.Errorf("the ship may reach column %d of %d", got, f.Cols)
 	}
 }
 
-// Below the floor it refuses rather than drawing a mess.
+// A terminal below the floor is refused rather than drawn badly: half a game in
+// a window too small to dodge in is worse than a sentence saying so.
 func TestAFieldSmallerThanTheFloorIsRefusedAndNotDrawn(t *testing.T) {
-	for _, c := range [][2]int{{59, 24}, {80, 17}, {0, 0}, {-1, -1}} {
-		if f, ok := FieldFor(c[0], c[1]); ok {
-			t.Errorf("%dx%d was accepted as %+v", c[0], c[1], f)
+	for _, c := range [][2]int{{59, 24}, {80, 17}, {40, 10}, {0, 0}} {
+		if _, ok := FieldFor(c[0], c[1]); ok {
+			t.Errorf("%dx%d was accepted and the floor is %dx%d",
+				c[0], c[1], MinCols, MinRows)
 		}
 	}
-	for _, c := range [][2]int{{MinCols, MinRows}, {80, 24}, {200, 60}} {
-		if _, ok := FieldFor(c[0], c[1]); !ok {
-			t.Errorf("%dx%d was refused", c[0], c[1])
-		}
-	}
-}
-
-// The block is the same shape of problem in a narrow window as in a wide one,
-// and it always fits: eleven columns is the arcade's number and the most this
-// will draw, four the fewest that still reads as a formation.
-func TestTheBlockFitsEveryTerminalItAccepts(t *testing.T) {
-	for cols := MinCols; cols <= 200; cols++ {
-		for _, rows := range []int{MinRows, 24, 40, 60} {
-			f := aField(t, cols, rows)
-			if got := f.FormationCols(); got < 4 || got > 11 {
-				t.Fatalf("%dx%d: %d columns", cols, rows, got)
-			}
-			if got := f.FormationRows(); got < 2 || got > 5 {
-				t.Fatalf("%dx%d: %d rows", cols, rows, got)
-			}
-			if f.BlockCols() > f.Cols {
-				t.Fatalf("%dx%d: the block is %d cells wide", cols, rows, f.BlockCols())
-			}
-			fm := NewFormation(WaveFor(1, f), f)
-			if fm.Bottom() >= f.ShipRow() {
-				t.Fatalf("%dx%d: the block starts on the creature", cols, rows)
-			}
-		}
+	if _, ok := FieldFor(MinCols, MinRows); !ok {
+		t.Errorf("%dx%d is the floor and it was refused", MinCols, MinRows)
 	}
 }
 
-// There is no last wave, so there is no n the recipe may refuse - including the
-// clamp at the top, which a corrupt save can reach.
+// The biggest ship in the fleet has to fit in the narrowest terminal, with room
+// left to get out from under it.
+func TestTheWholeFleetFitsEveryTerminalItAccepts(t *testing.T) {
+	f := aField(t, MinCols, MinRows)
+	for _, c := range append(append([]Craft{}, Fleet...), Rock) {
+		if c.W > f.Cols/2 {
+			t.Errorf("%s is %d cells wide in a field of %d: there is nowhere to dodge",
+				c.Name, c.W, f.Cols)
+		}
+		if c.H > f.ShipRow()/2 {
+			t.Errorf("%s is %d rows tall and the ship is at row %d", c.Name, c.H, f.ShipRow())
+		}
+	}
+	if BossCols > f.Cols/3 || BossRows > f.ShipRow()/2 {
+		t.Errorf("a boss is %dx%d in a field of %dx%d", BossCols, BossRows, f.Cols, f.Rows)
+	}
+}
+
+// There is no last wave, so there is no wave the recipe may refuse: a run that
+// gets further than anybody expected must not walk into a division by zero.
 func TestEveryWaveGeneratesNoMatterHowFarYouGet(t *testing.T) {
 	f := aField(t, 80, 24)
-	for _, n := range []int{-5, 0, 1, 2, 99, 100, 1000, MaxWave, MaxWave + 1} {
+	for _, n := range []int{1, 2, 5, 19, 100, 999, 5000, MaxWave, MaxWave + 1, 0, -7} {
 		w := WaveFor(n, f)
-		if w.HP < 1 || w.Step < 1 || w.Drop < 1 {
-			t.Errorf("wave %d came out as %+v", n, w)
+		if w.Count < 1 {
+			t.Errorf("wave %d releases %d ships", n, w.Count)
 		}
-		if len(w.Species) != f.FormationRows() {
-			t.Errorf("wave %d lines up %d rows for a field that holds %d",
-				n, len(w.Species), f.FormationRows())
+		if w.Every < 1 {
+			t.Errorf("wave %d releases one every %d ticks", n, w.Every)
 		}
-		for _, s := range w.Species {
-			if s < 0 || s >= len(Troops) {
-				t.Errorf("wave %d fields species %d of %d", n, s, len(Troops))
+		if w.Stage < 1 || w.Stage > stagesDeep {
+			t.Errorf("wave %d is stage %d", n, w.Stage)
+		}
+		if len(w.Unlocked()) == 0 {
+			t.Errorf("wave %d has nothing to draw from", n)
+		}
+		for _, of := range w.Unlocked() {
+			if of < 0 || of >= len(Fleet) {
+				t.Errorf("wave %d may spawn ship %d of %d", n, of, len(Fleet))
 			}
 		}
 	}
 }
 
-// A boss every fifth wave, for ever, and one of the canvas's thirty-five.
+// A boss every fifth wave, for ever: there is no final boss because there is no
+// final wave, so what closes a wave is a checkpoint rather than an ending.
 func TestABossStandsOnEveryFifthWaveForever(t *testing.T) {
 	f := aField(t, 80, 24)
-	for n := 1; n <= 2000; n++ {
+	for n := 1; n <= 500; n++ {
 		w := WaveFor(n, f)
-		if got, want := w.Boss, n%5 == 0; got != want {
-			t.Fatalf("wave %d: boss = %v, want %v", n, got, want)
+		if want := n%5 == 0; w.Boss != want {
+			t.Fatalf("wave %d: boss=%v, want %v", n, w.Boss, want)
 		}
-		if w.Boss && (w.BossOf < 0 || w.BossOf >= len(Bosses)) {
-			t.Fatalf("wave %d fields boss %d of %d", n, w.BossOf, len(Bosses))
+		if !w.Boss {
+			continue
+		}
+		if w.BossHP <= 0 {
+			t.Errorf("wave %d has a boss with %d hp", n, w.BossHP)
+		}
+		if w.BossOf < 0 || w.BossOf >= len(Bosses) {
+			t.Errorf("wave %d wants boss %d of %d", n, w.BossOf, len(Bosses))
+		}
+		// A boss and a full wave at once is noise, not a fight.
+		if w.Count > 6 {
+			t.Errorf("wave %d puts a boss and %d ships on the field", n, w.Count)
 		}
 	}
 }
 
-// The ranks climb with the waves, so the first bosses you meet are the canvas's
-// larvae and the ones deep in a run are the four it calls jefes.
+// The ranks climb with the waves, so the first bosses are the canvas's larvae
+// and the four it calls jefes turn up while a run is still going.
 func TestTheBossRanksClimbWithTheWaves(t *testing.T) {
 	f := aField(t, 80, 24)
-	prev := 0
-	for n := 5; n <= 5*len(Bosses); n += 5 {
-		rank := Bosses[WaveFor(n, f).BossOf].Rank
-		if rank < prev {
-			t.Errorf("wave %d fields a rank %d boss after a rank %d", n, rank, prev)
+	first := Bosses[WaveFor(5, f).BossOf].Rank
+	last := Bosses[WaveFor(120, f).BossOf].Rank
+	if first != 1 {
+		t.Errorf("the first boss is rank %d, want the larvae", first)
+	}
+	if last <= first {
+		t.Errorf("wave 120's boss is rank %d and wave 5's was %d", last, first)
+	}
+	best := 0
+	for n := 5; n <= 200; n += 5 {
+		if r := Bosses[WaveFor(n, f).BossOf].Rank; r > best {
+			best = r
 		}
-		prev = rank
 	}
-	if got := Bosses[WaveFor(5, f).BossOf].Rank; got != 1 {
-		t.Errorf("the first boss is rank %d, want a larva", got)
-	}
-	// And the top rank arrives while a run is still going, rather than after
-	// forty-five waves of larvae.
-	if got := Bosses[WaveFor(30, f).BossOf].Rank; got != len(Ranks) {
-		t.Errorf("wave 30 fields a rank %d boss, want the canvas's jefes by then", got)
+	if best != len(Ranks) {
+		t.Errorf("the deepest rank a run reaches is %d of %d", best, len(Ranks))
 	}
 }
 
-// The ladder only ever goes up.
+// The ladder never gets easier. Three axes climb and none of them may dip, or
+// there is a wave somewhere that is a rest.
 func TestTheLadderNeverGetsEasier(t *testing.T) {
 	f := aField(t, 80, 24)
 	prev := WaveFor(1, f)
 	for n := 2; n <= 2000; n++ {
 		w := WaveFor(n, f)
-		if w.HP < prev.HP || w.Step > prev.Step || w.Drop > prev.Drop {
-			t.Fatalf("wave %d is easier than %d:\n%+v\n%+v", n, n-1, w, prev)
+		if w.Tough < prev.Tough {
+			t.Fatalf("wave %d ships are softer than wave %d's", n, n-1)
+		}
+		if w.Haste < prev.Haste {
+			t.Fatalf("wave %d comes down slower than wave %d", n, n-1)
+		}
+		if w.Every > prev.Every {
+			t.Fatalf("wave %d releases slower than wave %d", n, n-1)
+		}
+		if !w.Boss && !prev.Boss && w.Count < prev.Count {
+			t.Fatalf("wave %d is %d ships and wave %d was %d", n, w.Count, n-1, prev.Count)
 		}
 		prev = w
 	}
-	if WaveFor(MaxWave, f).HP <= WaveFor(200, f).HP {
-		t.Error("the swarm's HP has a ceiling, which means a run has no ending")
+}
+
+// Two axes are capped and one is not, and that asymmetry is the design. Speed
+// and pace are capped because faster stops being harder and starts being
+// unreadable; the toughness is not, and that is the wall a run ends against.
+func TestTwoAxesAreCappedAndTheOneThatEndsRunsIsNot(t *testing.T) {
+	f := aField(t, 80, 24)
+	deep := WaveFor(MaxWave, f)
+	if deep.Haste > hasteCap {
+		t.Errorf("at wave %d the fleet moves at %g times its speed", MaxWave, deep.Haste)
+	}
+	if deep.Every < releaseFloor {
+		t.Errorf("at wave %d a ship arrives every %d ticks", MaxWave, deep.Every)
+	}
+	if deep.Count > countCap {
+		t.Errorf("at wave %d there are %d ships to allocate", MaxWave, deep.Count)
+	}
+	if deep.Tough <= WaveFor(100, f).Tough {
+		t.Error("the toughness stopped climbing, so nothing ends a run")
 	}
 }
 
-// A wave is a thing you can learn: wave twelve is the same twelve every time you
-// reach it, whatever seed the run is on.
-func TestAWaveIsTheSameLineUpEveryTimeYouReachIt(t *testing.T) {
+// The same wave twice is the same wave: the recipe is pure in the number and the
+// field, so a run resumed off disk is the wave it left.
+func TestAWaveIsTheSameRecipeEveryTimeYouReachIt(t *testing.T) {
 	f := aField(t, 80, 24)
-	for n := 1; n <= 60; n++ {
-		a, b := WaveFor(n, f), WaveFor(n, f)
-		for i := range a.Species {
-			if a.Species[i] != b.Species[i] {
-				t.Fatalf("wave %d is not the same twice", n)
+	for _, n := range []int{1, 3, 5, 40, 41} {
+		if a, b := WaveFor(n, f), WaveFor(n, f); a != b {
+			t.Errorf("wave %d came out twice: %+v and %+v", n, a, b)
+		}
+	}
+}
+
+// The fleet is unlocked stage by stage, and a wave never draws from a ship it has
+// not reached.
+func TestNoWaveDrawsFromAShipItHasNotUnlocked(t *testing.T) {
+	f := aField(t, 80, 24)
+	was := 0
+	for n := 1; n <= 200; n++ {
+		w := WaveFor(n, f)
+		pool := w.Unlocked()
+		if len(pool) < was {
+			t.Fatalf("wave %d may draw from %d ships and wave %d could use %d",
+				n, len(pool), n-1, was)
+		}
+		was = len(pool)
+		for _, of := range pool {
+			if Fleet[of].Stage > w.Stage {
+				t.Fatalf("wave %d is stage %d and may spawn %s, which is stage %d",
+					n, w.Stage, Fleet[of].Name, Fleet[of].Stage)
 			}
 		}
 	}
-}
-
-// The three stack the way the arcade stacks them, and what a later wave changes
-// is the colour and the price rather than the shape. That is the trade made by
-// using the arcade's bestiary instead of forty of our own.
-func TestTheThreeStackTheWayTheArcadeStacksThem(t *testing.T) {
-	f := aField(t, 80, 40)
-	w := WaveFor(41, f)
-	if len(w.Species) < 3 {
-		t.Fatalf("only %d rows to check", len(w.Species))
-	}
-	for i, want := range []string{"squid", "crab", "crab"} {
-		if got := Troops[w.Species[i]].Name; got != want {
-			t.Errorf("row %d is a %s, want a %s", i, got, want)
-		}
-	}
-	for _, s := range w.Species[3:] {
-		if Troops[s].Name != "octopus" {
-			t.Errorf("the rows under the crabs are %s, want octopuses", Troops[s].Name)
-		}
-	}
-
-	// The line-up does not change with the wave; the stage does.
-	early, late := WaveFor(1, f), WaveFor(41, f)
-	for i := range early.Species {
-		if early.Species[i] != late.Species[i] {
-			t.Error("the shapes change with the wave, which the arcade's three do not")
-		}
-	}
-	if late.Stage <= early.Stage {
-		t.Errorf("wave 41 is stage %d and wave 1 is stage %d", late.Stage, early.Stage)
-	}
-}
-
-// A squid is worth three octopuses, at every stage, which is the arcade's own
-// arithmetic and the reason to shoot the top row first.
-func TestTheTopRowPaysBest(t *testing.T) {
-	f := aField(t, 80, 40)
-	g := NewGame(f, "spark", 1, Save{Wave: 21, Seed: 1}) // not a multiple of five: a boss wave has no block
-
-	byName := map[string]int{}
-	for _, m := range g.Squad.Members {
-		before := g
-		after := before.killMember(m)
-		byName[Troops[m.Species].Name] = after.Score - before.Score
-	}
-	if byName["squid"] <= byName["crab"] || byName["crab"] <= byName["octopus"] {
-		t.Errorf("a squid pays %d, a crab %d, an octopus %d",
-			byName["squid"], byName["crab"], byName["octopus"])
-	}
-	// And a deeper stage pays more for the same species.
-	shallow := NewGame(f, "spark", 1, Save{Wave: 1, Seed: 1})
-	deep := NewGame(f, "spark", 1, Save{Wave: 41, Seed: 1})
-	one := func(g Game) int {
-		for _, m := range g.Squad.Members {
-			if Troops[m.Species].Name == "octopus" {
-				return g.killMember(m).Score - g.Score
-			}
-		}
-		return 0
-	}
-	if one(deep) <= one(shallow) {
-		t.Errorf("an octopus pays %d on wave 1 and %d on wave 41", one(shallow), one(deep))
-	}
-}
-
-// The block walks sideways and steps down at the walls. That is the whole of its
-// movement and the reason the game has a clock.
-func TestTheBlockWalksSidewaysAndStepsDownAtTheWalls(t *testing.T) {
-	g := aGame(t, "spark", 1)
-	startY := g.Squad.Y
-	moved, dropped := false, false
-
-	for i := 0; i < 6000 && !dropped; i++ {
-		before := g.Squad.X
-		g = Tick(g, None)
-		if g.Squad.X != before {
-			moved = true
-		}
-		if g.Squad.Y > startY {
-			dropped = true
-		}
-	}
-	if !moved {
-		t.Error("the block never moved sideways")
-	}
-	if !dropped {
-		t.Error("the block never stepped down")
-	}
-}
-
-// The last few always come down fast. It is the arcade's most famous accident
-// and it is kept on purpose: an empty screen must not be a slow one.
-func TestAnEmptyingBlockComesDownFaster(t *testing.T) {
-	w := WaveFor(1, aField(t, 80, 24))
-	full := StepEvery(w, 33, 33)
-	few := StepEvery(w, 3, 33)
-	if few >= full {
-		t.Errorf("a full block steps every %d ticks and the last three every %d", full, few)
-	}
-	if few < 2 {
-		t.Errorf("the last of them step every %d ticks, which is faster than a frame", few)
-	}
-}
-
-// Clearing a flank gives the rest of the block the whole screen, which is what
-// makes shooting the edges first a tactic rather than a habit.
-func TestClearingAFlankLetsTheRestUseTheScreen(t *testing.T) {
-	f := aField(t, 80, 24)
-	fm := NewFormation(WaveFor(1, f), f)
-	_, wide := fm.Edges()
-
-	cols := f.FormationCols()
-	next := make([]Member, 0, len(fm.Members))
-	for _, m := range fm.Members {
-		if m.Col != cols-1 {
-			next = append(next, m)
-		}
-	}
-	fm.Members = next
-	if _, narrow := fm.Edges(); narrow >= wide {
-		t.Errorf("dropping the right flank left the right edge at %d, was %d", narrow, wide)
+	if was != len(Fleet) {
+		t.Errorf("after two hundred waves only %d of the %d ships are out", was, len(Fleet))
 	}
 }

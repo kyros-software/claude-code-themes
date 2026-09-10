@@ -49,6 +49,18 @@ func Decode(buf []byte) (k Key, n int) {
 		return Fire, 1
 	case 'x', 'X', 'z', 'Z':
 		return Ability, 1
+	case 'r', 'R':
+		return Rearm, 1
+	case 'e', 'E', 'f', 'F':
+		// e for the kit, and f as well: the reference's own README names both,
+		// and somebody who has played that one will try f.
+		return Heal, 1
+	case '1':
+		return One, 1
+	case '2':
+		return Two, 1
+	case '3':
+		return Three, 1
 	case 'p', 'P':
 		return Pause, 1
 	case 'q', 'Q', 0x03: // q and Ctrl-C

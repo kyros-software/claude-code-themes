@@ -4,7 +4,7 @@
 //
 //	ccpet statusline    read a refresh payload on stdin, print the footer
 //	ccpet hook          read a hook payload on stdin, turn it into food
-//	ccpet invade        space invaders: the pet you have is the cannon
+//	ccpet invade        the shooter: the pet you have is the cannon
 //	ccpet arena on|off  let the game open itself while Claude works
 //	ccpet               the pet's panel
 //	ccpet feed|tests|commit|compact|task|overflow      a meal

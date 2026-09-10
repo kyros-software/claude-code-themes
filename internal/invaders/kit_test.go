@@ -68,6 +68,7 @@ func TestNoLevelEverMakesAFormWeaker(t *testing.T) {
 				{"spike", was.Spike, now.Spike},
 				{"max hp", was.MaxHP, now.MaxHP},
 				{"regen", was.Regen, now.Regen},
+				{"magazine", was.Cap, now.Cap},
 			} {
 				if c.now < c.was {
 					t.Errorf("%s at level %d lost %s: %d, was %d",
@@ -77,6 +78,14 @@ func TestNoLevelEverMakesAFormWeaker(t *testing.T) {
 			if now.Cadence > was.Cadence {
 				t.Errorf("%s at level %d fires slower: cadence %d, was %d",
 					form, level, now.Cadence, was.Cadence)
+			}
+			// NOT the reload on its own: a bigger magazine takes longer to
+			// fill, and that is not a worse gun. What may never get worse is the
+			// SUSTAINED rate - rounds per tick counting the reload - which is
+			// the number the player actually feels.
+			if sustained(now) < sustained(was) {
+				t.Errorf("%s at level %d fires slower over a magazine: %g, was %g",
+					form, level, sustained(now), sustained(was))
 			}
 			if now.Cooldown > was.Cooldown {
 				t.Errorf("%s at level %d waits longer for its ability: %d, was %d",
@@ -246,4 +255,33 @@ func TestOnlyThePhoenixCarriesTheRevival(t *testing.T) {
 			t.Errorf("%s revives = %v", form, revives)
 		}
 	}
+}
+
+// The magazine is part of the kit, so it has to be sane for all forty-one at
+// every level: a gun with no rounds cannot fire and a reload of zero is a gun
+// that never has to stop.
+func TestEveryFormHasAMagazineItCanEmptyAndFill(t *testing.T) {
+	for form := range pet.Sprites {
+		for level := 1; level <= levels(); level++ {
+			k := KitFor(form, level)
+			if k.Cap < 4 {
+				t.Errorf("%s at level %d carries %d rounds", form, level, k.Cap)
+			}
+			if k.Reload < 20 {
+				t.Errorf("%s at level %d reloads in %d ticks, which is no cost at all",
+					form, level, k.Reload)
+			}
+			// A magazine has to outlast the cadence, or the gun spends its life
+			// reloading and the cadence stops meaning anything.
+			if k.Cap*k.Cadence < k.Reload {
+				t.Errorf("%s at level %d empties in %d ticks and reloads in %d",
+					form, level, k.Cap*k.Cadence, k.Reload)
+			}
+		}
+	}
+}
+
+// sustained is rounds per tick over a whole magazine and the reload after it.
+func sustained(k Kit) float64 {
+	return float64(k.Cap) / float64(k.Cap*k.Cadence+k.Reload)
 }

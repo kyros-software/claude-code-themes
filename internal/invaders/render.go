@@ -10,13 +10,10 @@ import (
 )
 
 // Grid to painted lines. Everything that emits colour goes through
-// internal/theme, and the creature at the bottom is drawn by internal/pet, whose
-// own tests already guarantee every row is nine cells wide in every state.
+// internal/theme, and nothing here knows what a terminal is: Render returns
+// lines, which is what lets the width guard run without a tty.
 
 // Render is the whole screen: one HUD row, the field, one help row.
-//
-// It returns lines and writes nothing, which is what lets the width guard run
-// without a terminal.
 func Render(g Game, cols int) []string {
 	out := make([]string, 0, g.Field.Rows+HUDRows+HelpRows)
 	out = append(out, hud(g, cols))
@@ -30,6 +27,7 @@ func hud(g Game, cols int) string {
 		theme.Fg(theme.Emph) + fmt.Sprintf(w.HUDWave, g.Wave.N) + theme.Reset,
 		theme.Fg(theme.Bad) + "♥" + theme.Reset + " " +
 			theme.Bar(float64(g.HP), float64(g.Kit.MaxHP), 8, theme.Bad, theme.Empty),
+		magazine(g, w),
 		theme.Fg(theme.Number) + fmt.Sprintf(w.HUDScore, g.Score) + theme.Reset,
 		theme.Fg(pet.RampOf(g.Form).Body[0]) +
 			pet.NameIn(i18n.Current(), g.Form) + theme.Reset +
@@ -37,12 +35,42 @@ func hud(g Game, cols int) string {
 			theme.Fg(theme.Ident) + familyName(g.Kit) + theme.Reset,
 		ability(g, w),
 	}
-	if g.Wave.Boss {
-		parts = append(parts[:2:2],
-			append([]string{theme.Fg(theme.Bad) + theme.Bold + w.HUDBoss + theme.Reset},
-				parts[2:]...)...)
+	if g.Kits > 0 {
+		// Only when you have one: a permanent "kits 0" is a line of HUD spent
+		// saying nothing.
+		parts = append(parts[:3:3], append([]string{
+			theme.Fg(theme.Ident) + fmt.Sprintf("✚%d", g.Kits) + theme.Reset,
+		}, parts[3:]...)...)
+	}
+	if g.Wave.Boss && g.Boss.Alive {
+		// The boss's own life, next to the word: a fight against ninety hit
+		// points with no bar is a fight you cannot tell you are winning. The
+		// sprite's colour ramp says the same thing, and says it too slowly.
+		boss := theme.Fg(theme.Bad) + theme.Bold + w.HUDBoss + theme.Reset + " " +
+			theme.Bar(float64(g.Boss.HP), float64(max(g.Boss.MaxHP, 1)), 6, theme.Bad, theme.Empty)
+		parts = append(parts[:2:2], append([]string{boss}, parts[2:]...)...)
 	}
 	return joinFit(parts, cols)
+}
+
+// magazine is the rounds you have left, or the reload you are waiting out. It is
+// third in the HUD, ahead of the score, because it is the number you have to
+// know before you press anything.
+func magazine(g Game, w i18n.Game) string {
+	if g.Loading > 0 {
+		left := float64(g.Kit.Reload-g.Loading) / float64(max(g.Kit.Reload, 1))
+		return theme.Fg(theme.Dim) + w.Reloading + theme.Reset + " " +
+			theme.Bar(left, 1, 6, theme.Number, theme.Empty)
+	}
+	ink := theme.Ident
+	if g.Ammo*3 <= g.Kit.Cap {
+		ink = theme.Number
+	}
+	if g.Ammo == 0 {
+		ink = theme.Bad
+	}
+	return theme.Fg(ink) + "≡" + theme.Reset + " " +
+		theme.Fg(ink) + fmt.Sprintf("%d/%d", g.Ammo, g.Kit.Cap) + theme.Reset
 }
 
 func familyName(k Kit) string {
@@ -79,51 +107,33 @@ func joinFit(parts []string, cols int) string {
 	return ""
 }
 
-// grid is the field as painted cells, plus the whole painted rows that
-// internal/pet hands back for the creature.
+// grid is the field as painted cells.
 //
-// The blocks are separate because pet.DrawCompact returns a row at a time, not a
-// cell at a time - it is the only painter in the repo that knows how to draw the
-// creature and re-implementing it here to get cells would be a second copy of
-// the one thing internal/pet is for. So a block claims nine columns of its row
-// and the assembly steps over them.
+// The colour is kept beside the glyph rather than wrapped around it so that
+// assembly can emit one escape per RUN of colour. A sky of forty stars is one
+// colour; wrapping each of them cost about ten kilobytes a frame and two hundred
+// a second, which is fine on a local terminal and is not fine down an ssh
+// connection.
 type grid struct {
-	glyph  [][]string // what is in the cell, unpainted
-	ink    [][]string // the escape that colours it
-	blocks []map[int]string
-	cols   int
+	glyph [][]string
+	ink   [][]string
+	cols  int
 }
 
 func newGrid(rows, cols int) grid {
 	g := grid{
-		glyph:  make([][]string, rows),
-		ink:    make([][]string, rows),
-		blocks: make([]map[int]string, rows),
-		cols:   cols,
+		glyph: make([][]string, rows),
+		ink:   make([][]string, rows),
+		cols:  cols,
 	}
 	for i := range g.glyph {
 		g.glyph[i] = make([]string, cols)
 		g.ink[i] = make([]string, cols)
-		g.blocks[i] = map[int]string{}
 	}
 	return g
 }
 
-// block lays an already-painted nine-cell row of the creature into the grid.
-func (g grid) block(row, col int, painted string) {
-	if row < 0 || row >= len(g.blocks) || col < 0 || col+ShipCols > g.cols {
-		return
-	}
-	g.blocks[row][col] = painted
-}
-
 // put writes one glyph and the colour it wants, ignoring anything off the field.
-//
-// The colour is kept beside the glyph rather than wrapped around it so that
-// assembly can emit one escape per RUN of colour. A row of eleven identical
-// sprites is one colour and sixty-odd cells; wrapping each of them cost about
-// ten kilobytes a frame and two hundred a second, which is fine on a local
-// terminal and is not fine down an ssh connection.
 func (g grid) put(row, col int, glyph, ink string) {
 	if row < 0 || row >= len(g.glyph) || col < 0 || col >= g.cols {
 		return
@@ -133,7 +143,7 @@ func (g grid) put(row, col int, glyph, ink string) {
 }
 
 // blit writes a row of a sprite, one glyph at a time, in one colour. A blank in
-// the art is transparent: the sprites are drawn on a grid and their corners are
+// the art is transparent: the ships are drawn on a grid and their corners are
 // spaces, and painting those would rub out whatever is behind them.
 func (g grid) blit(row, col int, art, ink string) {
 	for i, r := range []rune(art) {
@@ -144,21 +154,21 @@ func (g grid) blit(row, col int, art, ink string) {
 	}
 }
 
+// fill is blit for something that is meant to be solid: the blanks are painted
+// too. The ship's hull needs it - its middle row is `<o o>`, and with a
+// transparent gap a star sailed between the eyes and read as a hole in the hull.
+func (g grid) fill(row, col int, art, ink string) {
+	for i, r := range []rune(art) {
+		g.put(row, col+i, string(r), ink)
+	}
+}
+
 func (g grid) lines() []string {
 	out := make([]string, len(g.glyph))
 	for i, row := range g.glyph {
 		var b strings.Builder
 		open := ""
 		for x := 0; x < len(row); x++ {
-			if painted, ok := g.blocks[i][x]; ok {
-				if open != "" {
-					b.WriteString(theme.Reset)
-					open = ""
-				}
-				b.WriteString(painted)
-				x += ShipCols - 1
-				continue
-			}
 			if row[x] == "" {
 				if open != "" {
 					b.WriteString(theme.Reset)
@@ -181,13 +191,17 @@ func (g grid) lines() []string {
 	return out
 }
 
-// field paints the playfield: the block at the top, the creature at the bottom,
-// and whatever is in the air between them.
+// field paints the playfield, back to front: the sky first and the ship last, so
+// nothing is ever painted over the thing the player is steering.
 func field(g Game, cols int) []string {
 	gr := newGrid(g.Field.Rows, cols)
 
-	drawSquad(gr, g)
+	drawStars(gr, g)
+	drawDrops(gr, g)
+	drawStones(gr, g)
+	drawFleet(gr, g)
 	drawBoss(gr, g)
+	drawMotes(gr, g)
 
 	for _, t := range g.Turrets {
 		gr.put(g.Field.ShipRow()-1, t.Col, "╫", theme.Fg(theme.Ident))
@@ -196,41 +210,100 @@ func field(g Game, cols int) []string {
 		gr.put(int(b.Y), int(b.X), "╽", theme.Fg(theme.Bad))
 	}
 	for _, s := range g.Shots {
-		if s.Y >= 0 {
-			gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
-		}
+		gr.put(int(s.Y), int(s.X), "╿", theme.Fg(theme.Emph))
 	}
-
-	// The creature is opaque on its nine columns, and it goes in last so
-	// nothing is ever painted over it.
-	sprite := pet.DrawCard(g.Form, g.Vital(), g.Frame/8, g.Ready > 0)
-	for i, row := range sprite {
-		gr.block(g.Field.ShipRow()+i, g.Ship, row)
-	}
+	drawShip(gr, g)
 	return gr.lines()
 }
 
-// drawSquad paints the block: every living member in the wave's stage tone, one
-// colour each, which is what a screen of them needs to stay readable.
-func drawSquad(gr grid, g Game) {
-	pal := Stages[clamp(g.Wave.Stage-1, 0, len(Stages)-1)]
-	for _, m := range g.Squad.Members {
-		// A member that has taken a hit and lived shows it by sinking down the
-		// ramp, which is the same trick the pet uses for its own seven states.
-		tone := pal.Tones[clamp(g.Wave.HP-m.HP, 0, len(pal.Tones)-1)]
-		ink := theme.Fg(tone)
-
-		x, y := g.Squad.At(m)
-		gr.put(y, x, Troops[m.Species].Glyph, ink)
+// drawStars is the sky: three depths, one dim colour. It is the cheapest thing
+// in the frame and the game looks unfinished without it.
+//
+// Two glyphs and not three, and never an asterisk: the first version gave the
+// fastest stars a "*", which is what an explosion is drawn with, and a screenful
+// of them read as debris rather than as depth.
+func drawStars(gr grid, g Game) {
+	glyphs := [3]string{"·", "·", "."}
+	ink := theme.Fg(theme.Rule)
+	for _, s := range g.Stars {
+		which := 0
+		switch {
+		case s.V > 0.2:
+			which = 2
+		case s.V > 0.1:
+			which = 1
+		}
+		gr.put(int(s.Y), int(s.X), glyphs[which], ink)
 	}
 }
 
-// drawBoss paints the one big sprite, worn down through its own ramp.
+// drawFleet paints the ships in the air, each in the wave's stage tone, sinking
+// down the tones as it takes hits - the same trick the pet uses for its own
+// seven states.
+func drawFleet(gr grid, g Game) {
+	pal := Stages[clamp(g.Wave.Stage-1, 0, len(Stages)-1)]
+	for _, a := range g.Aliens {
+		c := a.Craft()
+		hurt := 0
+		if a.MaxHP > 0 {
+			hurt = (a.MaxHP - a.HP) * len(pal.Tones) / (a.MaxHP + 1)
+		}
+		ink := theme.Fg(pal.Tones[clamp(hurt, 0, len(pal.Tones)-1)])
+		eye := theme.Fg(pal.Eye)
+		x, y := int(a.X), int(a.Y)
+		for i, row := range c.Rows {
+			gr.blit(y+i, x, row, ink)
+		}
+		// The eyes in the light tone, which is the one thing that breaks the
+		// flat colour and what makes a screen of them readable at a glance.
+		for i, row := range c.Rows {
+			for j, r := range []rune(row) {
+				if r == 'o' {
+					gr.put(y+i, x+j, "o", eye)
+				}
+			}
+		}
+	}
+}
+
+func drawStones(gr grid, g Game) {
+	ink := theme.Fg(theme.Dir)
+	for _, s := range g.Stones {
+		for i, row := range Rock.Rows {
+			gr.blit(int(s.Y)+i, int(s.X), row, ink)
+		}
+	}
+}
+
+func drawDrops(gr grid, g Game) {
+	ink := theme.Fg(theme.Ident)
+	for _, d := range g.Drops {
+		gr.put(int(d.Y), int(d.X), "✚", ink)
+	}
+}
+
+// drawMotes paints sparks and meteoroids. A spark fades as it dies; a meteoroid
+// is red for the whole of its life, because it can kill you.
+func drawMotes(gr grid, g Game) {
+	for _, m := range g.Motes {
+		glyph, ink := "·", theme.Fg(theme.Dim)
+		switch {
+		case m.Hurt > 0:
+			glyph, ink = "*", theme.Fg(theme.Bad)
+		case m.Life > sparkLife/2:
+			glyph, ink = "*", theme.Fg(theme.Number)
+		}
+		gr.put(int(m.Y), int(m.X), glyph, ink)
+	}
+}
+
+// drawBoss paints the one big sprite off the canvas, worn down through its own
+// ramp.
 func drawBoss(gr grid, g Game) {
 	if !g.Boss.Alive {
 		return
 	}
-	b := Bosses[g.Boss.Of]
+	b := Bosses[clamp(g.Boss.Of, 0, len(Bosses)-1)]
 	pal := Ranks[b.Rank-1]
 	hurt := 0
 	if g.Boss.MaxHP > 0 {
@@ -249,12 +322,52 @@ func drawBoss(gr grid, g Game) {
 	gr.blit(y+4, x, b.Legs[(g.Frame/10)%2], ink)
 }
 
+// drawShip paints the representation of the creature: the family's silhouette,
+// the form's own colour, and eyes that are its health. See ship.go.
+func drawShip(gr grid, g Game) {
+	vital := g.Vital()
+	ramp := pet.RampOf(g.Form)
+	ink := theme.Fg(ramp.Body[clamp(vital.Rank, 0, len(ramp.Body)-1)])
+	eye := theme.Fg(ramp.Lit(vital.Rank))
+	if g.Invuln > 0 {
+		// The mole's ability, and the only time the ship is not its own colour:
+		// invulnerable has to be visible or it is a mechanic nobody trusts.
+		ink = theme.Fg(theme.Emph)
+	}
+
+	art := ShipArt(g.Kit.Family, vital)
+	row := g.Field.ShipRow()
+	for i, line := range art {
+		if i == 1 {
+			// The hull is solid; the crest and the tail are not, so the sky
+			// shows between the antennae the way it should.
+			gr.fill(row+i, g.Ship, line, ink)
+			continue
+		}
+		gr.blit(row+i, g.Ship, line, ink)
+	}
+	for j, r := range []rune(art[1]) {
+		if r == 'o' || r == '-' || r == 'x' {
+			gr.put(row+1, g.Ship+j, string(r), eye)
+		}
+	}
+}
+
 // help is the key row, or the banner when there is one to show.
 func help(g Game, cols int) string {
 	if banner := Banner(g); banner != "" {
 		return paint(theme.Emph, theme.Truncate(banner, cols), theme.Bold)
 	}
-	return paint(theme.Dim, theme.Truncate(i18n.G().Help, cols), "")
+	return paint(theme.Dim, theme.Truncate(helpRow(i18n.G(), cols), cols), "")
+}
+
+// helpRow is the longest key row that fits. The Truncate around it is the last
+// resort for a window narrower than either.
+func helpRow(w i18n.Game, cols int) string {
+	if theme.Width(w.Help) <= cols {
+		return w.Help
+	}
+	return w.Tight
 }
 
 func paint(col theme.Colour, plain, weight string) string {
@@ -282,6 +395,10 @@ func Banner(g Game) string {
 		return w.PausedByClaude + " · " + w.Resume
 	case BannerPaused:
 		return w.Paused + " · " + w.Resume
+	case BannerChoose:
+		return w.LevelUp
+	case BannerKit:
+		return w.GotKit
 	}
 	return ""
 }

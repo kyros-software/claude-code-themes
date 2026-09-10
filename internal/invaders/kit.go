@@ -36,6 +36,18 @@ type Kit struct {
 
 	MaxHP int
 	Regen int // hp per wave cleared
+
+	// The magazine, which is the reference's discipline and now ours. A press
+	// spends one round whatever the volley is, so a wide kit empties as fast as
+	// a narrow one and the cost of missing is the reload rather than a cap on
+	// what may be in the air.
+	//
+	// Both are DERIVED in scale rather than written per family: they follow the
+	// volley width and the level, so they add nothing to the job of keeping
+	// forty-one forms apart while still being part of what makes them feel
+	// different.
+	Cap    int // rounds per magazine
+	Reload int // ticks to fill it
 }
 
 // The abilities. Every kit has one, because the space bar is the only thing the
@@ -230,6 +242,28 @@ func scale(k Kit, level int) Kit {
 		k.Shots++
 	}
 	k.MaxHP += 2 * level
+
+	// The magazine, which the level buys along with everything else: more rounds
+	// and a quicker reload.
+	//
+	// It does NOT depend on the volley width, and that was a bug for about ten
+	// minutes: a press spends one round whatever it fires, so tying the capacity
+	// to Shots made a level-four form - where Shots goes up - come out with a
+	// SMALLER magazine than it had at level three, which is a level that makes
+	// you weaker.
+	k.Cap = 8 + level
+
+	// The reload is six shots' worth of cadence, so a fast gun reloads fast.
+	//
+	// Flat was wrong and measurably so: at a flat sixty-four ticks a bolt - four
+	// ticks a shot - spent two thirds of its life standing still reloading while
+	// a marathon barely noticed. Two thirds of the whole magazine was the second
+	// try and it wobbled: integer division made the ratio drift a point either
+	// way between levels, which showed up as a level that fires slower over a
+	// magazine than the level below it. Six times the cadence has neither
+	// problem - it falls with the cadence and it does not depend on the
+	// capacity, so more rounds is always more rounds.
+	k.Reload = clamp(6*k.Cadence, 20, 70)
 	return k
 }
 
@@ -239,6 +273,7 @@ func scale(k Kit, level int) Kit {
 // form off as different from one it flies exactly like.
 type shape struct {
 	Cadence, Damage, Shots, Pierce, Splash, Spike, Cooldown, MaxHP, Regen int
+	Cap, Reload                                                           int
 	Homing, Overload, Revive                                              bool
 	Special                                                               string
 }
@@ -247,7 +282,7 @@ func (k Kit) shape() shape {
 	return shape{
 		Cadence: k.Cadence, Damage: k.Damage, Shots: k.Shots, Pierce: k.Pierce,
 		Splash: k.Splash, Spike: k.Spike, Cooldown: k.Cooldown,
-		MaxHP: k.MaxHP, Regen: k.Regen,
+		MaxHP: k.MaxHP, Regen: k.Regen, Cap: k.Cap, Reload: k.Reload,
 		Homing: k.Homing, Overload: k.Overload, Revive: k.Revive, Special: k.Special,
 	}
 }

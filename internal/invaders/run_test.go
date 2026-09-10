@@ -196,15 +196,20 @@ func TestAResizeThatShrinksTheFieldKeepsEverythingOnScreen(t *testing.T) {
 	g = reflow(g, small)
 
 	if g.Ship > small.ShipColMax() {
-		t.Errorf("the creature is at column %d of a field %d wide", g.Ship, small.Cols)
+		t.Errorf("the ship is at column %d of a field %d wide", g.Ship, small.Cols)
 	}
-	for _, m := range g.Squad.Members {
-		x, y := g.Squad.At(m)
-		if x < 0 || x+TroopCols > small.Cols {
-			t.Errorf("a member spans %d..%d of %d columns", x, x+TroopCols, small.Cols)
+	for _, a := range g.Aliens {
+		if a.X < 0 || a.X+float64(a.Craft().W) > float64(small.Cols) {
+			t.Errorf("a %s spans %g..%g of %d columns",
+				a.Craft().Name, a.X, a.X+float64(a.Craft().W), small.Cols)
 		}
-		if y < 0 {
-			t.Errorf("a member is at row %d", y)
+		if a.Y < 0 || a.Y > float64(small.ShipRow()) {
+			t.Errorf("a %s is at row %g of %d", a.Craft().Name, a.Y, small.Rows)
+		}
+	}
+	for _, st := range g.Stones {
+		if st.X < 0 || st.X+float64(Rock.W) > float64(small.Cols) {
+			t.Errorf("a rock spans %g..%g of %d columns", st.X, st.X+float64(Rock.W), small.Cols)
 		}
 	}
 	if got := len(Render(g, small.Cols)); got != small.Rows+HUDRows+HelpRows {

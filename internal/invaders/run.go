@@ -262,43 +262,62 @@ func waitForAKey(sc screen, g Game) (Game, int) {
 }
 
 // reflow fits a running game into a field that has changed size, keeping the
-// creature on the floor and the block inside the walls.
+// ship on the floor and everything else inside the walls.
+//
+// A ship or an alien left outside a narrowed field is not a cosmetic problem: a
+// thing that cannot be drawn cannot be shot, and one that cannot be shot reaches
+// the floor for free.
 func reflow(g Game, f Field) Game {
 	if f == g.Field {
 		return g
 	}
-	old := g.Field
 	g.Field = f
 	g.Wave = WaveFor(g.Wave.N, f)
 
 	if g.Ship > f.ShipColMax() {
 		g.Ship = f.ShipColMax()
 	}
-
-	// The formation is a grid, so a narrower window can leave columns off the
-	// right of the screen. They are dropped rather than squeezed: a member that
-	// cannot be drawn cannot be shot, and one that cannot be shot lands on you.
-	if len(g.Squad.Members) > 0 {
-		if g.Squad.X+float64(f.BlockCols()) > float64(f.Cols) {
-			g.Squad.X = float64(max(f.Cols-f.BlockCols(), 0))
-		}
-		cols := f.FormationCols()
-		next := make([]Member, 0, len(g.Squad.Members))
-		for _, m := range g.Squad.Members {
-			if m.Col < cols {
-				next = append(next, m)
-			}
-		}
-		g.Squad.Members = next
-		if g.Started > len(g.Squad.Members) && old.Cols > f.Cols {
-			g.Started = len(g.Squad.Members)
-		}
+	if g.Ship < 0 {
+		g.Ship = 0
 	}
+
+	aliens := make([]Alien, 0, len(g.Aliens))
+	for _, a := range g.Aliens {
+		if right := float64(f.Cols - a.Craft().W); a.X > right {
+			a.X = right
+		}
+		if a.X < 0 {
+			a.X = 0
+		}
+		if a.Y > float64(f.ShipRow()) {
+			a.Y = float64(f.ShipRow())
+		}
+		aliens = append(aliens, a)
+	}
+	g.Aliens = aliens
+
+	stones := make([]Stone, 0, len(g.Stones))
+	for _, s := range g.Stones {
+		if right := float64(f.Cols - Rock.W); s.X > right {
+			s.X = right
+		}
+		if s.X < 0 {
+			s.X = 0
+		}
+		stones = append(stones, s)
+	}
+	g.Stones = stones
+
 	if g.Boss.Alive && g.Boss.X > float64(f.Cols-BossCols) {
 		g.Boss.X = float64(max(f.Cols-BossCols, 0))
 	}
+	// The sky is regenerated rather than squeezed: the stars are decoration and
+	// a whole new one is cheaper than moving forty of them.
+	g.Stars = sky(f, &g.Rand)
 	g.Shots = nil
 	g.Bombs = nil
+	g.Motes = nil
+	g.Drops = nil
 	return g
 }
 
