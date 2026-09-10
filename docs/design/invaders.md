@@ -344,6 +344,51 @@ The other half is still tested from the outside:
 `TestAShotHitsTheShipItPassesThrough` fires at every one of the ten and fails if
 any of them can be shot through.
 
+## The pointer, which is the only way to go two ways at once
+
+A terminal keyboard cannot express two directions at the same time. That is not a
+shortcoming of this game's input handling, it is measured twice in the section
+below: there is no key-up event, and X repeats the last key pressed and only that
+one, so holding left and pressing up kills the left. Every arrangement of keys
+runs into the same wall - what was asked for, in the end, was simply *"no me gusta
+que no pueda ir con dos teclas a la vez"*.
+
+The game this is modelled on does not have the problem, and looking at how is what
+settled it. It steers with the **mouse**:
+
+```go
+moveMouse := func(x int, y int) {
+    s.Position.X = float64(x - (s.Width / 2))
+    s.Position.Y = float64(y - (s.Height / 2))
+}
+case *tcell.EventMouse:
+    x, y := ev.Position()
+    moveMouse(x, y)
+```
+
+So: `CSI ?1003h` and `CSI ?1006h` on the way in - report every movement of the
+pointer, in the SGR encoding, which is the one that can count past column 223 -
+and the ship is centred on wherever the pointer is. Two axes arrive together
+because a pointer is two numbers. The left button fires and **holds**: a button is
+not a key, nothing cancels its repeat, so it shoots for as long as it is down at
+the kit's own cadence. The right button reloads, which is what the reference does
+with it.
+
+Verified against the terminal rather than assumed, the way the focus events and
+the autorepeat were: moving the pointer over a VTE window with those two modes on
+produces `ESC[<35;5;1M`, `ESC[<35;6;2M`, and so on - button 35 is motion with
+nothing held, and the numbers are one-based columns and rows.
+
+`AimAt` is a jump and not a glide, and it drops whatever the keyboard had going.
+The hand is already doing the easing; two ways of steering at once is a ship that
+carries on after the hand has stopped.
+
+What it costs is the terminal's own text selection while the game runs, which is
+what every full-screen program that reads the mouse costs, and shift-drag still
+selects in most terminals. The keyboard stays exactly as it was for anybody
+playing on a laptop with no mouse, or over ssh, or in a terminal that does not
+report the pointer.
+
 ## Holding an arrow, which took three goes
 
 A terminal has no key-up event. Nothing in the stream says a key was released,

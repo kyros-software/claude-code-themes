@@ -1,7 +1,20 @@
 package invaders
 
-// Key decoding, kept away from anything that owns a file descriptor so it can
-// be tested without a terminal.
+// Key and mouse decoding, kept away from anything that owns a file descriptor so
+// it can be tested without a terminal.
+
+// Event is one thing the terminal reported: a key, or where the pointer is.
+//
+// The pointer is here because it is the only way a terminal can say that two
+// directions are wanted AT ONCE. A keyboard cannot: there is no key-up event, and
+// X repeats the last key pressed and only that one, so pressing up while holding
+// left kills the left - which is measured, twice, in keyboard.go. A pointer has
+// no such problem, it is two numbers, and it is how the game this is modelled on
+// steers: the ship is centred on it.
+type Event struct {
+	Key  Key
+	X, Y int // cells, zero-based, for MouseAt
+}
 
 // Decode reads one key out of a buffer and says how many bytes it consumed.
 //
@@ -76,18 +89,88 @@ func Decode(buf []byte) (k Key, n int) {
 	return None, 1
 }
 
-// DecodeAll drains a buffer into the keys it holds and returns whatever tail
+// DecodeAll drains a buffer into the events it holds and returns whatever tail
 // could not be decoded yet.
-func DecodeAll(buf []byte) (keys []Key, rest []byte) {
+func DecodeAll(buf []byte) (events []Event, rest []byte) {
 	for len(buf) > 0 {
+		if mouse, n, ok := decodeMouse(buf); ok {
+			if n == 0 {
+				return events, buf
+			}
+			events = append(events, mouse...)
+			buf = buf[n:]
+			continue
+		}
 		k, n := Decode(buf)
 		if n == 0 {
-			return keys, buf
+			return events, buf
 		}
 		if k != None {
-			keys = append(keys, k)
+			events = append(events, Event{Key: k})
 		}
 		buf = buf[n:]
 	}
-	return keys, nil
+	return events, nil
+}
+
+// decodeMouse reads one SGR mouse report - the shape run.go asks for with
+// CSI ?1006h - and says whether the buffer even begins with one.
+//
+//	ESC [ < button ; column ; row M    a press, or a move
+//	ESC [ < button ; column ; row m    a release
+//
+// A move reports where the pointer is; a press reports that and pulls the
+// trigger. Both come out of here as separate events, because they are separate
+// things: the ship follows the pointer whether or not anybody is shooting.
+func decodeMouse(buf []byte) (events []Event, n int, ok bool) {
+	if len(buf) < 3 || buf[0] != 0x1b || buf[1] != '[' {
+		return nil, 0, false
+	}
+	if buf[2] != '<' {
+		return nil, 0, false
+	}
+	// Three numbers and a letter, or not enough bytes yet.
+	nums, i := [3]int{}, 3
+	for f := 0; f < 3; f++ {
+		start := i
+		for i < len(buf) && buf[i] >= '0' && buf[i] <= '9' {
+			nums[f] = nums[f]*10 + int(buf[i]-'0')
+			i++
+		}
+		if i == start || i >= len(buf) {
+			return nil, 0, true // the beginning of one, and not yet all of it
+		}
+		if f < 2 {
+			if buf[i] != ';' {
+				return nil, i + 1, true // not a report we know; swallow it
+			}
+			i++
+		}
+	}
+	end := buf[i]
+	i++
+	if end != 'M' && end != 'm' {
+		return nil, i, true
+	}
+
+	button, col, row := nums[0], nums[1]-1, nums[2]-1
+	events = append(events, Event{Key: MouseAt, X: col, Y: row})
+
+	// Bit 32 is motion with the button still down, which is a move and not a
+	// second press; bit 64 is the wheel, which steers nothing here. Both have to
+	// be ruled out before the low two bits mean a button at all - the wheel is
+	// reported as button 64, whose low bits look exactly like the left one.
+	moving, wheel := button&0b100000 != 0, button&0b1000000 != 0
+	switch {
+	case moving || wheel:
+	case button&0b11 == 0 && end == 'M':
+		events = append(events, Event{Key: Fire})
+	case button&0b11 == 0 && end == 'm':
+		events = append(events, Event{Key: Release})
+	case button&0b11 == 2 && end == 'M':
+		// The right button reloads, which is what the game this is modelled on
+		// does with it.
+		events = append(events, Event{Key: Rearm})
+	}
+	return events, i, true
 }

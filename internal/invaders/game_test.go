@@ -1215,3 +1215,68 @@ func TestTheVerticalIsAStepAndNotAGlide(t *testing.T) {
 		t.Error("a single press left it climbing on its own")
 	}
 }
+
+// The ship goes where the pointer is, centred on it and inside its own half of
+// the field. It is a jump and not a glide: the hand is already doing the easing,
+// and both axes arrive at once - which is the whole reason the pointer is here.
+func TestTheShipFollowsThePointer(t *testing.T) {
+	g := aGame(t, "bughunter", 4)
+	// Inside the ship's own half, since the roof is where the other half starts.
+	mid := (g.Field.ShipRoof() + g.Field.ShipRow()) / 2
+
+	g = g.AimAt(40, mid)
+	if want := 40 - ShipCols/2; g.Ship != want {
+		t.Errorf("the ship is at column %d, want %d - centred on the pointer", g.Ship, want)
+	}
+	if want := mid - ShipRows/2; g.Row != want {
+		t.Errorf("the ship is at row %d, want %d", g.Row, want)
+	}
+
+	// Off the left edge, off the right, above the roof and below the floor: all
+	// four clamp rather than putting the ship where it may not be.
+	if g = g.AimAt(-5, 0); g.Ship != 0 || g.Row != g.Field.ShipRoof() {
+		t.Errorf("pointing off the top left put the ship at %d,%d", g.Ship, g.Row)
+	}
+	if g = g.AimAt(g.Field.Cols+9, g.Field.Rows+9); g.Ship != g.Field.ShipColMax() || g.Row != g.Field.ShipRow() {
+		t.Errorf("pointing off the bottom right put the ship at %d,%d", g.Ship, g.Row)
+	}
+
+	// And it drops whatever the keyboard had going, or the ship carries on after
+	// the hand has stopped.
+	g = Tick(g, Left)
+	g = g.AimAt(30, mid)
+	if g.Side.Moving() {
+		t.Error("the pointer left a keyboard glide running")
+	}
+}
+
+// The mouse button is not a key: nothing cancels its repeat, so it fires for as
+// long as it is held, at the kit's own cadence and no faster.
+func TestTheHeldTriggerKeepsFiringAtTheCadence(t *testing.T) {
+	g := aGame(t, "marathon", 4)
+	g.Trigger = true
+
+	shots, ticks := 0, 4*g.Kit.Cadence
+	for i := 0; i < ticks; i++ {
+		before := len(g.Shots)
+		g = Tick(g, None)
+		if len(g.Shots) > before {
+			shots++
+		}
+	}
+	if shots < 3 {
+		t.Errorf("the trigger was held for %d ticks and fired %d times", ticks, shots)
+	}
+	if shots > ticks/g.Kit.Cadence+1 {
+		t.Errorf("it fired %d times in %d ticks, faster than its cadence of %d",
+			shots, ticks, g.Kit.Cadence)
+	}
+
+	g.Trigger = false
+	g = drive(g, None, 2*g.Kit.Cadence)
+	was := len(g.Shots)
+	g = drive(g, None, 2*g.Kit.Cadence)
+	if len(g.Shots) > was {
+		t.Error("it kept firing after the button came up")
+	}
+}

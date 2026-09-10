@@ -132,8 +132,8 @@ var spanishGame = Game{
 	ArenaUsage: "uso: ccpet arena [on|off]",
 	NoTerminal: "no hay ningún emulador de terminal en el que abrir el juego (o dime cuál con CCPET_ARENA_TERM)",
 
-	Help:  "↑↓←→ mover · s parar · espacio tirar · x habilidad · r recargar · e curar · p pausa · q salir",
-	Tight: "↑↓←→ ␣tiro x poder r carga e cura s alto p pausa q salir",
+	Help:  "ratón mueve y dispara · ↑↓←→ · espacio tirar · x habilidad · r recargar · e curar · p pausa · q salir",
+	Tight: "ratón o ↑↓←→ ␣tiro x poder r carga e cura p pausa q salir",
 
 	Families: map[string]string{
 		"single":   "único",
@@ -207,8 +207,8 @@ var englishGame = Game{
 	ArenaUsage: "usage: ccpet arena [on|off]",
 	NoTerminal: "no terminal emulator here to open the game in (or name one in CCPET_ARENA_TERM)",
 
-	Help:  "↑↓←→ move · s stop · space fire · x ability · r reload · e heal · p pause · q quit",
-	Tight: "↑↓←→ ␣fire x power r load e heal s stop p pause q quit",
+	Help:  "the mouse moves and fires · ↑↓←→ · space fire · x ability · r reload · e heal · p pause · q quit",
+	Tight: "mouse or ↑↓←→ ␣fire x power r load e heal p pause q quit",
 
 	Families: map[string]string{
 		"single":   "single",

@@ -52,7 +52,7 @@ const (
 // lines in a test, and this way the loop has no idea whether it is driving a tty.
 type screen struct {
 	Size func() (cols, rows int)
-	Keys <-chan Key
+	Keys <-chan Event
 	Out  io.Writer
 	// Focus is the window taking or losing the focus, which is not a game event
 	// at all: it is when the keyboard's autorepeat is borrowed and given back.
@@ -87,7 +87,7 @@ func Run(args []string, stdout, stderr io.Writer, petPath, savePath string, now 
 		return 2
 	}
 
-	keys := make(chan Key, 8)
+	keys := make(chan Event, 16)
 	stop := make(chan struct{})
 	go readKeys(tm, keys, stop)
 
@@ -220,9 +220,11 @@ func askAgain(sc screen, g Game) bool {
 	defer timeout.Stop()
 	for {
 		select {
-		case k := <-sc.Keys:
-			switch k {
+		case e := <-sc.Keys:
+			switch e.Key {
 			case Fire, One:
+				// The mouse button counts: it arrives as a Fire, and somebody
+				// who has been steering with the pointer will click.
 				return true
 			case Quit, Pause:
 				return false
@@ -297,28 +299,44 @@ func loop(sc screen, g Game, signals <-chan os.Signal, now func() time.Time) (Ga
 		// arrow repeats at about the frame rate. Whichever of the two was
 		// dropped, something the player did did not happen.
 		move, act := None, None
+		aimed, aimX, aimY := false, 0, 0
 		for drained := false; !drained; {
 			select {
-			case k := <-sc.Keys:
-				switch k {
+			case e := <-sc.Keys:
+				switch e.Key {
 				case FocusIn, FocusOut:
 					// Not a key: the window's own news, and the tick has no
 					// business hearing it.
 					if sc.Focus != nil {
-						sc.Focus(k == FocusIn)
+						sc.Focus(e.Key == FocusIn)
 					}
 				case Quit:
 					return g, 0
+				case MouseAt:
+					// Only the last one matters: the pointer is where it is now,
+					// not where it has been.
+					aimed, aimX, aimY = true, e.X, e.Y
+				case Fire:
+					// A press of the button both fires and holds the trigger
+					// down, and the trigger is not a key: nothing cancels it but
+					// the release.
+					act = Fire
+					g.Trigger = true
+				case Release:
+					g.Trigger = false
 				case Left, Right, Up, Down, Stop:
 					// The brake is a movement key, not an action: it belongs
 					// with the arrows or it never reaches moveShip at all.
-					move = k
+					move = e.Key
 				default:
-					act = k
+					act = e.Key
 				}
 			default:
 				drained = true
 			}
+		}
+		if aimed {
+			g = g.AimAt(aimX, aimY-HUDRows)
 		}
 
 		if g.Frame%sizeEvery == 0 {
@@ -456,12 +474,20 @@ func frame(w *bufio.Writer, lines []string) {
 // takes the focus and CSI O when it loses it. It is the only way the game can
 // know it is being played rather than merely open, and it is what scopes the
 // borrowed autorepeat to this window.
+// The 1003 and the 1006 are the mouse: report every movement of the pointer, in
+// the SGR encoding, which is the one that can count past column 223.
+//
+// It is how the game this is modelled on steers, and it is the only way a
+// terminal can express two directions at once - a keyboard cannot, and the two
+// measurements in keyboard.go are why. It costs the terminal's own text selection
+// while the game is running, which every full-screen program that reads the mouse
+// costs; shift and drag still selects in most of them.
 func enter(w io.Writer) {
-	io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l\033[?1004h")
+	io.WriteString(w, "\033]0;"+arenaTitle+"\007\033[?1049h\033[?25l\033[?1004h\033[?1003h\033[?1006h")
 }
 
 func leave(w io.Writer) {
-	io.WriteString(w, theme.Reset+"\033[?1004l\033[?25h\033[?1049l\033]0;\007")
+	io.WriteString(w, theme.Reset+"\033[?1006l\033[?1003l\033[?1004l\033[?25h\033[?1049l\033]0;\007")
 }
 
 // beating keeps the heartbeat fresh for as long as the game is on screen.
@@ -490,7 +516,7 @@ func beating(stop <-chan struct{}) {
 // VMIN 0 and VTIME 1 os.File reports a timed-out read as io.EOF, so the goroutine
 // returned a tenth of a second in and never read another byte. Raw mode blocks
 // on a byte now, and an empty read is treated as the nothing it is.
-func readKeys(r io.Reader, keys chan<- Key, stop <-chan struct{}) {
+func readKeys(r io.Reader, keys chan<- Event, stop <-chan struct{}) {
 	buf := make([]byte, 0, 16)
 	chunk := make([]byte, 16)
 	empty := 0
@@ -503,7 +529,7 @@ func readKeys(r io.Reader, keys chan<- Key, stop <-chan struct{}) {
 		n, err := r.Read(chunk)
 		if n > 0 {
 			empty = 0
-			var decoded []Key
+			var decoded []Event
 			decoded, buf = DecodeAll(append(buf, chunk[:n]...))
 			for _, k := range decoded {
 				select {

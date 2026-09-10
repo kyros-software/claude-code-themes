@@ -29,6 +29,10 @@ const (
 	Three
 	Pause
 	Quit
+	// The pointer: where it is, and the left button letting go. The press comes
+	// through as Fire, because that is what it is.
+	MouseAt
+	Release
 	// The terminal's own two: the window took or lost the focus. They never
 	// reach the tick - loop takes them out of the stream - because what they
 	// steer is the keyboard's autorepeat and not the ship. See keyboard.go.
@@ -344,8 +348,12 @@ type Game struct {
 	// The two axes. Each one remembers which way it is going, how long it may
 	// keep going without another press, and how long since the last one - which
 	// is what tells a tap from a key being held.
-	Side    Axis
-	Rise    Axis
+	Side Axis
+	Rise Axis
+	// Trigger is the mouse button being held down. A button is not a key: nothing
+	// cancels its repeat, so it fires for as long as it is held, at whatever the
+	// kit's cadence is.
+	Trigger bool
 	HP      int
 	Ammo    int // rounds in the magazine
 	Loading int // ticks left of a reload, 0 when loaded
@@ -515,6 +523,21 @@ func (g Game) Vital() pet.Vital {
 	return pet.StateFor(100 * hurt)
 }
 
+// AimAt puts the ship under the pointer, centred on it, inside the field and
+// inside its own half.
+//
+// A jump and not a glide, which is the whole point of steering with a pointer:
+// the hand does the easing, and both axes arrive at once - the thing a terminal
+// keyboard cannot express at all.
+func (g Game) AimAt(col, row int) Game {
+	g.Ship = clamp(col-ShipCols/2, 0, g.Field.ShipColMax())
+	g.Row = clamp(row-ShipRows/2, g.Field.ShipRoof(), g.Field.ShipRow())
+	// Whatever the keyboard had going is dropped: two ways of steering at once
+	// is a ship that carries on after the hand has stopped.
+	g.Side, g.Rise = g.Side.stop(), g.Rise.stop()
+	return g
+}
+
 // Muzzle is the column your shots leave from: the middle of the ship.
 func (g Game) Muzzle() float64 { return float64(g.Ship) + float64(ShipCols)/2 }
 
@@ -587,6 +610,10 @@ func TickWith(g Game, move, in Key) Game {
 	}
 
 	g = g.moveShip(move)
+	if in == None && g.Trigger {
+		// The button is still down. The cadence decides what that is worth.
+		in = Fire
+	}
 	g = g.tickWeapon(in)
 	g = g.tickAbility(in)
 	g = g.tickHeal(in)

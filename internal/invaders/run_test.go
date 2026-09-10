@@ -44,9 +44,9 @@ func (c *counter) String() string {
 }
 
 // fakeScreen is the nine lines the loop needs instead of a terminal.
-func fakeScreen(t *testing.T, cols, rows int) (screen, chan Key, *counter) {
+func fakeScreen(t *testing.T, cols, rows int) (screen, chan Event, *counter) {
 	t.Helper()
-	keys := make(chan Key, 8)
+	keys := make(chan Event, 8)
 	out := &counter{}
 	var mu sync.Mutex
 	sc := screen{
@@ -83,7 +83,7 @@ func TestAQuitKeySavesTheWaveYouWereOn(t *testing.T) {
 
 	go func() {
 		time.Sleep(80 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	final, code := loop(sc, g, nil, time.Now)
 	if code != 0 {
@@ -111,7 +111,7 @@ func TestTheGameStopsWhenClaudeStops(t *testing.T) {
 		time.Sleep(60 * time.Millisecond)
 		Touch(time.Now().Add(time.Second))
 		time.Sleep(400 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	final, _ := loop(sc, g, nil, time.Now)
 
@@ -136,7 +136,7 @@ func TestAPauseFileFromLastWeekDoesNotPauseAFreshRun(t *testing.T) {
 	g := NewGame(f, "spark", 2, Save{Wave: 1, Seed: 1})
 	go func() {
 		time.Sleep(450 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	final, _ := loop(sc, g, nil, time.Now)
 
@@ -150,7 +150,7 @@ func TestAPauseFileFromLastWeekDoesNotPauseAFreshRun(t *testing.T) {
 // restart to recover from having resized.
 func TestATerminalTooSmallIsRefusedAndNothingIsDrawn(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
-	keys := make(chan Key, 4)
+	keys := make(chan Event, 4)
 	out := &counter{}
 	cols, rows := 40, 10
 	var mu sync.Mutex
@@ -171,7 +171,7 @@ func TestATerminalTooSmallIsRefusedAndNothingIsDrawn(t *testing.T) {
 		cols, rows = 80, 24
 		mu.Unlock()
 		time.Sleep(200 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	loop(sc, g, nil, time.Now)
 
@@ -229,7 +229,7 @@ func TestEveryFrameIsOneWriteAndOneFlush(t *testing.T) {
 
 	go func() {
 		time.Sleep(300 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	loop(sc, g, nil, time.Now)
 
@@ -392,7 +392,7 @@ func (s *stutter) Read(p []byte) (int, error) {
 func TestAnEmptyReadIsNotTheEndOfTheKeyboard(t *testing.T) {
 	src := &stutter{steps: []string{"", "", "a", "", " ", "\033[C"}, done: make(chan struct{})}
 
-	keys := make(chan Key, 8)
+	keys := make(chan Event, 8)
 	stop := make(chan struct{})
 	defer close(stop)
 
@@ -402,8 +402,8 @@ func TestAnEmptyReadIsNotTheEndOfTheKeyboard(t *testing.T) {
 	for i, w := range want {
 		select {
 		case got := <-keys:
-			if got != w {
-				t.Errorf("key %d is %d, want %d", i, got, w)
+			if got.Key != w {
+				t.Errorf("key %d is %d, want %d", i, got.Key, w)
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatalf("only %d keys arrived: the reader gave up on an empty read", i)
@@ -427,7 +427,7 @@ func TestAPromptTakesTheGameOutOfThePauseClaudeLeftItIn(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 		Resume(time.Now().Add(2 * time.Second))
 		time.Sleep(200 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	final, _ := loop(sc, g, nil, time.Now)
 
@@ -450,11 +450,11 @@ func TestAPromptDoesNotLiftThePauseThePlayerAskedFor(t *testing.T) {
 
 	go func() {
 		time.Sleep(60 * time.Millisecond)
-		keys <- Pause
+		keys <- Event{Key: Pause}
 		time.Sleep(200 * time.Millisecond)
 		Resume(time.Now().Add(time.Second))
 		time.Sleep(200 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	final, _ := loop(sc, g, nil, time.Now)
 
@@ -529,7 +529,7 @@ func TestTheGameOverScreenOffersAnotherRunAndSpaceTakesIt(t *testing.T) {
 
 	go func() {
 		time.Sleep(60 * time.Millisecond)
-		keys <- Fire
+		keys <- Event{Key: Fire}
 	}()
 	if !askAgain(sc, g) {
 		t.Error("space on the game-over screen did not ask for another run")
@@ -551,7 +551,7 @@ func TestQuittingFromTheGameOverScreenLeaves(t *testing.T) {
 
 	go func() {
 		time.Sleep(60 * time.Millisecond)
-		keys <- Quit
+		keys <- Event{Key: Quit}
 	}()
 	if askAgain(sc, g) {
 		t.Error("q on the game-over screen asked for another run")
@@ -574,9 +574,9 @@ func TestASecondRunReallyStartsAfterADeath(t *testing.T) {
 
 	go func() {
 		time.Sleep(250 * time.Millisecond) // the bomb lands well inside this
-		keys <- Fire                       // another run
+		keys <- Event{Key: Fire}           // another run
 		time.Sleep(250 * time.Millisecond)
-		keys <- Quit // and this one has to be read by that run
+		keys <- Event{Key: Quit} // and this one has to be read by that run
 	}()
 
 	state, final, deaths, code := series(sc, g, LoadSave(savePath), petPath, savePath, nil, now, time.Now)

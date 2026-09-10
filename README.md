@@ -246,9 +246,15 @@ it, `e` spends one. And an asteroid, which is on nobody's side - break it and it
 throws meteoroids that hurt whatever they touch, including whatever of theirs was
 underneath.
 
-**You fly, not just strafe.** Left and right glide while you hold them and stop
-when you let go; up and down are a step each, so you climb by tapping. That split
-is not a whim - see below. You get half the field - the other half is
+**The mouse flies it.** The ship is centred on the pointer, so both directions
+arrive at once, and the left button fires for as long as you hold it - a button is
+not a key, nothing cancels its repeat. The right button reloads. It is how the
+game this is modelled on steers, and it is the only way a terminal can express two
+directions at the same time.
+
+The keyboard still works, for a laptop with no mouse or a session over ssh: left
+and right glide while you hold them and stop when you let go, up and down are a
+step each. That split is not a whim - see below. You get half the field - the other half is
 where the fleet comes from, and a ship that could reach the spawn line would shoot
 everything before it had drawn a frame.
 

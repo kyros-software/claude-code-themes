@@ -99,7 +99,7 @@ func TestFocusIsNotAKeyAndNeverReachesTheTick(t *testing.T) {
 
 	// And the loop hands it to the screen instead.
 	raw := readSource(t, "run.go")
-	if !strings.Contains(raw, "sc.Focus(k == FocusIn)") {
+	if !strings.Contains(raw, "sc.Focus(e.Key == FocusIn)") {
 		t.Error("the loop does not hand the focus to the screen")
 	}
 	if !strings.Contains(raw, "1004") {

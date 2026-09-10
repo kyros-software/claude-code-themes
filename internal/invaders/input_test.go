@@ -41,7 +41,7 @@ func TestEveryKeyTheHelpRowPromisesIsDecoded(t *testing.T) {
 
 // Raw mode is VMIN 0 with VTIME 1, so a read comes back after a tenth of a
 // second with whatever arrived - which is regularly one or two bytes of a
-// three-byte arrow key. Decoding those as separate keys turns one press of the
+// three-byte arrow key. Decoding those as separate events turns one press of the
 // up arrow into an escape, a bracket and an A, and in a game steered with four
 // arrows that is a ship jumping across the field.
 func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
@@ -49,17 +49,17 @@ func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
 	for cut := 1; cut < len(full); cut++ {
 		head, tail := full[:cut], full[cut:]
 
-		keys, rest := DecodeAll(head)
-		if len(keys) != 0 {
-			t.Errorf("cut at %d: the first half already decoded to %v", cut, keys)
+		events, rest := DecodeAll(head)
+		if len(events) != 0 {
+			t.Errorf("cut at %d: the first half already decoded to %v", cut, events)
 		}
 		if !bytes.Equal(rest, head) {
 			t.Errorf("cut at %d: the first half was eaten rather than kept", cut)
 		}
 
-		keys, rest = DecodeAll(append(rest, tail...))
-		if len(keys) != 1 || keys[0] != Left {
-			t.Errorf("cut at %d: the two halves decoded to %v", cut, keys)
+		events, rest = DecodeAll(append(rest, tail...))
+		if len(events) != 1 || events[0].Key != Left {
+			t.Errorf("cut at %d: the two halves decoded to %v", cut, events)
 		}
 		if len(rest) != 0 {
 			t.Errorf("cut at %d: %q was left over", cut, rest)
@@ -67,20 +67,20 @@ func TestAnEscapeSequenceSplitAcrossTwoReadsIsOneKeyAndNotThree(t *testing.T) {
 	}
 }
 
-// A whole burst decodes to the keys it holds, in order, which is what the reader
+// A whole burst decodes to the events it holds, in order, which is what the reader
 // goroutine hands the loop.
 func TestABurstOfKeysDecodesInOrder(t *testing.T) {
-	keys, rest := DecodeAll([]byte("aa\033[Cp q"))
+	events, rest := DecodeAll([]byte("aa\033[Cp q"))
 	want := []Key{Left, Left, Right, Pause, Fire, Quit}
 	if len(rest) != 0 {
 		t.Errorf("%q was left over", rest)
 	}
-	if len(keys) != len(want) {
-		t.Fatalf("got %v, want %v", keys, want)
+	if len(events) != len(want) {
+		t.Fatalf("got %v, want %v", events, want)
 	}
 	for i := range want {
-		if keys[i] != want[i] {
-			t.Errorf("key %d is %d, want %d", i, keys[i], want[i])
+		if events[i].Key != want[i] {
+			t.Errorf("key %d is %d, want %d", i, events[i].Key, want[i])
 		}
 	}
 }
@@ -143,4 +143,57 @@ func TestCtrlCQuitsBecauseIsigIsOff(t *testing.T) {
 
 func contains(haystack, needle string) bool {
 	return bytes.Contains([]byte(haystack), []byte(needle))
+}
+
+// The pointer, in the encoding run.go asks for: ESC [ < button ; column ; row and
+// an M or an m. The numbers are one-based on the wire and zero-based here.
+func TestThePointerIsDecodedFromAnSgrReport(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		want []Key
+		x, y int
+	}{
+		{"\033[<35;40;12M", []Key{MouseAt}, 39, 11},      // moving, no button
+		{"\033[<0;10;5M", []Key{MouseAt, Fire}, 9, 4},    // the left button down
+		{"\033[<0;10;5m", []Key{MouseAt, Release}, 9, 4}, // and up again
+		{"\033[<2;7;3M", []Key{MouseAt, Rearm}, 6, 2},    // the right button reloads
+		{"\033[<32;11;6M", []Key{MouseAt}, 10, 5},        // dragging is moving
+		{"\033[<64;11;6M", []Key{MouseAt}, 10, 5},        // the wheel steers nothing
+	} {
+		events, rest := DecodeAll([]byte(c.in))
+		if len(rest) != 0 {
+			t.Errorf("%q left %q over", c.in, rest)
+		}
+		if len(events) != len(c.want) {
+			t.Fatalf("%q decoded to %v, want %v", c.in, events, c.want)
+		}
+		for i, want := range c.want {
+			if events[i].Key != want {
+				t.Errorf("%q event %d is %d, want %d", c.in, i, events[i].Key, want)
+			}
+		}
+		if events[0].X != c.x || events[0].Y != c.y {
+			t.Errorf("%q points at %d,%d, want %d,%d", c.in, events[0].X, events[0].Y, c.x, c.y)
+		}
+	}
+}
+
+// Half a mouse report is kept for the next read, the same as half an arrow key: a
+// pointer that jumps across the field because a report was cut in two is the same
+// bug as the one the arrows had.
+func TestHalfAMouseReportIsKept(t *testing.T) {
+	full := []byte("\033[<35;40;12M")
+	for cut := 1; cut < len(full); cut++ {
+		events, rest := DecodeAll(full[:cut])
+		if len(events) != 0 {
+			t.Errorf("cut at %d: decoded %v out of half a report", cut, events)
+		}
+		if len(rest) != cut {
+			t.Errorf("cut at %d: %d bytes were kept, want %d", cut, len(rest), cut)
+		}
+		events, rest = DecodeAll(append(rest, full[cut:]...))
+		if len(events) != 1 || events[0].Key != MouseAt || len(rest) != 0 {
+			t.Errorf("cut at %d: the two halves decoded to %v, %q", cut, events, rest)
+		}
+	}
 }
