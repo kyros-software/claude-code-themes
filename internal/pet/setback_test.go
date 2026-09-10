@@ -25,15 +25,65 @@ func TestLosingCostsTheLevelYouWereStandingOn(t *testing.T) {
 		}
 	}
 
-	// And from the middle of a level, not just from its threshold: the cost is
-	// however far it had climbed into it.
+	// And from just inside a level, where the drop still fits under the cap.
 	s := New()
-	s.XP = xpFor(4) + 300
-	if cost := Setback(s, "", defeatClock); cost != 301 {
-		t.Errorf("300 xp into level 4 it took %d, want 301", cost)
+	s.XP = xpFor(4) + SetbackMax - 1
+	if got := Setback(s, "", defeatClock); got != SetbackMax {
+		t.Errorf("a whisker inside level 4 it took %d, want the cap of %d", got, SetbackMax)
 	}
 	if got := LevelFor(s.XP); got != 3 {
 		t.Errorf("it landed on level %d, want 3", got)
+	}
+}
+
+// One run is three minutes and level 4 is twelve days wide. Without a ceiling a
+// bad afternoon would charge the fortnight, over and over, which is not a stake
+// but a reason to stop opening the game. So the level goes when you were near
+// the line, and a full buffer is never wiped.
+func TestADefeatNeverCostsMoreThanADayOfFeeding(t *testing.T) {
+	for level := 2; level <= 6; level++ {
+		top := xpFor(level+1) - 1
+		if level == 6 {
+			top = xpFor(6) + 3000
+		}
+		for _, xp := range []int{xpFor(level), xpFor(level) + SetbackMax, top} {
+			s := New()
+			s.XP = xp
+			cost := Setback(s, "", defeatClock)
+			if cost > SetbackMax {
+				t.Errorf("at %d xp it took %d, past the ceiling of %d", xp, cost, SetbackMax)
+			}
+			if s.XP < 0 {
+				t.Errorf("at %d xp it left %d", xp, s.XP)
+			}
+			if LevelFor(s.XP) < level-1 {
+				t.Errorf("at %d xp it fell from level %d to %d", xp, level, LevelFor(s.XP))
+			}
+		}
+	}
+
+	// Deep inside the widest rung on the tree it costs a day and no more, and
+	// the level survives - which is the half of the trade that is not obvious.
+	s := New()
+	s.XP = xpFor(5) - 1 // one point off level 5, deep in the 1600-wide level 4
+	if cost := Setback(s, "", defeatClock); cost != SetbackMax {
+		t.Errorf("one point off level 5 it took %d, want %d", cost, SetbackMax)
+	}
+	if got := LevelFor(s.XP); got != 4 {
+		t.Errorf("it fell to level %d; deep inside a level the level is meant to hold", got)
+	}
+}
+
+// Near the line the level really does go, which is the half that makes it a
+// stake at all.
+func TestNearTheLineTheLevelReallyGoes(t *testing.T) {
+	for level := 2; level <= 6; level++ {
+		s := New()
+		s.XP = xpFor(level) + SetbackMax/2
+		Setback(s, "", defeatClock)
+		if got := LevelFor(s.XP); got != level-1 {
+			t.Errorf("half a day into level %d it stayed on %d", level, got)
+		}
 	}
 }
 
