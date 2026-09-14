@@ -55,7 +55,7 @@ if [ "$REMOVE" = 1 ]; then
     || echo "  settings.json unreadable: carrying on and removing the files"
   rm -rf "$TARGET"
   rm -f "${LEGACY[@]}" "$CLAUDE/commands/pet.md" "$CLAUDE/commands/feed.md" \
-        "$CLAUDE/commands/pet-statusline.md"
+        "$CLAUDE/commands/pet-statusline.md" "$CLAUDE/commands/pet-arena.md"
   rm -rf "$CLAUDE/__pycache__"
   echo "Done. ~/.claude/pet.json stays: delete it yourself to start from scratch."
   exit 0
@@ -86,12 +86,12 @@ rm -f "${LEGACY[@]}"
 rm -rf "$CLAUDE/__pycache__"
 echo "  ccpet/bin, ccpet/scripts"
 
-# Copied, not written inline: the plugin ships the same three files, and one
+# Copied, not written inline: the plugin ships the same four files, and one
 # wording in two places is one wording that drifts.
 for command in "$SOURCE"/commands/*.md; do
   cp "$command" "$CLAUDE/commands/"
 done
-echo "  commands: /pet, /feed, /pet-statusline"
+echo "  commands: /pet, /feed, /pet-statusline, /pet-arena"
 
 if [ "$HOOKS" = 1 ]; then
   CLAUDE_CONFIG_DIR="$CLAUDE" "$CCPET" setup install-hooks "$TARGET"

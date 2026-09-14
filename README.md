@@ -296,7 +296,7 @@ of space. The pet is read again first, so the replay flies the kit it has now -
 which is the level the death just paid for. The records survive; the upgrades you
 built do not.
 
-### `ccpet arena on`
+### `/pet-arena on`
 
 The waiting, turned into the game. With the arena on, sending Claude a prompt
 opens the invaders in a window of its own and gives it the keyboard; when Claude
@@ -305,9 +305,12 @@ you typed in.
 
 | | |
 | --- | --- |
-| `ccpet arena on` | a turn opens the game, a `Stop` pauses it and hands the focus back |
-| `ccpet arena off` | the game opens when you open it (the default) |
-| `ccpet arena` | says which it is |
+| `/pet-arena on` | a turn opens the game, a `Stop` pauses it and hands the focus back |
+| `/pet-arena off` | nothing opens any more; a game already open is left alone (the default) |
+| `/pet-arena` | says which it is |
+
+The command is `ccpet arena` underneath, so the same three words work from a
+shell.
 
 **One game, however many Claudes you have open**: the game running keeps a
 heartbeat, and a second session's prompt raises that window instead of opening
