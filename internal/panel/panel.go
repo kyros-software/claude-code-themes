@@ -45,6 +45,9 @@ func Run(args []string, stdout, stderr io.Writer, statePath string, now time.Tim
 	case "panel":
 		return showPanel(stdout, statePath, now)
 
+	case "album":
+		return showAlbum(stdout, statePath)
+
 	case "day":
 		if first == "" {
 			return 2
@@ -314,6 +317,7 @@ func showPanel(out io.Writer, statePath string, now time.Time) int {
 		theme.Bar(float64(shown), 7, 7, theme.Link, theme.Empty) +
 		"  " + emph + fmt.Sprintf("%d día%s", streak, plural) + reset +
 		dim + fmt.Sprintf(" · mejor %d", s.BestStreak) + reset)
+	nl(albumLine(s))
 	nl("")
 
 	var parts []string
