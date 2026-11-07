@@ -517,6 +517,36 @@ func TestSeveralMealsTheSameDayAreOneDayOfStreak(t *testing.T) {
 	}
 }
 
+// A day is not always 24 hours, and "yesterday" is a calendar question. Both
+// nights the clocks change, at the hours where subtracting 24 hours lands on
+// the wrong date: the 25-hour day at 23:30 and the 23-hour day at 00:30.
+func TestYesterdaySurvivesTheClockChange(t *testing.T) {
+	madrid, err := time.LoadLocation("Europe/Madrid")
+	if err != nil {
+		t.Skip("no tzdata:", err)
+	}
+	for _, c := range []struct{ at, want string }{
+		{"2026-10-25 23:30", "2026-10-24"}, // the clocks went back that morning
+		{"2027-03-29 00:30", "2027-03-28"}, // they went forward the day before
+	} {
+		at, _ := time.ParseInLocation("2006-01-02 15:04", c.at, madrid)
+		if got := Yesterday(at); got != c.want {
+			t.Errorf("Yesterday(%s) = %s, want %s", c.at, got, c.want)
+		}
+	}
+
+	// And the streak, which is what it costs: fed on the 24th, fed again late
+	// on the 25th, is two days in a row.
+	s := New()
+	first, _ := time.ParseInLocation("2006-01-02 15:04", "2026-10-24 12:00", madrid)
+	late, _ := time.ParseInLocation("2006-01-02 15:04", "2026-10-25 23:30", madrid)
+	Feed(s, "commit", "", first)
+	Feed(s, "commit", "", late)
+	if s.Streak != 2 {
+		t.Errorf("streak across the clock change = %d, want 2", s.Streak)
+	}
+}
+
 func TestHungerIsOnePerHourAndStopsAtTheCap(t *testing.T) {
 	s := New()
 	s.LastFed = t0.Unix()
@@ -1635,5 +1665,53 @@ func TestAMealsNoteIsFlattenedBeforeItIsStored(t *testing.T) {
 		t.Errorf("the note kept its control characters: %q", got)
 	} else if got != "arreglar la mascota" {
 		t.Errorf("note %q, want %q", got, "arreglar la mascota")
+	}
+}
+
+// "5 days running in the same repo" is a run per repo. It used to be one run
+// for all of them, so closing a session in a second repo the same day reset it
+// to 1: anybody working in two repos a day could not reach `mole`. Measured on
+// a real pet.json: same_repo_days 1, after weeks of daily sessions.
+func TestSameRepoDaysIsARunPerRepo(t *testing.T) {
+	s := New()
+	for d := 0; d < 5; d++ {
+		at := t0.Add(time.Duration(d) * day)
+		s.MarkRepoDay("api", at)
+		s.MarkRepoDay("web", at.Add(time.Hour))
+		if d%2 == 0 {
+			s.MarkRepoDay("api", at.Add(2*time.Hour))
+		}
+	}
+	if got := s.Counters["same_repo_days"]; got != 5 {
+		t.Fatalf("same_repo_days = %d after five days in both repos, want 5", got)
+	}
+
+	// A repo left alone for a day ends its run, and is pruned with it.
+	s.MarkRepoDay("docs", t0.Add(7*day))
+	if got := s.Counters["same_repo_days"]; got != 1 {
+		t.Errorf("same_repo_days = %d after the gap, want 1", got)
+	}
+	if len(s.RepoRuns) != 1 {
+		t.Errorf("dead runs were kept: %v", s.RepoRuns)
+	}
+
+	// It survives the file.
+	path := filepath.Join(t.TempDir(), "pet.json")
+	if !Save(s, path) {
+		t.Fatal("save failed")
+	}
+	if got := Load(path).RepoRuns["docs"]; got.Run != 1 || got.Day != Today(t0.Add(7*day)) {
+		t.Errorf("after a round trip: %+v", got)
+	}
+}
+
+// A file from before RepoRuns keeps the run it already had.
+func TestAnOldRepoRunIsTakenOver(t *testing.T) {
+	s := New()
+	s.RepoDay = "api|" + Today(t0)
+	s.Counters["same_repo_days"] = 3
+	s.MarkRepoDay("api", t0.Add(day))
+	if got := s.Counters["same_repo_days"]; got != 4 {
+		t.Errorf("same_repo_days = %d, want the old run of 3 carried on to 4", got)
 	}
 }

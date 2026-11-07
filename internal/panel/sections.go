@@ -219,6 +219,11 @@ func larder(b *strings.Builder, s *pet.State, now time.Time) {
 		if pet.Foods[name].XP < 0 {
 			continue
 		}
+		// Nor is the automatic compact: the CLI does it, nobody reaches for it,
+		// and "listo" beside it would read as an invitation.
+		if name == "autocompact" {
+			continue
+		}
 		names = append(names, name)
 	}
 	// By XP, richest first: what it is worth is the reason to reach for it.

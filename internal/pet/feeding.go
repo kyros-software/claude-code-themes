@@ -59,8 +59,14 @@ var Foods = map[string]Food{
 	"tests":   {15, -4, TestsCooldown, "tests en verde", []string{"inquisitive", "tests", "test_streak"}},
 	"commit":  {12, -3, 0, "commit", []string{"methodical", "diffs", "diff_streak"}},
 	"compact": {8, -3, 0, "compact", []string{"methodical"}},
-	"task":    {6, -1, 0, "tarea del plan", []string{"inquisitive", "plans"}},
-	"feed":    {3, -2, FeedCooldown, "/feed", nil},
+	// The same meal when the CLI compacts on its own. It still feeds - the XP
+	// budget was calibrated with compacts in it - but it is not a habit: a
+	// window that fills until the CLI steps in is the opposite of `methodical`,
+	// which is "compacta y commitea corto". Measured in one user's transcripts
+	// (7-nov-2026): 47 compacts, all 47 automatic, every one paid to `methodical`.
+	"autocompact": {8, -3, 0, "compact automático", nil},
+	"task":        {6, -1, 0, "tarea del plan", []string{"inquisitive", "plans"}},
+	"feed":        {3, -2, FeedCooldown, "/feed", nil},
 	// The overflow feeds NO habit. It used to carry impulsive and ctx_maxed,
 	// which is what closed the arithmetic on the whole ember branch: the only
 	// way to earn those two counters was the only meal that takes XP away. Both
@@ -83,9 +89,29 @@ func BigMeal(event string) bool { return Foods[event].XP >= 12 }
 // the five-minute cooldown is what actually keeps the pet quiet.
 const BigMealWindow = 60 * time.Second
 
-// streaksBrokenBy: a clean streak breaks when you blow the context.
+// streaksBrokenBy: a clean streak breaks when you blow the context, and the
+// test streak also breaks on a red suite.
+//
+// "red" is not a food - nothing is eaten - so it never goes through Feed: the
+// hook calls Break for it. It used to break nothing at all, which left
+// `exterminator` ("15 tests verdes sin uno rojo") counting green suites in
+// total. Measured on a real pet.json: test_streak equal to tests, 175 and 175,
+// with 171 red -> green cycles booked in the same file.
 var streaksBrokenBy = map[string][]string{
 	"overflow": {"test_streak", "diff_streak"},
+	"red":      {"test_streak"},
+}
+
+// Break zeroes the streaks a cause breaks, and reports whether any moved.
+func Break(s *State, cause string) bool {
+	moved := false
+	for _, counter := range streaksBrokenBy[cause] {
+		if s.Counters[counter] != 0 {
+			s.Counters[counter] = 0
+			moved = true
+		}
+	}
+	return moved
 }
 
 // DecayHunger adds one hunger per hour without food, up to HungerMax. It does

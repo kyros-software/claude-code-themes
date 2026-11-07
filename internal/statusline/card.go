@@ -72,6 +72,10 @@ type Card struct {
 	// so Spoke knows to move LevelSeen along with it.
 	LevelledUp bool
 
+	// StreakSaid says the bubble is the streak announcement, so Spoke moves
+	// StreakSeen along with it and the same number is not said again.
+	StreakSaid bool
+
 	// State is the vitality's name - "a gusto", "ahogada". It used to crown the
 	// card; it sits in band 4 beside the level now, and the row it vacated went
 	// back to the creature's crest. Jumped is true for the one refresh after it
@@ -115,7 +119,7 @@ func eventFor(s *pet.State, label string, levelledUp, bigMeal bool) pet.Event {
 		return pet.EventHungry
 	case bigMeal:
 		return pet.EventBigMeal
-	case s.Streak >= 3:
+	case s.Streak >= 3 && s.Streak != s.StreakSeen:
 		return pet.EventStreak
 	}
 	return pet.EventNothing
@@ -226,6 +230,7 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 		// once it is actually on screen.
 		out.Bubble = pet.Speak(s, event, form, now, nil)
 		out.LevelledUp = levelledUp
+		out.StreakSaid = event == pet.EventStreak
 	}
 	return out, s
 }
@@ -273,6 +278,9 @@ func Spoke(c Card, s *pet.State, statePath string, now time.Time) {
 		fresh.Said, fresh.SaidAt = s.Said, s.SaidAt
 		if c.LevelledUp {
 			fresh.LevelSeen = c.Level
+		}
+		if c.StreakSaid {
+			fresh.StreakSeen = s.Streak
 		}
 		return true
 	})

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/config"
@@ -59,12 +60,18 @@ type LogEntry struct {
 // State is the whole life file. Field order matches the file written by the
 // Python this replaces, so an upgrade in either direction is a no-op.
 type State struct {
-	XP         int    `json:"xp"`
-	Hunger     int    `json:"hunger"`
-	LastFed    int64  `json:"last_fed"`
-	Streak     int    `json:"streak"`
-	BestStreak int    `json:"best_streak"`
-	LevelSeen  int    `json:"level_seen"`
+	XP         int   `json:"xp"`
+	Hunger     int   `json:"hunger"`
+	LastFed    int64 `json:"last_fed"`
+	Streak     int   `json:"streak"`
+	BestStreak int   `json:"best_streak"`
+	LevelSeen  int   `json:"level_seen"`
+	// StreakSeen is the streak last announced. The streak is a standing state,
+	// not an event: read as one, a pet with three days or more said the same
+	// "N días de racha" every five minutes, all day. It speaks when the number
+	// moves, which is once a day. Absent from an older file: 0, so the first
+	// refresh after an upgrade says it once and then holds its tongue.
+	StreakSeen int    `json:"streak_seen"`
 	HungerPeak int    `json:"hunger_peak"`
 	FedAt      int64  `json:"fed_at"`
 	AteAt      int64  `json:"ate_at"`
@@ -96,6 +103,15 @@ type State struct {
 	// recorded from there on.
 	Branch map[string]string `json:"branch"`
 
+	// RepoRuns is, per repo, the last day a session was closed in it and how
+	// many days running that makes. same_repo_days is the best live run among
+	// them. It used to be ONE run, kept in RepoDay: closing a session in a
+	// second repo the same day reset it to 1, so anybody who works in two
+	// repos a day could never reach `mole`. Pruned on every close to the runs
+	// that are still alive (today or yesterday), so it does not grow with
+	// every repo ever opened.
+	RepoRuns map[string]RepoRun `json:"repo_runs"`
+
 	Counters map[string]int    `json:"counters"`
 	Meals    map[string]int64  `json:"meals"`
 	Log      []LogEntry        `json:"log"`
@@ -105,6 +121,12 @@ type State struct {
 	// See speech.go.
 	Said   []string `json:"said"`
 	SaidAt int64    `json:"said_at"`
+}
+
+// RepoRun is one repo's run of consecutive days with a session closed in it.
+type RepoRun struct {
+	Day string `json:"day"`
+	Run int    `json:"run"`
 }
 
 // Clone is a State that shares nothing with the one it came from.
@@ -132,6 +154,10 @@ func (s *State) Clone() *State {
 	out.Branch = make(map[string]string, len(s.Branch))
 	for k, v := range s.Branch {
 		out.Branch[k] = v
+	}
+	out.RepoRuns = make(map[string]RepoRun, len(s.RepoRuns))
+	for k, v := range s.RepoRuns {
+		out.RepoRuns[k] = v
 	}
 	out.DayMarks = make(map[string]string, len(s.DayMarks))
 	for k, v := range s.DayMarks {
@@ -244,6 +270,7 @@ func Load(path string) *State {
 	s.Streak = asInt(flat["streak"])
 	s.BestStreak = asInt(flat["best_streak"])
 	s.LevelSeen = asInt(flat["level_seen"])
+	s.StreakSeen = asInt(flat["streak_seen"])
 	s.HungerPeak = asInt(flat["hunger_peak"])
 	// fed_today (a daily counter) is gone: /feed is a cooldown now, and an old
 	// key just falls through here unread.
@@ -288,6 +315,23 @@ func Load(path string) *State {
 	// if the key is a fork the tree really has AND the value is one of that
 	// fork's own children. A pair that does not name a real choice is not a
 	// choice, and topBranch would have to re-check it on every walk anyway.
+	if runs, ok := flat["repo_runs"].(map[string]any); ok {
+		for repo, v := range runs {
+			r, ok := v.(map[string]any)
+			if !ok || repo == "" {
+				continue
+			}
+			day, run := asString(r["day"]), asInt(r["run"])
+			if day == "" || run < 1 {
+				continue
+			}
+			if s.RepoRuns == nil {
+				s.RepoRuns = map[string]RepoRun{}
+			}
+			s.RepoRuns[repo] = RepoRun{Day: day, Run: run}
+		}
+	}
+
 	if held, ok := flat["branch"].(map[string]any); ok {
 		for parent, raw := range held {
 			child := asString(raw)
@@ -432,6 +476,9 @@ func Save(s *State, path string) bool {
 	if s.Branch == nil {
 		s.Branch = map[string]string{}
 	}
+	if s.RepoRuns == nil {
+		s.RepoRuns = map[string]RepoRun{}
+	}
 	dir := filepath.Dir(path)
 	if os.MkdirAll(dir, 0o755) != nil {
 		return false
@@ -459,8 +506,14 @@ func Save(s *State, path string) bool {
 // Today is the local calendar day of a timestamp.
 func Today(at time.Time) string { return at.Format("2006-01-02") }
 
-// Yesterday is the day before it.
-func Yesterday(at time.Time) string { return at.Add(-24 * time.Hour).Format("2006-01-02") }
+// Yesterday is the calendar day before it.
+//
+// AddDate and not Add(-24h): a day is not always 24 hours. On the night the
+// clocks go back the day has 25, and at 23:30 subtracting 24 hours lands on
+// the same date - "yesterday" was today, and every day-run that asks (the
+// streak, docs_days, same_repo_days) reset to 1. On the night they go forward
+// it has 23, and at 00:30 it skipped a day the other way.
+func Yesterday(at time.Time) string { return at.AddDate(0, 0, -1).Format("2006-01-02") }
 
 // Bump adds. For counters that count occurrences.
 func (s *State) Bump(counter string, n int) {
@@ -501,4 +554,56 @@ func (s *State) MarkDay(name string, at time.Time) bool {
 	}
 	s.DayMarks[counter] = day
 	return true
+}
+
+// MarkRepoDay books a session closed in repo today, and sets same_repo_days to
+// the best run still alive across every repo.
+//
+// A file from before RepoRuns carries its one run in RepoDay ("repo|day") and
+// in the counter; that run is taken over rather than started from scratch.
+// RepoDay itself is still written, so an older build reading this file keeps
+// the meaning it had.
+func (s *State) MarkRepoDay(repo string, now time.Time) {
+	if repo == "" {
+		return
+	}
+	today, yesterday := Today(now), Yesterday(now)
+	if s.RepoRuns == nil {
+		s.RepoRuns = map[string]RepoRun{}
+	}
+	if s.Counters == nil {
+		s.Counters = map[string]int{}
+	}
+	if len(s.RepoRuns) == 0 {
+		if i := strings.LastIndex(s.RepoDay, "|"); i > 0 {
+			run := s.Counters["same_repo_days"]
+			if run < 1 {
+				run = 1
+			}
+			s.RepoRuns[s.RepoDay[:i]] = RepoRun{Day: s.RepoDay[i+1:], Run: run}
+		}
+	}
+
+	run := s.RepoRuns[repo]
+	switch run.Day {
+	case today:
+	case yesterday:
+		run = RepoRun{Day: today, Run: run.Run + 1}
+	default:
+		run = RepoRun{Day: today, Run: 1}
+	}
+	s.RepoRuns[repo] = run
+
+	best := 0
+	for name, r := range s.RepoRuns {
+		if r.Day != today && r.Day != yesterday {
+			delete(s.RepoRuns, name)
+			continue
+		}
+		if r.Run > best {
+			best = r.Run
+		}
+	}
+	s.Counters["same_repo_days"] = best
+	s.RepoDay = repo + "|" + today
 }

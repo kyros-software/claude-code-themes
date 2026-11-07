@@ -128,3 +128,70 @@ func TestTheReproCycleIsCreditedEvenWithoutAPayout(t *testing.T) {
 		t.Errorf("it also paid out %d xp with no edit behind it", s.XP)
 	}
 }
+
+func TestARedSuiteEndsTheGreenStreak(t *testing.T) {
+	// exterminator is "15 green suites without one red", so a red has to end
+	// the run. It used to end nothing: test_streak counted greens in total.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("TMPDIR", t.TempDir())
+	statePath := filepath.Join(home, "pet.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	var s *pet.State
+	for i := 0; i < 3; i++ {
+		at := now.Add(time.Duration(i) * (pet.TestsCooldown + time.Minute))
+		fire(t, statePath, at, anEdit("streak"))
+		s = fire(t, statePath, at.Add(time.Second), greenSuite("streak"))
+	}
+	if s.Counters["test_streak"] != 3 {
+		t.Fatalf("test_streak = %d after three paid greens, want 3", s.Counters["test_streak"])
+	}
+
+	red := greenSuite("streak")
+	red["tool_response"] = map[string]any{"stdout": "FAIL example", "is_error": true}
+	s = fire(t, statePath, now.Add(4*pet.TestsCooldown), red)
+	if s.Counters["test_streak"] != 0 {
+		t.Errorf("test_streak = %d after a red, want 0", s.Counters["test_streak"])
+	}
+	// The total is a total: the red takes nothing from it.
+	if s.Counters["tests"] != 3 {
+		t.Errorf("tests = %d, want 3 - a red must not touch the total", s.Counters["tests"])
+	}
+}
+
+func TestAnAutomaticCompactFeedsButIsNotAHabit(t *testing.T) {
+	// /compact is the tidy habit; the CLI compacting a full window on its own
+	// is the opposite gesture, and it used to pay `methodical` all the same.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("TMPDIR", t.TempDir())
+	statePath := filepath.Join(home, "pet.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	compact := func(trigger string) map[string]any {
+		p := map[string]any{"hook_event_name": "PreCompact", "session_id": "c"}
+		if trigger != "" {
+			p["trigger"] = trigger
+		}
+		return p
+	}
+
+	s := fire(t, statePath, now, compact("auto"))
+	if s.XP != pet.Foods["compact"].XP {
+		t.Errorf("an automatic compact gave %d xp, want %d", s.XP, pet.Foods["compact"].XP)
+	}
+	if s.Counters["methodical"] != 0 {
+		t.Errorf("an automatic compact paid methodical = %d", s.Counters["methodical"])
+	}
+
+	s = fire(t, statePath, now.Add(time.Minute), compact("manual"))
+	if s.Counters["methodical"] != 1 {
+		t.Errorf("/compact paid methodical = %d, want 1", s.Counters["methodical"])
+	}
+	// An older CLI sends no trigger, and keeps the old meaning.
+	s = fire(t, statePath, now.Add(2*time.Minute), compact(""))
+	if s.Counters["methodical"] != 2 {
+		t.Errorf("a compact without a trigger paid methodical = %d, want 2", s.Counters["methodical"])
+	}
+}
