@@ -140,24 +140,30 @@ rampas, los padres del árbol y las 287 siluetas fila a fila.
 | tests en verde | **+15** | −4 | una vez por hora, y solo si has cambiado algo |
 | commit | **+12** | −3 | — |
 | compact | **+8** | −3 | — |
+| compact automático | **+8** | −3 | — (cuenta como trabajar al límite) |
 | tarea del plan cerrada | **+6** | −1 | — |
 | `/feed` | **+3** | −2 | uno cada cuatro horas |
 | contexto al 100% | **−15** | — | rompe la racha |
 
-Los niveles llegan a 60, 180, 400, 2000 y 4500 xp.
+Los niveles llegan a 200, 450, 700, 1000 y 1500 xp: una vida dura unos doce días de
+uso normal.
+
+**Cada etapa decide la siguiente.** Entre evolución y evolución, la mascota cuenta
+qué hábitos has tenido, y al cruzar el nivel los usa para elegir rama, **una vez**.
+Una semana de tests te vuelve cazabugs aunque lleves meses commiteando. Una etapa
+sin hábitos sigue la ruta por defecto, así que nunca se atasca. Una vez elegida, la
+rama no cambia en el resto de la vida: la forma no se cae.
+
+**Generaciones y álbum.** El título se lleva tres días de uso y luego sale un huevo:
+otra vida desde `chispa`, con la racha, el hambre y los contadores intactos. Cada
+forma que llevas queda en el álbum (`/pet album`), y las que faltan aparecen con el
+hábito que lleva hasta ellas.
 
 **Y baja.** El hambre sube +1 por hora sin comer, con tope en 10; a partir de ahí
-cada hora cuesta 1 xp. La xp tiene techo —el último umbral más un tramo de nivel 1,
-`4500 + 60`—, porque sin él el colchón acumulado se traga cualquier castigo. De ahí
-las dos cifras: 60 horas —**dos días y medio**— para perder el nivel de arriba, y
-4560 horas, **unos seis meses**, para volver a larva. Nunca muere: por abajo se
-queda en `chispa`, que es una forma, no una tumba.
-
-**Una forma no se cae.** Se mueve en lateral, hacia arriba o de rama: un
-`exterminador` pasa a `sabueso` o a `avispa`, pero nunca vuelve a `cazabugs`
-pelado. Baja un peldaño en un solo caso —cambias de rama y allí ya tienes una
-marca ganada—, porque eso no es caerse, es haberte movido. El nivel sí puede
-bajar aunque la forma no, así que `avispa nivel 5` es legítimo.
+cada hora cuesta 1 xp. La xp tiene techo —el último umbral más 60, `1500 + 60`—,
+porque sin él el colchón acumulado se traga cualquier castigo: 60 horas —**dos días
+y medio**— para perder el nivel de arriba. El nivel puede bajar y la forma no, así
+que `avispa nivel 5` es legítimo. Nunca muere.
 
 El árbol entero y qué alimenta cada contador, en
 [evolution.md](docs/design/evolution.md).
@@ -172,7 +178,7 @@ al que todavía puedes llegar.
   cazabugs   nivel 4
   inquisitivo › sonda › cazabugs
 
-  nivel  █░░░░░░░░░░░░░░░  533/2000 xp
+  nivel  ██████████░░░░░░  533/700 xp
   hambre ██░░░░░░░░  2
   racha  ███░░░░  3 días · mejor 3
 
@@ -256,10 +262,10 @@ se leen, y ahora son `STATUSLINE_PET`, `STATUSLINE_PET_WALK`,
 - [runtime.md](docs/design/runtime.md) — por qué Go, a dónde va el tiempo, el
   candado del `pet.json` y por qué los binarios van en el repo
 - [audit-log.md](docs/audit-log.md) — histórico: la auditoría de la versión Python
-- [umbrales.md](docs/design/umbrales.md) — **sin implementar**: el árbol de 97 formas
-  del lienzo de diseño, por qué su regla deja 27 de las 42 marcas fuera de alcance, y
-  el arreglo que las devuelve. Las puertas viven en `testdata/PUERTAS-97.json` y las
-  comprueba `go test ./internal/pet/ -run NinetySeven`
+- [v3-generaciones.md](docs/design/v3-generaciones.md) — la mecánica v3: etapas,
+  generaciones y álbum, con lo medido que la motivó
+- [umbrales.md](docs/design/umbrales.md) — **ruta cerrada**: el árbol de 97 formas del
+  lienzo de diseño, descartado en v3
 
 ## Licencia
 

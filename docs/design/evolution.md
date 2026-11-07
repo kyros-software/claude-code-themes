@@ -1,5 +1,15 @@
 # Las evoluciones de la mascota
 
+> **v3 (7-nov-2026).** La mecánica de bifurcación cambió: ver
+> [v3-generaciones.md](v3-generaciones.md). Cada bifurcación la deciden los hábitos
+> de la etapa (desde la última evolución), una vez, al cruzar el nivel; el título
+> llega con la XP; al llevarlo `TitleStay` días sale un huevo y empieza otra
+> generación; un álbum guarda cada forma. Las tablas de niveles, comida y contadores
+> de abajo están al día. Describen la v2 y quedan como historia: «Los títulos» (los
+> umbrales de título ya no son puerta), «Y una rama tomada se defiende» (retirado),
+> «Por qué el nivel 4 es tan largo» y «Una forma no baja de escalón» (ahora lo
+> garantiza el camino).
+
 La mascota tiene **dos capas que no se mezclan**:
 
 | | qué mide | de dónde sale | sube y baja |
@@ -253,11 +263,13 @@ banda 4 y la fila `marca` de `/pet`.
 | Nivel | XP | Tramo | Qué eres |
 | --- | --- | --- | --- |
 | 1 | 0 | — | larva — `spark`, sin patas todavía |
-| 2 | 60 | 60 | temperamento — cómo trabajas |
-| 3 | 180 | 120 | oficio — en qué eres bueno |
-| 4 | 400 | 220 | el mismo oficio, asentado |
-| 5 | 2000 | **1600** | marca — más la condición de hábito, o una secreta ya ganada |
-| 6 | 4500 | 2500 | título — la forma final de la rama |
+| 2 | 200 | 200 | temperamento — cómo trabajaste la primera etapa |
+| 3 | 450 | 250 | oficio — en qué fuiste bueno la segunda |
+| 4 | 700 | 250 | el mismo oficio, asentado (la etapa de la marca sigue) |
+| 5 | 1000 | 300 | marca — la más madura de la etapa, o una secreta ya ganada |
+| 6 | 1500 | 500 | título — la forma final de la rama, `TitleStay` días y huevo |
+
+(v3; la v2 era 0/60/180/400/2000/4500.)
 
 ### Por qué el nivel 4 es tan largo
 
@@ -399,7 +411,7 @@ Dos consecuencias que conviene conocer:
 | tests en verde | **+15** | −4 | una cada hora, y con un cambio detrás |
 | commit hecho | **+12** | −3 | — |
 | `/compact` | **+8** | −3 | — |
-| compact automático | **+8** | −3 | — (no suma hábito) |
+| compact automático | **+8** | −3 | — (suma `impulsive`, no `methodical`) |
 | tarea del plan cerrada | **+6** | −1 | — |
 | `/feed` | **+3** | −2 | uno cada 4 h |
 | contexto al 100% | **−15** | — | — |
@@ -481,9 +493,9 @@ ninguna puerta se cierra a tu espalda.
 | --- | --- | --- |
 | `methodical` | commits y `/compact` (el manual; el automático no cuenta) | hook |
 | `inquisitive` | tests y tareas del plan | hook |
-| `impulsive`, `ctx_maxed` | el pico de contexto de la sesión (85 / 95) | statusline → `SessionEnd` |
+| `impulsive`, `ctx_maxed` | el pico de contexto de la sesión (85 / 95); `impulsive` también el compact automático | statusline → `SessionEnd`, hook |
 | `diffs`, `diff_streak` | commits (la racha se rompe al reventar) | hook |
-| `tests`, `test_streak` | tests en verde (la racha se rompe con un rojo o al reventar) | hook |
+| `tests`, `test_streak` | tests en verde con una edición detrás, aunque la XP esté en su hora de espera (la racha se rompe con un rojo o al reventar) | hook |
 | `widest_commit` | el `N files changed` más alto | hook |
 | `longest_plan` | el plan más largo cerrado del todo | hook |
 | `plans_before_code` | un plan de 3+ tareas escrito antes de editar nada | hook |

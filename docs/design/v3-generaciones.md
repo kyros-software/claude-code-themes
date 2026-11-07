@@ -1,7 +1,9 @@
 # Mecánica v3: generaciones
 
-> **Propuesta, no implementada.** Borrador del 7-nov-2026 para revisar antes de tocar
-> código. Lo que está medido lleva `[medido]` y la invocación; lo que no, `[hipotesis]`.
+> **Implementada** en la rama `feat/mecanica-v3` (7-nov-2026). Las decisiones que se
+> tomaron al implementarla, y en qué se separan de esta propuesta, están en
+> [«Lo que se decidió al implementarla»](#lo-que-se-decidió-al-implementarla). Lo
+> que está medido lleva `[medido]` y la invocación; lo que no, `[hipotesis]`.
 
 ## El problema
 
@@ -141,6 +143,36 @@ Un `pet.json` de hoy es la **generación 1, completa o en curso**:
    (`aluvion` sale refactor y `black-hole` cazabugs), pero una mascota por repo se lleva
    la continuidad. Propuesta: **no en v3**, pero el álbum puede anotar en qué repo se
    ganó cada forma.
+
+## Lo que se decidió al implementarla
+
+- **Escalera** 0 / 200 / 450 / 700 / 1000 / 1500, no la del borrador
+  (60 / 200 / 450 / 900 / 1500). Con el nivel 2 a 60 XP la primera etapa duraba
+  medio día, y los hábitos de sesión, que se apuntan al cerrar la sesión, todavía
+  no existían: la bifurcación se la llevaban siempre los commits. Lo pilló
+  `TestTheEmberBranchSurvivesANormalDayOfWork`.
+- **Margen del techo** `XPHeadroom = 60` explícito. Antes era «un tramo de nivel 1»,
+  y con la escalera nueva eso habrían sido 200 h de hambre para perder un nivel, en
+  vez de unas 60.
+- **Un salto, una etapa.** Si se cruzan varios niveles de golpe, todas las
+  bifurcaciones del salto se deciden con la etapa que termina, y la etapa se
+  reinicia una sola vez al final. Reiniciarla entre bifurcación y bifurcación dejaba
+  las siguientes en la ruta por defecto.
+- **Rachas de días** (`same_repo_days`, `docs_days`): cuentan solo los días que
+  llevan dentro de la etapa. Contada entera, una racha de cien días del mes pasado
+  decidía la bifurcación de este.
+- **El título se lleva 3 días de uso** (`TitleStay`), contando el día en que llega.
+  El huevo sale en la primera comida después.
+- **El compact automático suma `impulsive`.** Es el gesto de la rama brasa, y la
+  otra fuente (pico de sesión ≥ 85 %) dio 7 en unas 650 sesiones medidas.
+- **Escala de tests de 8 a 10.** El 8 salía del freno horario, que ya no frena el
+  hábito.
+- **El álbum no anota el repo.** El único repo que conoce la mascota al evolucionar
+  es el de la última sesión cerrada, y eso sería un dato que engaña.
+- **El árbol de 97 formas, descartado** (ver `umbrales.md`).
+- **Retirado:** rama defendida (`BranchMargin`, `RememberBranch`), suelo (`floor`) y
+  umbrales de título (`TitleAsks`). El camino, que solo crece, cumple las tres
+  funciones.
 
 ## Cómo se midió
 
