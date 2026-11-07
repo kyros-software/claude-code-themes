@@ -215,6 +215,18 @@ func Feed(s *State, event, note string, now time.Time) bool {
 			s.BestStreak = s.Streak
 		}
 		s.LastDay = day
+
+		// A day of use wearing the title. Past TitleStay the generation closes,
+		// and this meal is the new egg's first.
+		if s.TitleDays > 0 && AtTitle(s) {
+			s.TitleDays++
+			if s.TitleDays > TitleStay {
+				Hatch(s, now.Unix())
+				if food.XP > 0 {
+					s.XP = food.XP
+				}
+			}
+		}
 	}
 
 	// Flattened before it is stored, not before it is drawn: this note comes

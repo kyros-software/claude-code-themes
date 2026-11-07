@@ -76,6 +76,9 @@ type Card struct {
 	// StreakSeen along with it and the same number is not said again.
 	StreakSaid bool
 
+	// HatchSaid says the bubble is the new generation's announcement.
+	HatchSaid bool
+
 	// State is the vitality's name - "a gusto", "ahogada". It used to crown the
 	// card; it sits in band 4 beside the level now, and the row it vacated went
 	// back to the creature's crest. Jumped is true for the one refresh after it
@@ -111,6 +114,8 @@ func book(p *Payload, previousLabel, label string, newTurn bool, statePath strin
 // anything, is worth opening the pet's mouth about, in the order it matters.
 func eventFor(s *pet.State, label string, levelledUp, bigMeal bool) pet.Event {
 	switch {
+	case s.Generation > 1 && s.Generation > s.GenSeen:
+		return pet.EventHatch
 	case levelledUp:
 		return pet.EventLevelUp
 	case label == "k.o.":
@@ -234,6 +239,7 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 		out.Bubble = pet.Speak(s, event, form, now, nil)
 		out.LevelledUp = levelledUp
 		out.StreakSaid = event == pet.EventStreak
+		out.HatchSaid = event == pet.EventHatch
 	}
 	return out, s
 }
@@ -284,6 +290,9 @@ func Spoke(c Card, s *pet.State, statePath string, now time.Time) {
 		}
 		if c.StreakSaid {
 			fresh.StreakSeen = s.Streak
+		}
+		if c.HatchSaid {
+			fresh.GenSeen = fresh.Generation
 		}
 		return true
 	})

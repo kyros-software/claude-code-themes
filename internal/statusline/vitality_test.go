@@ -366,3 +366,30 @@ func TestTheStreakIsAnnouncedOncePerNumber(t *testing.T) {
 		t.Errorf("a new day of streak: event = %q, want the streak", e)
 	}
 }
+
+// A new generation is announced once, and a first life never is.
+func TestANewGenerationIsAnnouncedOnce(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "pet.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	first := pet.New()
+	first.Generation = 1
+	if e := eventFor(first, "fresca", false, false); e == pet.EventHatch {
+		t.Error("a first life announced itself as a new generation")
+	}
+
+	s := pet.New()
+	s.Generation = 2
+	if e := eventFor(s, "fresca", false, false); e != pet.EventHatch {
+		t.Fatalf("event = %q, want the hatch", e)
+	}
+	if err := os.WriteFile(statePath, []byte(`{"generation":2}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	Spoke(Card{Bubble: "otra vez chispa.", HatchSaid: true}, s, statePath, now)
+	if back := pet.Load(statePath); back.GenSeen != 2 {
+		t.Fatalf("gen_seen = %d after the announcement", back.GenSeen)
+	} else if e := eventFor(back, "fresca", false, false); e == pet.EventHatch {
+		t.Error("the same generation was announced twice")
+	}
+}

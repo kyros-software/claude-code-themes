@@ -120,6 +120,8 @@ type State struct {
 	// TitleDays counts the days of use spent wearing a title. At TitleStay the
 	// generation closes and an egg is laid. See Hatch.
 	TitleDays int `json:"title_days"`
+	// GenSeen is the generation last announced, like LevelSeen for levels.
+	GenSeen int `json:"gen_seen"`
 
 	Counters map[string]int    `json:"counters"`
 	Meals    map[string]int64  `json:"meals"`
@@ -313,6 +315,7 @@ func Load(path string) *State {
 	s.RepoDay = asString(flat["repo_day"])
 	s.Generation = asInt(flat["generation"])
 	s.TitleDays = asInt(flat["title_days"])
+	s.GenSeen = asInt(flat["gen_seen"])
 	for key, dst := range map[string]*map[string]int{"stage_base": &s.StageBase, "stage_max": &s.StageMax} {
 		if m, ok := flat[key].(map[string]any); ok {
 			*dst = make(map[string]int, len(m))
@@ -510,10 +513,10 @@ func Save(s *State, path string) bool {
 	Advance(s, now)
 	if form, _ := CurrentForm(s); form != "" {
 		RememberForm(s, form)
-		// A secret is worn, not walked to, so the album learns it here.
-		if secretForm(form) {
-			s.Collect(form, now)
-		}
+		// Whatever is worn is in the album: the root, which nobody walks to,
+		// and a secret, which is worn rather than walked to. Collect is once
+		// per form and life, so this costs nothing on a pet already booked.
+		s.Collect(form, now)
 	}
 	if s.Counters == nil {
 		s.Counters = map[string]int{}

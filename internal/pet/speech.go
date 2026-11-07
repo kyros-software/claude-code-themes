@@ -40,6 +40,7 @@ const (
 	EventLevelUp  Event = "level_up"
 	EventStreak   Event = "streak"
 	EventCtxBlown Event = "ctx_blown"
+	EventHatch    Event = "hatch"
 )
 
 // Repertoire is what each form says after a good meal. Forms absent from this
@@ -91,6 +92,8 @@ var Repertoire = map[string][]string{
 // event is about.
 func shared(e Event, level, streak, hunger int) string {
 	switch e {
+	case EventHatch:
+		return "otra vez chispa. el álbum me lo quedo."
 	case EventHungry:
 		return "tengo hambre. un /compact y nos entendemos."
 	case EventLevelUp:

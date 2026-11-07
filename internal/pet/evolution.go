@@ -505,6 +505,9 @@ func Advance(s *State, at int64) []string {
 		}
 		s.Branch[here] = next
 		s.Collect(next, at)
+		if Tier(next) == 6 {
+			s.TitleDays = 1 // the day it arrives is the first day it is worn
+		}
 		reached = append(reached, next)
 		here = next
 	}
@@ -516,6 +519,34 @@ func Advance(s *State, at int64) []string {
 		s.NewStage()
 	}
 	return reached
+}
+
+// TitleStay is how many days of use a title is worn before the generation
+// closes and an egg is laid. Long enough to be seen, short enough that the
+// next life comes: a title used to be the end of the game.
+const TitleStay = 3
+
+// AtTitle says the pet's path has reached a title.
+func AtTitle(s *State) bool { return Tier(pathEnd(s)) == 6 }
+
+// Hatch closes the generation and starts the next one: a new egg, back at the
+// root with no XP and no path, and a fresh stage. What carries over is
+// everything that is a record rather than a shape - the album, the lifetime
+// counters, the streak, the hunger. Those are yours; the form is the pet's.
+func Hatch(s *State, at int64) {
+	if s.Generation < 1 {
+		s.Generation = 1
+	}
+	s.Generation++
+	s.XP = 0
+	s.Branch = map[string]string{}
+	s.FormSeen = ""
+	s.Secret = ""
+	s.LevelSeen = 1
+	s.TitleDays = 0
+	s.HungerPeak = s.Hunger
+	s.NewStage()
+	s.Collect(Root, at)
 }
 
 // CurrentForm is the shape the pet wears and its level.

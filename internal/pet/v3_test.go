@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // v3: a fork is decided once, when the pet crosses into it, by the habits of
@@ -373,7 +374,7 @@ func TestTheV3FieldsSurviveTheRoundTrip(t *testing.T) {
 	if back.StageBase["tests"] != 9 || back.StageMax["widest_commit"] != 7 {
 		t.Errorf("stage_base %v, stage_max %v", back.StageBase, back.StageMax)
 	}
-	if len(back.Album) != 1 || back.Album[0] != (AlbumEntry{"pattern", 3, 42}) {
+	if len(back.Album) == 0 || back.Album[0] != (AlbumEntry{"pattern", 3, 42}) {
 		t.Errorf("album %v", back.Album)
 	}
 }
@@ -441,4 +442,57 @@ func isSecret(form string) bool {
 		}
 	}
 	return false
+}
+
+// The title is worn for TitleStay days of use, counting the day it arrives,
+// and the first meal after that is the new egg's.
+func TestATitleIsWornThenTheEggHatches(t *testing.T) {
+	s := New()
+	s.XP = xpFor(6)
+	Advance(s, t0.Unix())
+	if !AtTitle(s) || s.TitleDays != 1 {
+		t.Fatalf("at title %v, title_days %d", AtTitle(s), s.TitleDays)
+	}
+	s.LastDay = Today(t0)
+	for d := 1; d < TitleStay; d++ {
+		Feed(s, "commit", "", t0.Add(day*time.Duration(d)))
+		if s.Generation > 1 {
+			t.Fatalf("hatched on day %d of %d", d+1, TitleStay)
+		}
+	}
+	Feed(s, "commit", "", t0.Add(day*time.Duration(TitleStay)))
+	if s.Generation != 2 {
+		t.Fatalf("generation %d after %d days at the title", s.Generation, TitleStay)
+	}
+	if form, level := CurrentForm(s); form != Root || level != 1 {
+		t.Errorf("the egg is %s nivel %d", form, level)
+	}
+	if s.XP != Foods["commit"].XP {
+		t.Errorf("xp %d: the meal that hatched it should be the egg's first", s.XP)
+	}
+}
+
+// What carries over is the record; what resets is the shape.
+func TestHatchKeepsTheRecordAndResetsTheShape(t *testing.T) {
+	s := New()
+	s.Generation = 1
+	s.Counters["methodical"] = 500
+	s.Streak, s.BestStreak, s.Hunger = 9, 12, 3
+	s.Secret = "chimera"
+	s.XP = xpFor(6)
+	Advance(s, 1)
+	album := len(s.Album)
+	Hatch(s, 2)
+	if s.Generation != 2 || s.XP != 0 || len(s.Branch) != 0 || s.Secret != "" || s.TitleDays != 0 {
+		t.Errorf("shape not reset: gen %d xp %d branch %v secret %q", s.Generation, s.XP, s.Branch, s.Secret)
+	}
+	if s.Counters["methodical"] != 500 || s.Streak != 9 || s.BestStreak != 12 || s.Hunger != 3 {
+		t.Errorf("record lost: %v streak %d/%d hunger %d", s.Counters, s.Streak, s.BestStreak, s.Hunger)
+	}
+	if len(s.Album) != album+1 || s.Album[len(s.Album)-1] != (AlbumEntry{Root, 2, 2}) {
+		t.Errorf("album %v", s.Album)
+	}
+	if s.Stage("methodical") != 0 {
+		t.Errorf("the new life starts with stage methodical %d", s.Stage("methodical"))
+	}
 }
