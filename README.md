@@ -175,10 +175,10 @@ statusline. El color significa una sola cosa: si ese contador te lleva a algún 
 al que todavía puedes llegar.
 
 ```
-  cazabugs   nivel 4
+  cazabugs   nivel 3
   inquisitivo › sonda › cazabugs
 
-  nivel  ██████████░░░░░░  533/700 xp
+  nivel  █████░░░░░░░░░░░  533/700 xp
   hambre ██░░░░░░░░  2
   racha  ███░░░░  3 días · mejor 3
 
