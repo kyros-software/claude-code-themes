@@ -58,6 +58,12 @@ type hookState struct {
 	PlanCounted int `json:"plan_counted"`
 	Done        int `json:"done"`
 	Red         int `json:"red"`
+	// Worked says the session did something: an edit, a commit, a test run.
+	// A session that only talked - a question, a look around - still closes,
+	// and it used to pay ctx_low, sessions_under_40 and short_sessions like
+	// any other. One machine closed some 650 sessions in two months, and the
+	// counters that read sessions outran every habit that reads events.
+	Worked int `json:"worked"`
 }
 
 func loadHookState(path string) hookState {
@@ -222,7 +228,8 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 		return 0
 	case "SessionEnd":
 		if sessionID != "" {
-			CloseSession(session.PathFor(sessionID, ""), statePath, now)
+			worked := loadHookState(hookPath).Worked != 0
+			CloseSessionWorked(session.PathFor(sessionID, ""), statePath, now, worked)
 			// Everything this session left in $TMPDIR, including the lock
 			// beside the tool log and the statusline's git cache. Sweep would
 			// get them in a day; this gets them now.
@@ -242,6 +249,7 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 		// Touching code closes the door to the oracle.
 		h.Code = 1
 		h.Edited = 1
+		h.Worked = 1
 	case tool == "TodoWrite":
 		handleTodos(payload, &h, toolsPath, statePath, now)
 	case tool == "Bash":
@@ -334,6 +342,10 @@ func handleBash(payload map[string]any, h *hookState, statePath string, now time
 	text := output.String()
 	failed, _ := response["is_error"].(bool)
 
+	if IsCommit(command) || IsTestRunner(command, nil) {
+		h.Worked = 1
+	}
+
 	if !failed && IsCommit(command) && !SaidNothingCommitted(text) {
 		cwd := str(payload["cwd"])
 		if cwd == "" {
@@ -396,9 +408,19 @@ func handleBash(payload map[string]any, h *hookState, statePath string, now time
 	})
 }
 
-// CloseSession turns facts only the statusline can see - usage peak, duration,
-// repo - into counters, and deletes the scratch file.
+// CloseSession is CloseSessionWorked for a caller that cannot tell whether
+// the session did any work - `ccpet session` - and so takes it as having done.
 func CloseSession(factsPath, statePath string, now time.Time) {
+	CloseSessionWorked(factsPath, statePath, now, true)
+}
+
+// CloseSessionWorked turns facts only the statusline can see - usage peak,
+// duration, repo - into counters, and deletes the scratch file.
+//
+// A session that did no work (see hookState.Worked) books no session habit,
+// unless it reached ImpulsivePeak: nobody fills 85% of the window by doing
+// nothing, and the ember branch is about exactly that.
+func CloseSessionWorked(factsPath, statePath string, now time.Time, worked bool) {
 	facts := session.Load(factsPath)
 	// A file with no structured facts is a session we know nothing about: no
 	// counters, and no unlink either.
@@ -410,14 +432,29 @@ func CloseSession(factsPath, statePath string, now time.Time) {
 	// as epoch 0 gave 56-year sessions, which handed out long_sessions and
 	// sessions_4h for free.
 	duration := int64(-1)
-	if facts.T0 > 1e9 {
+	switch {
+	case facts.Seen > 0:
+		// Working time, not the wall clock. See session.Facts.Active. The tail
+		// between the last activity and the close counts like any other gap.
+		tail := now.Unix() - facts.Seen
+		duration = facts.Active
+		if tail > 0 && tail <= session.IdleGap {
+			duration += tail
+		}
+	case facts.T0 > 1e9:
+		// Facts written before Active existed: the wall clock is all there is.
 		duration = now.Unix() - facts.T0
 		if duration < 0 {
 			duration = 0
 		}
 	}
+	counts := worked || facts.CtxPeak >= ImpulsivePeak
 
 	pet.Update(statePath, func(s *pet.State) bool {
+		if !counts {
+			s.HungerPeak = s.Hunger
+			return true
+		}
 		// Every one of these is named for the context and means it. They used to
 		// have to say so, because for a while there was a second peak beside this
 		// one - the tightest of context, 5h and 7d - and two of the five read it by
