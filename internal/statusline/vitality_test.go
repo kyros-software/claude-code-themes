@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
@@ -330,5 +331,38 @@ func TestTheBarAndTheWordNeverDisagree(t *testing.T) {
 				t.Errorf("ctx %v / 5h %v: the bar is not the pet's", ctx, h5)
 			}
 		}
+	}
+}
+
+// The streak is a standing state, not an event. Read as one, a pet with three
+// days or more said "N días de racha" every five minutes, all day long - the
+// same line, three times running in pet.json's said list. It speaks when the
+// number moves, and Spoke is what marks the number as announced.
+func TestTheStreakIsAnnouncedOncePerNumber(t *testing.T) {
+	home := t.TempDir()
+	statePath := filepath.Join(home, "pet.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	s := pet.New()
+	s.Streak = 21
+	if e := eventFor(s, "fresca", false, false); e != pet.EventStreak {
+		t.Fatalf("a streak never announced: event = %q, want the streak", e)
+	}
+	if err := os.WriteFile(statePath, []byte(`{"streak":21}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	Spoke(Card{Bubble: "21 días de racha. mañana no me falles.", StreakSaid: true}, s, statePath, now)
+
+	s = pet.Load(statePath)
+	if s.StreakSeen != 21 {
+		t.Fatalf("streak_seen = %d after the announcement, want 21", s.StreakSeen)
+	}
+	if e := eventFor(s, "fresca", false, false); e != pet.EventNothing {
+		t.Errorf("the same streak again: event = %q, want silence", e)
+	}
+	// Tomorrow it is a new number, and worth saying.
+	s.Streak = 22
+	if e := eventFor(s, "fresca", false, false); e != pet.EventStreak {
+		t.Errorf("a new day of streak: event = %q, want the streak", e)
 	}
 }

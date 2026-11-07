@@ -207,9 +207,16 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 
 	switch event {
 	case "PreCompact":
+		// trigger is "manual" for /compact and "auto" when the CLI does it on
+		// its own (CC 2.1.319). Only the first is a habit. A payload without
+		// the field is an older CLI, and it keeps the old meaning.
+		meal := "compact"
+		if str(payload["trigger"]) == "auto" {
+			meal = "autocompact"
+		}
 		pet.Update(statePath, func(s *pet.State) bool {
 			pet.DecayHunger(s, now)
-			pet.Feed(s, "compact", "", now)
+			pet.Feed(s, meal, "", now)
 			return true
 		})
 		return 0
@@ -364,6 +371,8 @@ func handleBash(payload map[string]any, h *hookState, statePath string, now time
 		// bloodhound: "repro before the fix". A red is remembered; when a green
 		// follows, that is a reproduce -> fix cycle.
 		h.Red = 1
+		// exterminator: "15 green suites without one red". The red ends it.
+		pet.Update(statePath, func(s *pet.State) bool { return pet.Break(s, "red") })
 		return
 	}
 
@@ -459,18 +468,8 @@ func CloseSession(factsPath, statePath string, now time.Time) {
 			s.Bump("long_sessions", 1)
 		}
 
-		// "5 days running in the same repo": only the day change counts.
-		if facts.Repo != "" {
-			stamp := facts.Repo + "|" + pet.Today(now)
-			if s.RepoDay != stamp {
-				if s.RepoDay == facts.Repo+"|"+pet.Yesterday(now) {
-					s.Counters["same_repo_days"]++
-				} else {
-					s.Counters["same_repo_days"] = 1
-				}
-				s.RepoDay = stamp
-			}
-		}
+		// "5 days running in the same repo", counted per repo. See MarkRepoDay.
+		s.MarkRepoDay(facts.Repo, now)
 
 		s.HungerPeak = s.Hunger
 		return true

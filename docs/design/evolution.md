@@ -399,6 +399,7 @@ Dos consecuencias que conviene conocer:
 | tests en verde | **+15** | −4 | una cada hora, y con un cambio detrás |
 | commit hecho | **+12** | −3 | — |
 | `/compact` | **+8** | −3 | — |
+| compact automático | **+8** | −3 | — (no suma hábito) |
 | tarea del plan cerrada | **+6** | −1 | — |
 | `/feed` | **+3** | −2 | uno cada 4 h |
 | contexto al 100% | **−15** | — | — |
@@ -478,11 +479,11 @@ ninguna puerta se cierra a tu espalda.
 
 | Contador | Se llena con | Quién lo ve |
 | --- | --- | --- |
-| `methodical` | commits y `/compact` | hook |
+| `methodical` | commits y `/compact` (el manual; el automático no cuenta) | hook |
 | `inquisitive` | tests y tareas del plan | hook |
 | `impulsive`, `ctx_maxed` | el pico de contexto de la sesión (85 / 95) | statusline → `SessionEnd` |
 | `diffs`, `diff_streak` | commits (la racha se rompe al reventar) | hook |
-| `tests`, `test_streak` | tests en verde (íd.) | hook |
+| `tests`, `test_streak` | tests en verde (la racha se rompe con un rojo o al reventar) | hook |
 | `widest_commit` | el `N files changed` más alto | hook |
 | `longest_plan` | el plan más largo cerrado del todo | hook |
 | `plans_before_code` | un plan de 3+ tareas escrito antes de editar nada | hook |
@@ -493,7 +494,7 @@ ninguna puerta se cierra a tu espalda.
 | `ctx_low`, `sessions_under_40` | el pico de contexto de la sesión | statusline → `SessionEnd` |
 | `short_sessions`, `sessions_15min`, `long_sessions`, `sessions_4h` | la duración de la sesión | íd. |
 | `ctx100_sessions` | tocar el 100% de contexto (la tercera muesca) | íd. |
-| `same_repo_days` | días seguidos cerrando sesión en el mismo repo | íd. |
+| `same_repo_days` | días seguidos cerrando sesión en el mismo repo, la mejor racha viva entre todos | íd. |
 
 Tres datos **solo los ve la statusline**, porque no llegan a ningún hook: el uso
 de contexto, el modo de permisos y el ritmo de tokens. Los va dejando en su
