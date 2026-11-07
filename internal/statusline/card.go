@@ -174,12 +174,15 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 			Label:    label,
 			CtxPeak:  roundTo1(ctxPeak),
 			T0:       t0,
+			Active:   facts.Active,
+			Seen:     facts.Seen,
 			Repo:     p.Repo,
 			PromptID: promptID,
 			APIMs:    rate.apiMs,
 			TPS:      rate.storedTPS(),
 			TPSAt:    rate.tpsAt,
 		}
+		out.Facts.Touch(now.Unix())
 	}
 
 	// All four rows are the creature now, crest included. The state's name went

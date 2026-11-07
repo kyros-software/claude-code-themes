@@ -36,7 +36,16 @@ type Facts struct {
 	// careful about: see pet.ContextLoad.
 	CtxPeak float64 `json:"ctx_peak"`
 
-	T0       int64    `json:"t0"`
+	T0 int64 `json:"t0"`
+
+	// Active is the session's working time in seconds, and Seen the last moment
+	// anything happened in it. Every write of these facts is activity - a new
+	// turn, the model answering, the context moving - and the gap since Seen is
+	// added to Active unless it is longer than IdleGap. The wall clock from T0
+	// to SessionEnd counted a terminal left open overnight as a marathon:
+	// measured, 164 of some 650 sessions on one machine were "4 h or more".
+	Active   int64    `json:"active"`
+	Seen     int64    `json:"seen"`
 	Repo     string   `json:"repo"`
 	PromptID string   `json:"prompt_id"`
 	APIMs    *float64 `json:"api_ms"`
@@ -57,6 +66,22 @@ func asFloat(v any) *float64 {
 		return nil
 	}
 	return &f
+}
+
+// IdleGap is the longest pause that still counts as working time.
+const IdleGap = 15 * 60
+
+// Touch books activity at now: the gap since the last activity is working
+// time unless it is longer than IdleGap, which is somebody away from the desk.
+func (f *Facts) Touch(now int64) {
+	if f.Seen > 0 {
+		if gap := now - f.Seen; gap > 0 && gap <= IdleGap {
+			f.Active += gap
+		}
+	}
+	if now > f.Seen {
+		f.Seen = now
+	}
 }
 
 // SafeID whitelists a session id, because it becomes part of a path.
