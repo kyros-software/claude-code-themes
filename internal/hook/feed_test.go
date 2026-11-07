@@ -195,3 +195,25 @@ func TestAnAutomaticCompactFeedsButIsNotAHabit(t *testing.T) {
 		t.Errorf("a compact without a trigger paid methodical = %d, want 2", s.Counters["methodical"])
 	}
 }
+
+func TestTheCooldownBrakesTheXPNotTheHabit(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("TMPDIR", t.TempDir())
+	statePath := filepath.Join(home, "pet.json")
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+
+	var s *pet.State
+	for i := 0; i < 4; i++ {
+		at := now.Add(time.Duration(i) * 10 * time.Minute)
+		fire(t, statePath, at, anEdit("brake"))
+		s = fire(t, statePath, at.Add(time.Second), greenSuite("brake"))
+	}
+	if s.XP != pet.Foods["tests"].XP {
+		t.Errorf("xp = %d, want one suite's worth - the cooldown still holds", s.XP)
+	}
+	if s.Counters["tests"] != 4 || s.Counters["inquisitive"] != 4 {
+		t.Errorf("tests = %d, inquisitive = %d: want 4 each, every suite with an edit behind it",
+			s.Counters["tests"], s.Counters["inquisitive"])
+	}
+}

@@ -156,6 +156,14 @@ func Feed(s *State, event, note string, now time.Time) bool {
 	// and cleared daily, so reading the last meal out of it would forget a
 	// feed at 23:00 the moment midnight passed.
 	if food.Cooldown > 0 && waited(s, event, now) < food.Cooldown {
+		// The cooldown brakes the XP, not the habit. A green suite an hour
+		// after the last is still a green suite, and the race between branches
+		// reads the habit: with the brake on it too, `tests` could not outrun
+		// commits, which have none. Measured: 451 test runs in a month of
+		// transcripts against a lifetime `tests` of 175.
+		for _, counter := range food.Habits {
+			s.Bump(counter, 1)
+		}
 		return false
 	}
 
