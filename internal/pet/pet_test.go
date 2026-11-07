@@ -683,7 +683,9 @@ func write(t *testing.T, dir string, doc any) string {
 
 func TestAV1FileIsTranslated(t *testing.T) {
 	s := Load(write(t, t.TempDir(), v1))
-	if s.XP != 450 || s.Hunger != 3 || s.LastFed != 1788200000 || s.Streak != 4 ||
+	// 450 is level 4 on the v2 ladder; the v3 migration keeps the level and
+	// how far into it the pet was.
+	if s.XP != rescaleV2(450) || LevelFor(s.XP) != 4 || s.Hunger != 3 || s.LastFed != 1788200000 || s.Streak != 4 ||
 		s.BestStreak != 9 || s.LevelSeen != 4 || s.RepoDay != "r|2026-09-01" {
 		t.Fatalf("scalars: %+v", s)
 	}
