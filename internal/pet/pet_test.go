@@ -302,7 +302,7 @@ func TestEveryForkHasADecidingCounter(t *testing.T) {
 			// A title is the one child of its mark, and what decides it is more
 			// of the mark's own habit - not a fork between siblings, so it has
 			// no BranchBy of its own.
-			if _, title := TitleUnlock(parent); title && Titles[parent] == kid {
+			if Titles[parent] == kid {
 				continue
 			}
 			if !branch && !unlock {
@@ -324,8 +324,8 @@ func TestTheLevelNeverGoesDown(t *testing.T) {
 }
 
 func TestTheBranchFollowsTheHighestCounter(t *testing.T) {
-	methodical := &State{XP: 200, Counters: map[string]int{"methodical": 9, "inquisitive": 1}}
-	inquisitive := &State{XP: 200, Counters: map[string]int{"methodical": 1, "inquisitive": 9}}
+	methodical := &State{XP: xpFor(3), Counters: map[string]int{"methodical": 9, "inquisitive": 1}}
+	inquisitive := &State{XP: xpFor(3), Counters: map[string]int{"methodical": 1, "inquisitive": 9}}
 	if form, _ := CurrentForm(methodical); form != "refactor" && form != "tidy" {
 		t.Errorf("methodical went to %s", form)
 	}
@@ -338,7 +338,7 @@ func TestATieFallsBackToDesignOrder(t *testing.T) {
 	// A tie is one day of each habit, not one COUNT of each: the three
 	// counters are scaled before they race, so 5/5/5 is three different
 	// amounts of work. See BranchScale.
-	tied := &State{XP: 100, Counters: map[string]int{
+	tied := &State{XP: xpFor(2), Counters: map[string]int{
 		"methodical": BranchScale["methodical"], "inquisitive": BranchScale["inquisitive"],
 		"impulsive": BranchScale["impulsive"]}}
 	if form, _ := CurrentForm(tied); form != Tree[Root][0] {
@@ -363,7 +363,7 @@ func TestASecretStillWaitsForLevelFive(t *testing.T) {
 	// this pet: "refactor · nivel 4" with "488 para quimera" underneath.
 	// Four days of each of the two temperaments - which is the tie, and is not
 	// the same number twice since BranchScale.
-	pending := &State{XP: 412, Secret: "chimera",
+	pending := &State{XP: xpFor(4), Secret: "chimera",
 		Counters: map[string]int{
 			"methodical": 4 * BranchScale["methodical"], "inquisitive": 4 * BranchScale["inquisitive"],
 			"diffs": 3 * BranchScale["diffs"]}}
@@ -382,14 +382,18 @@ func TestASecretStillWaitsForLevelFive(t *testing.T) {
 	}
 }
 
-func TestAMarkNeedsItsHabit(t *testing.T) {
+func TestAMarkIsTheRipestHabitOrTheDefaultRoute(t *testing.T) {
+	// v2 left a pet on its bare trade at level 5 until the mark's habit was
+	// paid. v3 decides at the crossing: the ripest habit, or with none at all
+	// the first mark - a pet is never stuck on a rung.
 	base := &State{XP: xpFor(5), Counters: map[string]int{"methodical": 9, "diffs": 9}}
-	if form, _ := CurrentForm(base); form != "refactor" {
-		t.Fatalf("without the habit the form is %s", form)
-	}
-	base.Counters["diff_streak"] = 20
 	if form, _ := CurrentForm(base); form != "surgeon" {
-		t.Errorf("with the habit the form is %s", form)
+		t.Errorf("with no habit the form is %s, want the default surgeon", form)
+	}
+	base.Counters["widest_commit"] = 9
+	base.StageMax = map[string]int{"widest_commit": 9}
+	if form, _ := CurrentForm(base); form != "weaver" {
+		t.Errorf("with the weaver's habit ahead the form is %s", form)
 	}
 }
 
@@ -406,7 +410,7 @@ func TestLineageWalksBackToTheRoot(t *testing.T) {
 }
 
 func TestNextThresholdRunsOutAtTheTop(t *testing.T) {
-	if xp, ok := NextThreshold(0); !ok || xp != 60 {
+	if xp, ok := NextThreshold(0); !ok || xp != xpFor(2) {
 		t.Errorf("NextThreshold(0) = %d,%v", xp, ok)
 	}
 	if _, ok := NextThreshold(xpFor(6)); ok {
@@ -630,7 +634,7 @@ func TestTheChimeraNeedsATieAtLevelFour(t *testing.T) {
 	// COUNTS of each: a commit and a green suite buy different amounts of
 	// temperament, so the numbers differ. See BranchScale.
 	s := New()
-	s.XP = 400
+	s.XP = xpFor(4)
 	s.Counters = map[string]int{
 		"methodical": 4 * BranchScale["methodical"], "inquisitive": 4 * BranchScale["inquisitive"]}
 	Feed(s, "compact", "", t0)
@@ -956,7 +960,7 @@ func TestAMarkSpeaksWithItsTradesVoice(t *testing.T) {
 	}
 	s := New()
 	s = New()
-	s.XP = 400
+	s.XP = xpFor(4)
 	if line := Speak(s, EventLevelUp, "surgeon", t0, first); line != "nivel 4. ya soy alguien." {
 		t.Errorf("level-up line = %q", line)
 	}
@@ -996,15 +1000,16 @@ func TestTheXPBarMeasuresTheLevelNotTheTotal(t *testing.T) {
 		xp         int
 		done, span int
 	}{
-		{0, 0, 60},     // newborn
-		{30, 30, 60},   // halfway through level 1
-		{59, 59, 60},   // one short
-		{60, 0, 120},   // level 2 opens EMPTY, not at a third
-		{120, 60, 120}, // halfway through level 2
-		{179, 119, 120},
-		{180, 0, 220},  // level 3 opens empty
-		{400, 0, 1600}, // level 4 opens empty, and it is the long one
-		{1999, 1599, 1600},
+		{0, 0, 200},     // newborn
+		{100, 100, 200}, // halfway through level 1
+		{199, 199, 200}, // one short
+		{200, 0, 250},   // level 2 opens EMPTY, not at a fraction
+		{325, 125, 250}, // halfway through level 2
+		{449, 249, 250},
+		{450, 0, 250}, // level 3 opens empty
+		{700, 0, 300}, // level 4 opens empty
+		{1000, 0, 500},
+		{1499, 499, 500},
 	} {
 		done, span, ok := LevelProgress(c.xp)
 		if !ok {
@@ -1038,10 +1043,11 @@ func TestAHandEditedNegativeXPReadsAsANewborn(t *testing.T) {
 	}
 }
 
-func TestAtTheTopTheProgressBecomesTheHabit(t *testing.T) {
-	// Level 5, trade but no mark: what is left to reach is the habit.
+func TestATradeShowsTheRaceForItsMark(t *testing.T) {
+	// Levels 3 and 4, trade but no mark yet: the bar can show which mark the
+	// stage is heading for.
 	s := New()
-	s.XP = xpFor(5)
+	s.XP = xpFor(4)
 	s.Counters["inquisitive"] = 5
 	s.Counters["tests"] = 9
 	s.Counters["repro_before_fix"] = 4 // sabueso wants 10 -> 0.40
@@ -1062,36 +1068,27 @@ func TestAtTheTopTheProgressBecomesTheHabit(t *testing.T) {
 	}
 }
 
-func TestAMarkStillHasItsTitleToReach(t *testing.T) {
-	// The mark used to be the end of the road. There is a title behind each
-	// one now, asking for a good deal more of the same habit, so band 4 keeps
-	// a bar to fill.
+func TestAMarksTitleArrivesWithTheXP(t *testing.T) {
+	// v3: the habit chose the mark; the title is that mark grown up, and it
+	// comes with level 6 whatever the habit has done since. A pet wearing a
+	// mark has its progress in the XP bar, so NextMark has nothing to offer.
 	s := New()
 	s.XP = xpFor(5)
 	s.Counters["inquisitive"] = 5
 	s.Counters["tests"] = 9
-	s.Counters["test_streak"] = 15 // earned it
+	s.Counters["test_streak"] = 15
 	form, _ := CurrentForm(s)
 	if form != "exterminator" {
 		t.Fatalf("form is %q, want exterminator", form)
 	}
-	mark, ok := NextMark(s, form)
-	if !ok {
-		t.Fatal("a pet wearing its mark was offered nothing to reach")
+	if mark, ok := NextMark(s, form); ok {
+		t.Errorf("a mark was offered %s by habit; its title comes with the XP", mark.Form)
 	}
-	if mark.Form != "wasp" || mark.Threshold != TitleAsks["wasp"] {
-		t.Errorf("next = %s at %d/%d, want wasp at %d",
-			mark.Form, mark.Done, mark.Threshold, TitleAsks["wasp"])
-	}
-	// And a pet wearing the TITLE has nothing beyond it.
+	Advance(s, 0) // what Save does: the mark is decided and written
 	s.XP = xpFor(6)
-	s.Counters["test_streak"] = TitleAsks["wasp"]
-	title, _ := CurrentForm(s)
-	if title != "wasp" {
-		t.Fatalf("form is %q, want wasp", title)
-	}
-	if _, ok := NextMark(s, title); ok {
-		t.Error("a pet already wearing its title was offered another")
+	s.Counters["test_streak"] = 0
+	if title, _ := CurrentForm(s); title != "wasp" {
+		t.Errorf("form at level 6 is %q, want wasp", title)
 	}
 }
 
@@ -1115,14 +1112,14 @@ func onABranch(secret Secret, level, streak int) *State {
 //
 // The secret still wins its OWN rung. It does not win the one above.
 func TestASecretStillGrowsIntoItsTitle(t *testing.T) {
-	// The habit is not there yet: the secret is the best the pet has.
-	held := onABranch("phoenix", 6, Unlocks["exterminator"].Threshold)
+	// At level 5 the secret is the best the pet has.
+	held := onABranch("phoenix", 5, Unlocks["exterminator"].Threshold)
 	if form, _ := CurrentForm(held); form != "phoenix" {
-		t.Errorf("con la marca ganada y el título no, sale %q, se esperaba phoenix", form)
+		t.Errorf("a nivel 5 sale %q, se esperaba phoenix", form)
 	}
 
-	// And with the title's habit paid for, the title outranks it.
-	earned := onABranch("phoenix", 6, TitleAsks["wasp"])
+	// At level 6 the title outranks it: in v3 it comes with the XP.
+	earned := onABranch("phoenix", 6, Unlocks["exterminator"].Threshold)
 	if form, level := CurrentForm(earned); form != "wasp" || level != 6 {
 		t.Errorf("con el título ganado sale %q/%d, se esperaba wasp/6", form, level)
 	}
@@ -1132,18 +1129,22 @@ func TestASecretStillGrowsIntoItsTitle(t *testing.T) {
 // It used to be the literal, which nobody could see because every test that
 // asked stood the pet at level 5.
 func TestASecretDoesNotFreezeTheLevel(t *testing.T) {
-	s := onABranch("chimera", 6, 0)
-	if form, level := CurrentForm(s); form != "chimera" || level != 6 {
-		t.Errorf("sale %q/%d, se esperaba chimera/6", form, level)
+	s := onABranch("chimera", 5, 0)
+	s.XP = xpFor(6) - 1
+	if form, level := CurrentForm(s); form != "chimera" || level != LevelFor(s.XP) {
+		t.Errorf("sale %q/%d, se esperaba chimera/%d", form, level, LevelFor(s.XP))
 	}
 }
 
 // A title, once worn, is not handed back to the secret when the streak falls -
-// the floor stops that, the same as for any other form.
+// the path stops that, the same as for any other form.
 func TestATitleIsNotTakenBackByTheSecret(t *testing.T) {
-	s := onABranch("phoenix", 6, TitleAsks["wasp"])
+	s := onABranch("phoenix", 6, 50)
+	Advance(s, 0) // what Save does
 	form, _ := CurrentForm(s)
-	RememberForm(s, form)
+	if form != "wasp" {
+		t.Fatalf("el punto de partida es %q", form)
+	}
 
 	s.Counters["test_streak"] = 0 // the context blew and the streak went with it
 	if got, _ := CurrentForm(s); got != "wasp" {
@@ -1151,30 +1152,14 @@ func TestATitleIsNotTakenBackByTheSecret(t *testing.T) {
 	}
 }
 
-// And the bar has something to point at again. While the secret was terminal
-// this was correctly empty; now it is the title the pet is climbing towards,
-// which the panel would otherwise never mention.
-func TestASecretIsPointedAtItsTitle(t *testing.T) {
-	s := onABranch("phoenix", 5, Unlocks["exterminator"].Threshold)
-	form, _ := CurrentForm(s)
-	mark, ok := NextMark(s, form)
-	if !ok {
-		t.Fatal("una secreta no tiene a dónde ir, y ahora sí lo tiene")
-	}
-	if mark.Form != "wasp" || mark.Threshold != TitleAsks["wasp"] {
-		t.Errorf("apunta a %s %d/%d, se esperaba wasp .../%d",
-			mark.Form, mark.Done, mark.Threshold, TitleAsks["wasp"])
-	}
-}
-
 func TestAHabitPastItsThresholdDoesNotOverflowTheBar(t *testing.T) {
 	// The habit can be met long before the XP is: at level 3 the mark is not
 	// handed over yet, so the counter keeps running past its own threshold.
 	s := New()
-	s.XP = 180
+	s.XP = xpFor(3)
 	s.Counters["inquisitive"] = 5
 	s.Counters["plans"] = 9
-	s.Counters["longest_plan"] = 400 // cartographer wants 10
+	s.RecordMax("longest_plan", 400) // cartographer wants 10
 	form, _ := CurrentForm(s)
 	if form != "architect" {
 		t.Fatalf("form is %q, want architect", form)
@@ -1566,14 +1551,8 @@ func reach(form string) *State {
 			s.Counters[counter] = 999
 		}
 		if u, ok := Unlocks[step]; ok {
+			s.RecordMax(u.Counter, u.Threshold) // a max counter's stage is its StageMax
 			s.Counters[u.Counter] = u.Threshold
-		}
-		// A title asks for a good deal more of its mark's habit, so the state
-		// that reaches one has to carry the bigger number.
-		if parent, ok := Parent[step]; ok && Titles[parent] == step {
-			if u, ok := TitleUnlock(parent); ok {
-				s.Counters[u.Counter] = u.Threshold
-			}
 		}
 	}
 	return s

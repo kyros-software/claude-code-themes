@@ -97,29 +97,3 @@ func TestTheCrestAndTheFeetSurviveEveryState(t *testing.T) {
 		}
 	}
 }
-
-func TestATitleNeverAsksLessThanItsMark(t *testing.T) {
-	// The chain is mark then title, so a title asking for less than its mark
-	// is a form nothing can ever reach: you would have to un-earn the mark to
-	// qualify. A flat three-times factor put storm at 7 against bolt's 10 and
-	// did exactly that.
-	for mark, title := range Titles {
-		base, ok := Unlocks[mark]
-		if !ok {
-			t.Errorf("%s has no unlock of its own", mark)
-			continue
-		}
-		u, ok := TitleUnlock(mark)
-		if !ok {
-			t.Errorf("%s opens nothing", mark)
-			continue
-		}
-		if u.Counter != base.Counter {
-			t.Errorf("%s asks for %q, its mark asks for %q", title, u.Counter, base.Counter)
-		}
-		if u.Threshold <= base.Threshold {
-			t.Errorf("%s asks %d, but %s already asked %d - it can never be reached",
-				title, u.Threshold, mark, base.Threshold)
-		}
-	}
-}
