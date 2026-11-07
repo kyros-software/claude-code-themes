@@ -33,11 +33,12 @@ func panelFor(t *testing.T, tweak func(*pet.State)) string {
 func TestTheForkShowsBothMarksAndWhichIsAhead(t *testing.T) {
 	got := panelFor(t, func(s *pet.State) {
 		s.XP = 515
-		s.Counters = map[string]int{
-			"inquisitive": 21, "tests": 21, // spark -> probe -> bughunter
-			"repro_before_fix": 33, // bloodhound asks 10: paid for
-			"test_streak":      1,  // exterminator asks 15
-		}
+		s.Counters = map[string]int{"inquisitive": 21, "tests": 21} // spark -> probe -> bughunter
+		// v3: the race for the mark is run in the stage AFTER the trade is
+		// decided, so the trade is crossed first and the habits come after.
+		pet.Advance(s, 0)
+		s.Bump("repro_before_fix", 33) // bloodhound asks 10: paid for
+		s.Bump("test_streak", 1)       // exterminator asks 15
 	})
 	for _, want := range []string{"la marca del nivel 5", "sabueso", "exterminador", "33/10", "1/15"} {
 		if !strings.Contains(got, want) {
@@ -139,10 +140,10 @@ func TestTheXPRowIsTheTotalAndTheTarget(t *testing.T) {
 		s.XP = 518
 		s.Counters = map[string]int{"inquisitive": 21, "tests": 21}
 	})
-	if !strings.Contains(got, "518/2000 xp") {
+	if !strings.Contains(got, "518/700 xp") {
 		t.Errorf("want the total over the next threshold:\n%s", got)
 	}
-	if strings.Contains(got, "118/1600") {
+	if strings.Contains(got, "68/250") {
 		t.Error("the stretch is being printed as if it were the position")
 	}
 }
@@ -183,12 +184,11 @@ func TestTheColourSaysWhetherACounterLeadsAnywhere(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pet.json")
 	s := pet.New()
 	s.XP = 515
-	s.Counters = map[string]int{
-		"inquisitive": 21, "tests": 21,
-		"repro_before_fix": 33,  // bloodhound, ahead, threshold met
-		"test_streak":      1,   // exterminator, ahead, on its way
-		"bypass_turns":     206, // gremlin, on a branch behind us
-	}
+	s.Counters = map[string]int{"inquisitive": 21, "tests": 21}
+	pet.Advance(s, 0)              // v3: the trade first, then the stage that races its marks
+	s.Bump("repro_before_fix", 33) // bloodhound, ahead, threshold met
+	s.Bump("test_streak", 1)       // exterminator, ahead, on its way
+	s.Bump("bypass_turns", 206)    // gremlin, on a branch behind us
 	if !pet.Save(s, path) {
 		t.Fatal("could not write the state")
 	}

@@ -1,5 +1,12 @@
 # El árbol de 97 formas: puertas y umbrales
 
+> **Ruta cerrada (7-nov-2026, v3).** No se implementa. Razón: con 41 formas, una
+> mascota medida había llevado 5 en dos meses; el problema era que el contenido no
+> se ve, y 97 formas lo duplican. La v3 (`v3-generaciones.md`) ataca la causa:
+> etapas y generaciones. Se borraron `reach97_test.go`, `ATLAS-97.json` y
+> `PUERTAS-97.json`, que además probaban contra la mecánica v2 (contadores de vida,
+> rama defendida). Para reabrirla: primero medir cuántas de las 41 se ven en v3.
+
 > **Trabajo de diseño, no implementado.** El código sigue con sus 41 formas. Esto es
 > el árbol del lienzo de Claude Design contrastado contra el runtime, con su defecto
 > encontrado y el arreglo verificado.

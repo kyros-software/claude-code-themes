@@ -80,27 +80,19 @@ type State struct {
 	LogDay     string `json:"log_day"`
 	Secret     Secret `json:"secret"`
 
-	// FormSeen is the highest rung the shape has ever stood on. The walk is
-	// recomputed from the counters every refresh and two habits can fall back
-	// to zero, so without this a broken streak took the shape down the tree
-	// with it. See pet.Tier and pet.RememberForm.
-	//
-	// Absent from an older file, which is exactly right: an empty name is tier
-	// 0 and holds nothing back, so the first refresh records whatever the pet
-	// already is and the floor starts from there.
+	// FormSeen is the highest rung the shape has stood on. In v2 it was the
+	// floor that kept a broken streak from taking the shape down the tree; in
+	// v3 the path (Branch) does that, and this is kept for older builds that
+	// read the file, and for the v2 -> v3 migration, which rebuilds the path
+	// from it.
 	FormSeen string `json:"form_seen"`
 
-	// Branch is the child taken at each fork the pet has crossed, keyed by the
-	// parent form: {"spark": "pattern", "pattern": "tidy"}.
+	// Branch is the pet's path in this generation: the child taken at each
+	// fork, keyed by the parent, marks and titles included -
+	// {"spark": "pattern", "pattern": "tidy", "tidy": "monk", "monk": "abbot"}.
 	//
-	// A fork is sticky - see topBranch and BranchMargin - and the counters
-	// cannot say who was standing there, because they only ever go up: 46
-	// against 35 does not remember which was ahead yesterday. So the decision
-	// is written down.
-	//
-	// Absent from an older file, which reads as "nobody is defending this
-	// fork": the first walk decides on the counters alone and the answer is
-	// recorded from there on.
+	// v3: each link is written once, by Advance, when the pet crosses into
+	// that fork, and never revised. The shape IS this path.
 	Branch map[string]string `json:"branch"`
 
 	// RepoRuns is, per repo, the last day a session was closed in it and how
@@ -112,6 +104,23 @@ type State struct {
 	// every repo ever opened.
 	RepoRuns map[string]RepoRun `json:"repo_runs"`
 
+	// v3 - see docs/design/v3-generaciones.md.
+	//
+	// Generation counts the pet's lives, from 1. A file without it is a v2
+	// pet, and Load migrates it (see migrateV2).
+	Generation int `json:"generation"`
+	// StageBase is every counter as it stood when the current stage began, and
+	// StageMax the per-stage maximum of the RecordMax counters. Together they
+	// are State.Stage: what each habit did since the last evolution, which is
+	// what decides the next fork.
+	StageBase map[string]int `json:"stage_base"`
+	StageMax  map[string]int `json:"stage_max"`
+	// Album is every form the pet has worn, life after life.
+	Album []AlbumEntry `json:"album"`
+	// TitleDays counts the days of use spent wearing a title. At TitleStay the
+	// generation closes and an egg is laid. See Hatch.
+	TitleDays int `json:"title_days"`
+
 	Counters map[string]int    `json:"counters"`
 	Meals    map[string]int64  `json:"meals"`
 	Log      []LogEntry        `json:"log"`
@@ -121,6 +130,13 @@ type State struct {
 	// See speech.go.
 	Said   []string `json:"said"`
 	SaidAt int64    `json:"said_at"`
+}
+
+// AlbumEntry is one form worn: which, in which life, and when it arrived.
+type AlbumEntry struct {
+	Form string `json:"form"`
+	Gen  int    `json:"gen"`
+	At   int64  `json:"at"`
 }
 
 // RepoRun is one repo's run of consecutive days with a session closed in it.
@@ -155,6 +171,15 @@ func (s *State) Clone() *State {
 	for k, v := range s.Branch {
 		out.Branch[k] = v
 	}
+	out.StageBase = make(map[string]int, len(s.StageBase))
+	for k, v := range s.StageBase {
+		out.StageBase[k] = v
+	}
+	out.StageMax = make(map[string]int, len(s.StageMax))
+	for k, v := range s.StageMax {
+		out.StageMax[k] = v
+	}
+	out.Album = append([]AlbumEntry(nil), s.Album...)
 	out.RepoRuns = make(map[string]RepoRun, len(s.RepoRuns))
 	for k, v := range s.RepoRuns {
 		out.RepoRuns[k] = v
@@ -286,6 +311,31 @@ func Load(path string) *State {
 	s.SaidAt = int64(asInt(flat["said_at"]))
 	s.LastDay = asString(flat["last_day"])
 	s.RepoDay = asString(flat["repo_day"])
+	s.Generation = asInt(flat["generation"])
+	s.TitleDays = asInt(flat["title_days"])
+	for key, dst := range map[string]*map[string]int{"stage_base": &s.StageBase, "stage_max": &s.StageMax} {
+		if m, ok := flat[key].(map[string]any); ok {
+			*dst = make(map[string]int, len(m))
+			for k, v := range m {
+				(*dst)[k] = asInt(v)
+			}
+		}
+	}
+	if album, ok := flat["album"].([]any); ok {
+		for _, raw := range album {
+			e, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			form := asString(e["form"])
+			// Only forms that exist: a renamed or hand-written name would draw
+			// as the root, and the album would be lying about it.
+			if _, known := Sprites[form]; !known {
+				continue
+			}
+			s.Album = append(s.Album, AlbumEntry{Form: form, Gen: asInt(e["gen"]), At: int64(asInt(e["at"]))})
+		}
+	}
 	s.LogDay = asString(flat["log_day"])
 
 	if secret := asString(flat["secret"]); secret != "" {
@@ -311,10 +361,9 @@ func Load(path string) *State {
 		}
 	}
 
-	// The forks, through a stricter gate than the rung: an entry only survives
-	// if the key is a fork the tree really has AND the value is one of that
-	// fork's own children. A pair that does not name a real choice is not a
-	// choice, and topBranch would have to re-check it on every walk anyway.
+	// The path, through a stricter gate than the rung: an entry only survives
+	// if the key is a form the tree really has AND the value is one of its own
+	// children. A pair that is not a real edge would cut the path short.
 	if runs, ok := flat["repo_runs"].(map[string]any); ok {
 		for repo, v := range runs {
 			r, ok := v.(map[string]any)
@@ -342,7 +391,7 @@ func Load(path string) *State {
 				parent = translated
 			}
 			for _, kid := range Tree[parent] {
-				if kid != child || BranchBy[kid] == "" {
+				if kid != child {
 					continue
 				}
 				if s.Branch == nil {
@@ -450,14 +499,22 @@ func Save(s *State, path string) bool {
 	// RememberForm only ever raises, so a save that happens to catch the pet
 	// mid-fall - book() writes right after an overflow has broken a streak -
 	// cannot write the fall down.
+	//
+	// v3: the forks the level has reached are decided and written here for the
+	// same reason - six paths persist this file and a fork must not depend on
+	// which one ran. Advance also books each new form in the album.
+	now := time.Now().Unix()
+	if s.Generation < 1 {
+		s.Generation = 1
+	}
+	Advance(s, now)
 	if form, _ := CurrentForm(s); form != "" {
 		RememberForm(s, form)
+		// A secret is worn, not walked to, so the album learns it here.
+		if secretForm(form) {
+			s.Collect(form, now)
+		}
 	}
-	// And the forks it is standing at, for the same reason and in the same
-	// place: six paths persist this file and only two of them have any reason
-	// to think about branches. A fork that never gets written down is a fork
-	// with nobody defending it, which is the hysteresis quietly not happening.
-	RememberBranch(s)
 	if s.Counters == nil {
 		s.Counters = map[string]int{}
 	}
@@ -478,6 +535,15 @@ func Save(s *State, path string) bool {
 	}
 	if s.RepoRuns == nil {
 		s.RepoRuns = map[string]RepoRun{}
+	}
+	if s.StageBase == nil {
+		s.StageBase = map[string]int{}
+	}
+	if s.StageMax == nil {
+		s.StageMax = map[string]int{}
+	}
+	if s.Album == nil {
+		s.Album = []AlbumEntry{}
 	}
 	dir := filepath.Dir(path)
 	if os.MkdirAll(dir, 0o755) != nil {
@@ -532,6 +598,61 @@ func (s *State) RecordMax(counter string, value int) {
 	if value > s.Counters[counter] {
 		s.Counters[counter] = value
 	}
+	if s.StageMax == nil {
+		s.StageMax = map[string]int{}
+	}
+	if value > s.StageMax[counter] {
+		s.StageMax[counter] = value
+	}
+}
+
+// maxCounters keep the largest value ever seen, so their stage value is the
+// largest seen this stage. See RecordMax.
+var maxCounters = map[string]bool{"widest_commit": true, "longest_plan": true}
+
+// Stage is what a counter did since the current stage began.
+//
+// For a counter that only grows it is the difference from StageBase. A streak
+// that broke since (test_streak on a red, diff_streak on a blown context) is
+// below its base, and then everything it holds was built this stage.
+//
+// Runs of days (same_repo_days, docs_days) follow the same rule, and it says
+// the right thing: a run that carried on from before counts only the days it
+// added this stage, and one that broke and restarted counts what it has. A run
+// counted whole would let a hundred-day streak from last month decide this
+// month's fork.
+func (s *State) Stage(counter string) int {
+	if maxCounters[counter] {
+		return s.StageMax[counter]
+	}
+	now, base := s.Counters[counter], s.StageBase[counter]
+	if now < base {
+		return now
+	}
+	return now - base
+}
+
+// NewStage starts a stage: every counter's present value becomes the base.
+func (s *State) NewStage() {
+	s.StageBase = make(map[string]int, len(s.Counters))
+	for k, v := range s.Counters {
+		s.StageBase[k] = v
+	}
+	s.StageMax = map[string]int{}
+}
+
+// Collect books a form in the album for this generation, once.
+func (s *State) Collect(form string, at int64) {
+	gen := s.Generation
+	if gen < 1 {
+		gen = 1
+	}
+	for _, e := range s.Album {
+		if e.Form == form && e.Gen == gen {
+			return
+		}
+	}
+	s.Album = append(s.Album, AlbumEntry{Form: form, Gen: gen, At: at})
 }
 
 // MarkDay counts CONSECUTIVE DAYS, not occurrences: only the day change counts,

@@ -138,7 +138,7 @@ func TestTheRungIsWrittenToTheFile(t *testing.T) {
 	path := t.TempDir() + "/pet.json"
 	s := pet.New()
 	s.XP = xpFor(6)
-	s.Counters = map[string]int{"inquisitive": 20, "tests": 20, "test_streak": pet.TitleAsks["wasp"]}
+	s.Counters = map[string]int{"inquisitive": 20, "tests": 20, "test_streak": 50}
 	pet.Save(s, path)
 
 	form, _ := pet.CurrentForm(pet.Load(path))
@@ -189,38 +189,6 @@ func TestTheRungIsNotRewrittenOnEveryRefresh(t *testing.T) {
 	}
 }
 
-// A lateral move on the same rung DOES have to be written: the floor hands back
-// whatever name it stored, so a stale sibling there would resurrect the wrong
-// shape the next time a streak fell.
-func TestALateralMoveIsWrittenTo(t *testing.T) {
-	path := t.TempDir() + "/pet.json"
-	s := pet.New()
-	s.XP = xpFor(5)
-	s.Counters = map[string]int{"inquisitive": 20, "tests": 20, "test_streak": 20}
-	pet.Save(s, path)
-	if got := pet.Load(path).FormSeen; got != "exterminator" {
-		t.Fatalf("el punto de partida es %q", got)
-	}
-
-	// The streak goes and the other habit is what is left: a real sideways
-	// move, counters and all. A card that disagreed with the counters would be
-	// a state no run can produce.
-	moved := pet.Load(path)
-	moved.Counters["test_streak"] = 0
-	moved.Counters["repro_before_fix"] = 10
-	pet.Save(moved, path)
-
-	on := pet.Load(path)
-	form, _ := pet.CurrentForm(on)
-	if form != "bloodhound" {
-		t.Fatalf("tras el lateral la forma es %s", form)
-	}
-	RememberShape(Card{id: form}, on, path)
-	if got := pet.Load(path).FormSeen; got != "bloodhound" {
-		t.Errorf("el movimiento lateral no se guardo: form_seen = %q", got)
-	}
-}
-
 // A walk that has fallen must never lower the rung already on disk. This is
 // the end-to-end shape of the bug: with the statusline switched off, a pet
 // stood at rung 6 for weeks with form_seen never written, and then one blown
@@ -235,7 +203,7 @@ func TestAFallenWalkNeverLowersTheStoredRung(t *testing.T) {
 	path := t.TempDir() + "/pet.json"
 	s := pet.New()
 	s.XP = xpFor(6)
-	s.Counters = map[string]int{"inquisitive": 20, "tests": 20, "test_streak": pet.TitleAsks["wasp"]}
+	s.Counters = map[string]int{"inquisitive": 20, "tests": 20, "test_streak": 50}
 	pet.Save(s, path)
 	if got := pet.Load(path).FormSeen; got != "wasp" {
 		t.Fatalf("el punto de partida es %q, se esperaba wasp", got)

@@ -107,7 +107,7 @@ func TestTheArgumentGuards(t *testing.T) {
 func TestAMealThatEvolvesSaysSo(t *testing.T) {
 	path := statePath(t)
 	s := pet.New()
-	s.XP = 59 // one meal short of level 2
+	s.XP = pet.Levels[1].XP - 1 // one meal short of level 2
 	s.Counters = map[string]int{"methodical": 9}
 	pet.Save(s, path)
 

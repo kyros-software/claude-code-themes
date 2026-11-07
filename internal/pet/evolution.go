@@ -1,15 +1,15 @@
 package pet
 
 // The progress layer. Accumulated XP sets the level, and the SHAPE never goes
-// back down the tree - see floor. The level itself does: XP falls when the
+// back down the tree - the path only grows, see Advance. The level itself does: XP falls when the
 // context blows (-15) and while the pet goes hungry, so a level can be lost,
 // which TestStarvingCanCostALevelButNeverKills has always said and this
 // comment used to deny. TestTheLevelNeverGoesDown is about LevelFor being
 // monotonic in XP, which is a different claim and the only one that holds.
 //
-// At every fork the branch is not chosen by the user but by whichever
-// behaviour counter is highest at that moment, so the shape you end up with is
-// a readout of how you work.
+// At every fork the branch is not chosen by the user but by the habits of the
+// stage that just ended (v3), so the shape you end up with is a readout of how
+// you have been working lately.
 
 import "sort"
 
@@ -91,7 +91,22 @@ type Level struct {
 // The cost, with eyes open: XP falls - `overflow` takes 15, hunger takes more
 // - so a level lost is now a much longer climb back. That is the same trade
 // the wider gap buys, seen from the other side.
-var Levels = []Level{{0, 1}, {60, 2}, {180, 3}, {400, 4}, {2000, 5}, {4500, 6}}
+//
+// v3 (7-nov-2026): the ladder is one generation, and each rung is a STAGE
+// whose habits decide the next fork, once. So every stage has to last long
+// enough for a habit to show, and the whole life has to end in about two
+// weeks, or there is no next life to see other forms in. At the design's 128
+// XP for a normal day:
+//
+//	1 -> 2   200   ~1.6 days   habits that pick the temperament
+//	2 -> 3   250   ~2 days     the trade
+//	3 -> 5   550   ~4.3 days   the mark (level 4 forks nothing)
+//	5 -> 6   500   ~3.9 days   the title
+//
+// About twelve days to the title, then TitleStay days wearing it. Level 2 at
+// 60 was half a day: the per-session habits are booked as sessions close, and
+// half a day had none of them yet, so the fork went to commits every time.
+var Levels = []Level{{0, 1}, {200, 2}, {450, 3}, {700, 4}, {1000, 5}, {1500, 6}}
 
 // BranchBy names the counter that decides each fork. Highest wins on level-up.
 var BranchBy = map[string]string{
@@ -147,25 +162,6 @@ var BranchScale = map[string]int{
 	"long_sessions":  2, // one per session over 90 min - fewer of those fit
 }
 
-// branchShare is how far a fork counter has come in its own unit: days of that
-// habit.
-//
-// A counter with no scale divides by one, which is the raw number and the old
-// behaviour. That is deliberate: a fork added without a scale keeps working and
-// TestEveryForkCounterHasAScale says so out loud, rather than the shape quietly
-// going wrong because of a zero nobody wrote.
-func branchShare(s *State, form string) float64 {
-	counter := BranchBy[form]
-	if counter == "" {
-		return 0
-	}
-	done := s.Counters[counter]
-	if done < 0 {
-		done = 0
-	}
-	return float64(done) / float64(scaleOf(counter))
-}
-
 // scaleOf is BranchScale with the missing entry read as 1, which is the raw
 // count and the behaviour before there were scales at all.
 func scaleOf(counter string) int {
@@ -200,69 +196,17 @@ var Unlocks = map[string]Unlock{
 }
 
 // Titles are the level-6 forms, one per mark: "la forma final de cada rama".
-// Each asks for MORE of the same habit its mark asked for - a bloodhound that
-// reproduced ten bugs before fixing them becomes a wolf at thirty.
+//
+// v2 gated each one behind its mark's habit, two and a half to five times
+// over (TitleAsks). v3 hands the title over with the XP: a generation has to
+// end for the next one to start, and a gate that one pet in ten clears is a
+// generation that never ends. The habit already chose the mark; the title is
+// that mark grown up.
 var Titles = map[string]string{
 	"surgeon": "scalpel", "weaver": "loom", "monk": "abbot", "gardener": "forest",
 	"bloodhound": "wolf", "exterminator": "wasp", "cartographer": "atlas",
 	"oracle": "sphinx", "bolt": "storm", "sniper": "falcon", "ox": "mammoth",
 	"mole": "worm", "gremlin": "devil", "kraken": "leviathan",
-}
-
-// TitleAsks is what each title asks of its mark's habit, straight off the
-// canvas "Cómo llegar a cada forma".
-//
-// These used to be one number - a title asked TWICE its mark - and that number
-// was invented here, not designed: the atlas carried the fourteen titles but no
-// condition for any of them, so a uniform multiplier was the least-wrong guess
-// available. The canvas has since spelled out a factor PER title, from x2.5 to
-// x5, which is strictly better information than any single multiplier: the
-// designer weighed each habit on its own.
-//
-// Two entries do not follow the canvas, and both for reasons the canvas could
-// not have known:
-//
-//   - atlas. The canvas asks for "5 planes de 10 tareas cerrados", which is a
-//     COUNT of big plans. longest_plan is a RecordMax - the largest single plan
-//     ever closed - so writing 50 here would ask for one plan of fifty tasks,
-//     which is not what was designed and is a different kind of quantity. The
-//     doubling stands until there is a counter that can express what the canvas
-//     means.
-//   - devil. The canvas says 100. bypass_turns moves about thirty times a day -
-//     measured, and this machine's own pet.json was already past 115 the day
-//     the canvas was read - so 100 is a title that arrives already earned, which
-//     is not a title. 200 puts it at about a week, in line with the rest.
-//
-// Everything else is the canvas's number.
-var TitleAsks = map[string]int{
-	"scalpel":   50,  // diff_streak, x2.5
-	"loom":      25,  // widest_commit, x2.5
-	"abbot":     15,  // sessions_under_40, x3
-	"forest":    7,   // docs_days, x3.5 - "una semana entera ordenando"
-	"wolf":      30,  // repro_before_fix, x3
-	"wasp":      50,  // test_streak, x3.3
-	"atlas":     20,  // longest_plan - see above, NOT the canvas's 50
-	"sphinx":    20,  // plans_before_code, x4
-	"storm":     30,  // sessions_15min, x3
-	"falcon":    25,  // single_tool_tasks, x3
-	"mammoth":   10,  // sessions_4h, x3.3
-	"worm":      20,  // same_repo_days, x4
-	"devil":     200, // bypass_turns - see above, NOT the canvas's 100
-	"leviathan": 10,  // ctx100_sessions, x3.3
-}
-
-// TitleUnlock is what the title behind a mark asks for: its mark's counter, at
-// the title's own threshold.
-func TitleUnlock(mark string) (Unlock, bool) {
-	base, ok := Unlocks[mark]
-	if !ok {
-		return Unlock{}, false
-	}
-	asks, ok := TitleAsks[Titles[mark]]
-	if !ok {
-		return Unlock{}, false
-	}
-	return Unlock{base.Counter, asks}, true
 }
 
 // Secrets are the two forms that do not come off the tree.
@@ -337,67 +281,29 @@ func (m Mark) Share() float64 {
 	return float64(m.Done) / float64(m.Threshold)
 }
 
-// NextMark is the mark the pet is closest to wearing.
+// NextMark is the mark a trade is heading for: of its two marks, the one whose
+// habit has come furthest THIS STAGE relative to what it asks. It is the race
+// that pick will settle at level 5, shown while it is still being run.
 //
-// This is what progress becomes once the XP runs out. The canvas: "las
-// ramificaciones no dependen de la XP sino del hábito". A pet at the top of
-// the ladder still has somewhere to go, and the habit is the only thing left
-// that still moves - so it is the habit the bar measures.
+// Only a trade has one. In v3 a mark's title arrives with the XP, not with a
+// habit three times over, so a pet wearing a mark - or a secret, or a title -
+// has its progress in the XP bar and gets false here.
 //
-// Closest is the largest share of the habit done, and a tie falls back to the
-// order the design lists the siblings in, which is the tie-break CurrentForm
-// already uses. A pet that wears a mark, or a secret, has nothing left to
-// reach and gets false.
-//
-// form is the pet's current form: every caller has just worked it out with
-// CurrentForm, and asking for it keeps this from walking the tree a second
-// time on every refresh - and from disagreeing with the form on screen.
+// form is the pet's current form, as CurrentForm gave it.
 func NextMark(s *State, form string) (Mark, bool) {
-	// A secret hides the branch but no longer hides the title, so there is
-	// something left to point at. Ask the tree where the pet is really
-	// standing: on a mark it has earned, and the bar measures that mark's
-	// title - or on a bare trade, and the bar measures the nearest mark, which
-	// is the gate on the way to its title either way.
-	if secretForm(form) {
-		form, _ = treeWalk(s)
-	}
-
-	// A pet wearing a mark is not finished any more: there is a title behind
-	// it, asking for the same habit three times over. Only a title has nothing
-	// left to reach.
-	if _, worn := Unlocks[form]; worn {
-		u, ok := TitleUnlock(form)
-		if !ok {
-			return Mark{}, false
-		}
-		done := s.Counters[u.Counter]
-		if done < 0 {
-			done = 0
-		}
-		if done > u.Threshold {
-			done = u.Threshold
-		}
-		return Mark{Titles[form], u.Counter, done, u.Threshold}, true
-	}
-	if _, isTitle := titleForms[form]; isTitle {
+	if Tier(form) != 3 {
 		return Mark{}, false
 	}
-
-	// The same choice CurrentForm makes, so the mark the bar names is the mark
-	// the walk would hand over. Unearned siblings count here - that is the
-	// point of the bar - but the ranking is the identical ripeness, which is
-	// why the two can no longer disagree.
 	kid, ok := ripestMark(s, Tree[form], false)
 	if !ok {
 		return Mark{}, false
 	}
 	u := Unlocks[kid]
-	done := s.Counters[u.Counter]
+	done := s.Stage(u.Counter)
 	if done < 0 {
 		done = 0
 	}
-	// Clamped for the DISPLAY only: a bar does not overflow. The choice above
-	// deliberately saw the uncapped number.
+	// Clamped for the DISPLAY only: a bar does not overflow.
 	if done > u.Threshold {
 		done = u.Threshold
 	}
@@ -430,7 +336,7 @@ func ripestMark(s *State, kids []string, met bool) (string, bool) {
 		if !ok || u.Threshold <= 0 {
 			continue
 		}
-		done := s.Counters[u.Counter]
+		done := s.Stage(u.Counter)
 		if done < 0 {
 			done = 0
 		}
@@ -481,232 +387,153 @@ func Tier(form string) int {
 	return depth + 1
 }
 
-// floor holds the shape at the highest rung it has ever stood on.
-//
-// The walk is recomputed from the counters on every refresh and two of the
-// habits - the clean test streak and the clean diff streak - go back to zero
-// when the context blows. Without a floor that turned into a fall down the
-// TREE: a level 6 `wasp` came back as a `bughunter`, a level 3 shape, still
-// labelled level 6 because the level is XP and XP does not fall.
-//
-// The rule is that a form only ever moves sideways or up. An `exterminator`
-// who loses the streak can become a `bloodhound` - the same rung, the other
-// habit, which is a real change and says something true about the week - but
-// it cannot go back to being a plain `bughunter`. What was earned at a rung
-// stays at that rung.
-//
-// seen is State.FormSeen, and it is only ever written by RememberForm, which
-// is the same split speech.go uses: work it out here, write it down there,
-// when it has actually reached the screen.
-//
-// One thing the rung rule caught that it was never aimed at: a TITLE could not
-// move. A pet wearing `abbot` whose temperament flips still has `bloodhound`
-// earned and waiting on the other branch, but rung 6 beats rung 5, so it stayed
-// an abbot until the new branch grew a title of its own - which is a different
-// habit, three times over, and can be weeks away. The shape stopped saying
-// anything about the month the pet was actually having.
-//
-// So the floor now asks WHY the walk came out lower, which is the question it
-// meant all along. Two answers:
-//
-//   - The habit fell. `wasp` loses the test streak and the walk offers
-//     `bloodhound`, the same trade's other mark. That is the fall the floor
-//     exists to stop, and it still stops it.
-//   - The branch changed. `abbot` in `tidy` becomes `bloodhound` in
-//     `bughunter`. Nothing was lost: the pet is somewhere else, and the mark
-//     over there is earned. That one goes through.
-//
-// The trade tells them apart. Same trade means a fall; a different trade means
-// the pet moved, and a move down one rung to a mark it has genuinely earned is
-// a truer picture than a title from a branch it left. Below rung 5 nothing
-// passes either way: a walk that comes back a bare trade is XP falling or a
-// branch with nothing earned on it yet, and neither is a move.
-func floor(here, seen string) string {
-	if Tier(seen) <= Tier(here) {
-		return here
-	}
-	if Tier(here) >= 5 {
-		if from, to := tradeOf(seen), tradeOf(here); from != "" && to != "" && from != to {
-			return here
-		}
-	}
-	return seen
-}
-
-// tradeOf is the rung-3 trade a form hangs off. The root, the temperaments and
-// the two secrets hang off none and get "", which reads as "cannot tell" and
-// makes floor keep its old answer rather than guess.
-func tradeOf(form string) string {
-	for f := form; f != ""; {
-		if Tier(f) == 3 {
-			return f
-		}
-		parent, ok := Parent[f]
-		if !ok {
-			return ""
-		}
-		f = parent
-	}
-	return ""
-}
-
-// RememberForm records the rung a form has reached, so a later fall in the
-// counters cannot take the shape back down the tree with it. Callers that
-// persist the state call it; callers that only ask what the pet looks like -
-// the panel's what-if ghost, for one - must not.
+// RememberForm records the rung a form has reached. In v3 the path is the
+// memory and nothing reads this back to hold the shape up; it is still written
+// so that an older build reading the file keeps its floor.
 func RememberForm(s *State, form string) {
 	if Tier(form) >= Tier(s.FormSeen) {
 		s.FormSeen = form
 	}
 }
 
-// BranchMargin is what it costs to TAKE a fork off the branch already standing
-// there: one full day of the habit, in the unit BranchScale is written in.
+// The v3 rule: a fork is decided ONCE, when the pet crosses into it, by the
+// habits of the stage that just ended - and then it stays decided for the rest
+// of the generation.
 //
-// Without it the fork went to whoever was ahead by any amount at all, and two
-// habits that run level do not stay ahead of each other for long. Measured:
-// methodical 4.60 days against inquisitive 4.38, which is a gap of 0.22 - two
-// green suites one way, three commits the other. The pet changed name and
-// sprite several times in an afternoon, on a fork that had not really been
-// decided at any point.
+// v2 recomputed every fork from lifetime counters on every refresh, and that
+// had two consequences it then spent most of this file fighting. The shape
+// flickered between near-equal habits, so a fork taken had to be DEFENDED by a
+// margin (BranchMargin, RememberBranch). And lifetime counters only grow, so a
+// pet's branch was settled in its first weeks for good: one pet measured at
+// methodical 1036 could not become anything else whatever it did. It wore 5
+// forms out of 41 in two months.
 //
-// A day is the unit the scales are already denominated in, so the rule says
-// itself: to take somebody's branch you have to out-work them by a day of the
-// habit, not by a commit.
-const BranchMargin = 1.0
+// The fix is the v-pets' (Digimon resets care mistakes and training at every
+// evolution): what decides a fork is what happened during that stage. See
+// State.Stage and docs/design/v3-generaciones.md.
 
-// topBranch picks between siblings: the habit that has come furthest IN ITS
-// OWN UNIT wins, a tie falls back to the order the design lists them in, and
-// a fork already taken is DEFENDED - see BranchMargin.
+// targetTier is the rung a pet at this level stands on.
+func targetTier(level int) int {
+	switch {
+	case level >= 6:
+		return 6
+	case level == 5:
+		return 5
+	case level >= 3:
+		return 3
+	}
+	return level
+}
+
+// stageShare is how far a fork counter has come THIS STAGE, in its own unit:
+// days of that habit. A counter with no scale divides by one.
+func stageShare(s *State, form string) float64 {
+	counter := BranchBy[form]
+	if counter == "" {
+		return 0
+	}
+	return float64(s.Stage(counter)) / float64(scaleOf(counter))
+}
+
+// pick decides the fork at parent with this stage's habits. Nothing it reads
+// is written: it is the same answer whether the pet is crossing for real or
+// the panel is asking what the next level would look like.
 //
-// It compared the raw counters until it turned out that half of them count
-// events and half count sessions, which is a race with a winner before it
-// starts. See BranchScale.
-//
-// The price of the defence, paid with eyes open: the shape stops being a pure
-// function of the counters. Two pets with identical numbers can wear different
-// forms, because one of them got there by a road the other did not. Everything
-// else in this file recomputes from the counters and says so; this is the one
-// fact about a pet that is only in the file.
-func topBranch(s *State, parent string) string {
-	candidates := Tree[parent]
-	best := candidates[0]
-	bestShare := branchShare(s, best)
-	for _, kid := range candidates[1:] {
-		if share := branchShare(s, kid); share > bestShare {
+// Every fork has a route by default, the first child in design order, which is
+// where a stage with no habit at all goes - the Digimon fallback. A pet is
+// never stuck on a rung for want of a habit.
+func pick(s *State, parent string) string {
+	kids := Tree[parent]
+	if len(kids) == 1 {
+		return kids[0] // a mark's title
+	}
+	if _, isMarkFork := Unlocks[kids[0]]; isMarkFork {
+		if kid, ok := ripestMark(s, kids, false); ok && stageDone(s, kid) > 0 {
+			return kid
+		}
+		return kids[0]
+	}
+	best, bestShare := kids[0], stageShare(s, kids[0])
+	for _, kid := range kids[1:] {
+		if share := stageShare(s, kid); share > bestShare {
 			best, bestShare = kid, share
 		}
 	}
+	return best
+}
 
-	held, defended := s.Branch[parent]
-	if !defended || held == best {
-		return best
+// stageDone is a mark's habit this stage.
+func stageDone(s *State, mark string) int {
+	u, ok := Unlocks[mark]
+	if !ok {
+		return 0
 	}
-	// A held branch that is not a child of this fork is a hand-edited or
-	// outdated file, and defends nothing. Load drops these, so reaching here
-	// means the state was built in memory.
-	found := false
-	for _, kid := range candidates {
-		if kid == held {
-			found = true
+	return s.Stage(u.Counter)
+}
+
+// pathEnd follows the decisions already taken. A link that is not a real edge
+// of the tree ends the path rather than being followed: Load drops those, so
+// this only guards a state built in memory.
+func pathEnd(s *State) string {
+	here := Root
+	for i := 0; i < 8; i++ {
+		next, ok := s.Branch[here]
+		if !ok || Parent[next] != here {
+			break
 		}
+		here = next
 	}
-	if !found {
-		return best
-	}
-	if bestShare >= branchShare(s, held)+BranchMargin {
-		return best
-	}
-	return held
+	return here
 }
 
-// RememberBranch writes down which side of each fork the pet is standing on,
-// so the next walk knows who is defending it.
+// Advance takes the forks the pet's level has reached and not yet decided,
+// writes them down, starts a new stage after each one, and books every new
+// form in the album. It returns the forms reached, in order.
 //
-// It records what topBranch ALREADY decided, hysteresis included, so calling it
-// twice changes nothing: the held branch stays held until a rival earns the
-// margin, and the moment one does, that is what gets written.
-//
-// Only the forks the pet has actually reached. A level 2 pet has not chosen a
-// trade, and writing a guess would hand the level 3 fork to a defender that
-// was never there - which is the fork deciding itself one level early.
-//
-// Like RememberForm, this is for callers that PERSIST the state. The panel's
-// what-if pet must not call it: asking what the next level would look like is
-// not the pet living through it.
-func RememberBranch(s *State) {
+// For callers that PERSIST the state - Save calls it, so no path can forget.
+// The panel's what-if pet must not: asking what the next level would look like
+// is not the pet living through it. CurrentForm answers that question without
+// writing anything, by deciding the pending forks the same way in memory.
+func Advance(s *State, at int64) []string {
+	var reached []string
 	level := LevelFor(s.XP)
-	if level < 2 {
-		return
+	here := pathEnd(s)
+	for Tier(here) < targetTier(level) && len(Tree[here]) > 0 {
+		next := pick(s, here)
+		if s.Branch == nil {
+			s.Branch = map[string]string{}
+		}
+		s.Branch[here] = next
+		s.Collect(next, at)
+		reached = append(reached, next)
+		here = next
 	}
-	if s.Branch == nil {
-		s.Branch = map[string]string{}
+	// One new stage for the whole jump, not one per fork: the habits of the
+	// stage that just ended decide every fork crossed in it. Resetting between
+	// forks left the later ones to decide on nothing - the route by default -
+	// whenever a pet crossed two levels at once.
+	if len(reached) > 0 {
+		s.NewStage()
 	}
-	here := topBranch(s, Root)
-	s.Branch[Root] = here
-	if level >= 3 {
-		s.Branch[here] = topBranch(s, here)
-	}
+	return reached
 }
 
-// CurrentForm walks the tree from the root as far as XP and habits allow.
+// CurrentForm is the shape the pet wears and its level.
 //
-// A secret is a level-5 form and waits for level 5 like every other one. Its
-// CONDITION is met earlier - the chimera's is "dos temperamentos empatados al
-// subir a nivel 4" - and that is the whole point of the canvas drawing a pet
-// that reads "refactor · nivel 4" with "488 para quimera" underneath: the
-// secret is won and the XP is what is still missing. Handing it over on the
-// spot skipped level 4 whole and put a level 5 next to 412 XP.
+// The shape is the decided path, plus any fork the XP has reached and Save has
+// not yet written down. It never goes back down the tree: the path only grows,
+// so a level lost to hunger or a blown context leaves the shape where it was.
+// That is the rule v2 needed `floor` and `form_seen` to enforce, and here it
+// falls out of the data.
+//
+// A secret is a rung-5 form and wins the rung it stands on, not the one above:
+// a title still outranks it. See walk.
 func CurrentForm(s *State) (string, int) {
-	here, level := walk(s)
-	// A shape never goes back down the tree, however far a streak falls. See
-	// floor.
-	// The level is NOT raised to meet the rung, and that is deliberate.
-	//
-	// Since the floor, the two measure different things and can pull apart: the
-	// shape is a high-water mark and the level is current XP, which falls -
-	// `overflow` costs 15 of it and starving costs more. So a pet sitting on
-	// 1900 that blows the context reads "avispa nivel 5", a title beside a
-	// level that could not have earned one.
-	//
-	// Clamping the level up to Tier(form) would tidy that away, and it would
-	// also cancel a penalty the design means: TestStarvingCanCostALevelButNever
-	// Kills says out loud that going hungry costs levels. A shape you earned
-	// and a level you are currently at are two different facts, and the card
-	// shows both.
-	return floor(here, s.FormSeen), level
+	return walk(s)
 }
 
-// walk is CurrentForm without the floor: the shape the counters say RIGHT NOW,
-// with no memory of where the pet has already been.
-//
-// The two are separate because they answer different questions and only one of
-// them is about the screen. CurrentForm is what the pet looks like, and a look
-// does not go backwards. walk is which branch the pet is on today, which is
-// what CheckSecrets needs: it asks whether the pet is a `feral` or a
-// `marathon` - two rung 3 shapes - and the floor can lift a shape above rung 3.
-//
-// That coupling was harmless by coincidence: every mark under those two rides a
-// counter that only grows, so the floor had nothing to lift. Coincidence is not
-// a reason, and the alternative was a test standing guard over a line nobody
-// would think to connect. Asking the right question costs nothing.
 func walk(s *State) (string, int) {
 	here, level := treeWalk(s)
-
-	// A secret is a rung-5 form, and it wins the rung it stands on: it is
-	// rarer than either mark and the pet earned it doing something neither
-	// mark asks for. What it must NOT do is win rungs above its own.
-	//
-	// It used to return here, before the walk, and that quietly ended the
-	// pet's life at rung 5: no mark, no title, three quarters of its branch
-	// gone the day the secret landed. A chimera is a level 5 form, not a
-	// tombstone. Now the walk runs first and the secret only takes over when
-	// the tree came back with rung 5 or less - so a title, which is rung 6,
-	// goes on being something a chimera can grow into.
-	//
-	// The marks it skips past are not a loss: the secret already occupies
-	// their rung, and the title behind them asks for the same habit, more of
-	// it. The habit is still the gate; only the shape on the way is different.
 	if level >= 5 && s.Secret != "" && Tier(here) < 6 {
 		if _, ok := Sprites[string(s.Secret)]; ok {
 			return string(s.Secret), level
@@ -716,35 +543,11 @@ func walk(s *State) (string, int) {
 }
 
 // treeWalk is the shape the TREE gives, with no secret laid over it.
-//
-// Kept apart from walk because two callers need the branch the pet is actually
-// standing on rather than the shape it wears: the walk itself, to know whether
-// a title outranks the secret, and NextMark, to know which title a pet wearing
-// one is climbing towards. Asking walk would get the secret back, which is the
-// one answer neither of them can use.
 func treeWalk(s *State) (string, int) {
 	level := LevelFor(s.XP)
-	here := Root
-	if level >= 2 {
-		here = topBranch(s, Root)
-	}
-	if level >= 3 {
-		here = topBranch(s, here)
-	}
-	if level >= 5 {
-		if kid, ok := ripestMark(s, Tree[here], true); ok {
-			here = kid
-		}
-	}
-	// Level 6 is the title, and it only exists for a pet that actually wears
-	// the mark: the two are the same habit, the title asking three times as
-	// much of it, so you cannot skip the mark on the way past.
-	if level >= 6 {
-		if title, ok := Titles[here]; ok {
-			if u, ok := TitleUnlock(here); ok && s.Counters[u.Counter] >= u.Threshold {
-				here = title
-			}
-		}
+	here := pathEnd(s)
+	for Tier(here) < targetTier(level) && len(Tree[here]) > 0 {
+		here = pick(s, here)
 	}
 	return here, level
 }
@@ -826,7 +629,7 @@ func Siblings(s *State, form string) []Sibling {
 		if !ok {
 			return nil // not a level 5 fork: these children are not marks
 		}
-		done := s.Counters[u.Counter]
+		done := s.Stage(u.Counter)
 		if done < 0 {
 			done = 0
 		}
@@ -882,18 +685,14 @@ func (g Goal) Leads() bool { return g.Form != "" }
 // counted, it just no longer leads anywhere.
 func GoalOf(s *State, form, counter string) Goal {
 	ahead := Ahead(form)
-	done := s.Counters[counter]
+	// What this stage has done: that is what the next fork reads. In v3 a
+	// title asks for XP, not for a habit, so only a mark can be a goal.
+	done := s.Stage(counter)
 	if done < 0 {
 		done = 0
 	}
-	// Marks first: a mark is always closer than the title behind it.
-	for _, stage := range []func() (string, int, bool){
-		func() (string, int, bool) { return firstUnlock(ahead, counter) },
-		func() (string, int, bool) { return firstTitle(ahead, counter) },
-	} {
-		if shape, threshold, ok := stage(); ok {
-			return Goal{shape, threshold, done}
-		}
+	if shape, threshold, ok := firstUnlock(ahead, counter); ok {
+		return Goal{shape, threshold, done}
 	}
 	return Goal{Done: done}
 }
@@ -902,19 +701,6 @@ func firstUnlock(ahead map[string]bool, counter string) (string, int, bool) {
 	for _, mark := range sortedForms(Unlocks) {
 		if ahead[mark] && Unlocks[mark].Counter == counter {
 			return mark, Unlocks[mark].Threshold, true
-		}
-	}
-	return "", 0, false
-}
-
-func firstTitle(ahead map[string]bool, counter string) (string, int, bool) {
-	for _, mark := range sortedForms(Unlocks) {
-		title, ok := Titles[mark]
-		if !ok || !ahead[title] || Unlocks[mark].Counter != counter {
-			continue
-		}
-		if u, ok := TitleUnlock(mark); ok {
-			return title, u.Threshold, true
 		}
 	}
 	return "", 0, false

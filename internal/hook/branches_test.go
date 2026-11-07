@@ -51,9 +51,7 @@ func play(t *testing.T, meals []string, peak float64, mins int) (string, *pet.St
 }
 
 // playDays runs the same day a fixed number of times instead of stopping at a
-// level. A fork is defended now - see pet.BranchMargin - so "how long until the
-// branch turns over" is a question about DAYS of habit, and levelling up is no
-// longer the moment anything is settled.
+// level.
 func playDays(t *testing.T, days int, meals []string, peak float64, mins int) (string, *pet.State) {
 	t.Helper()
 	home := t.TempDir()
@@ -125,12 +123,10 @@ func TestEveryTemperamentIsReachableByPlaying(t *testing.T) {
 // for free either: dividing by the scale is meant to make the fork a race
 // between habits, not to put a thumb on the ember side of it.
 //
-// It is measured in DAYS and not in levels because the fork is defended: the
-// pet crosses level 2 on day 2 wearing whichever branch happened to be a
-// nose ahead at that moment, and the ember player only takes the fork off it
-// once the lead is a full day of habit - here, +0.133 days a day, so around
-// the eighth. That slowness is the feature, and it is why the pet stopped
-// changing sprite twice an afternoon.
+// v3: the fork is decided once, at the crossing, on the habits of the stage
+// before it - which is why level 2 sits at 200 XP and not 60. At 60 the stage
+// was half a day, the per-session habits had not been booked yet, and the
+// commits took the fork every time.
 func TestTheEmberBranchSurvivesANormalDayOfWork(t *testing.T) {
 	for _, c := range []struct {
 		want  string
@@ -153,24 +149,6 @@ func TestTheEmberBranchSurvivesANormalDayOfWork(t *testing.T) {
 				c.want, c.how, got, form, s.Counters["methodical"],
 				s.Counters["inquisitive"], s.Counters["impulsive"])
 		}
-	}
-}
-
-// The fork does not turn over on the day the counters cross. Same player as
-// above, stopped early: the branch it took on the way past level 2 is still
-// the one it is wearing, even though the ember habit is already ahead.
-//
-// This is the whole trade the margin buys, so it is worth having in writing
-// rather than discovering it as a bug report.
-func TestADefendedForkTakesDaysToTurnOver(t *testing.T) {
-	form, s := playDays(t, 3, []string{"commit", "commit", "tests"}, 92, 300)
-	if form != "pattern" {
-		t.Errorf("a los 3 días sale %q, se esperaba que la rama aguantase  [m %d / imp %d]",
-			form, s.Counters["methodical"], s.Counters["impulsive"])
-	}
-	// And the habit it is holding out against really is ahead already.
-	if got, want := float64(s.Counters["impulsive"])/3, float64(s.Counters["methodical"])/10; got <= want {
-		t.Fatalf("el caso no prueba nada: impulsivo %.2f no va por delante de metódico %.2f", got, want)
 	}
 }
 

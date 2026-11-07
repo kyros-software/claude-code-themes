@@ -20,11 +20,18 @@ const (
 // blowing the context, at -15 a time.
 const StarveXP = 1
 
-// XPCeiling is as far as the XP goes: the last threshold plus one level-1
-// stretch of headroom. Without a ceiling the XP is a moat - at 1641 with the
-// top at 900 it took FIFTY blown contexts to drop a level, so every penalty we
-// could add would be swallowed by the buffer before it meant anything.
-var XPCeiling = Levels[len(Levels)-1].XP + Levels[1].XP
+// XPCeiling is as far as the XP goes: the last threshold plus XPHeadroom.
+// Without a ceiling the XP is a moat - at 1641 with the top at 900 it took
+// FIFTY blown contexts to drop a level, so every penalty we could add would be
+// swallowed by the buffer before it meant anything.
+//
+// The headroom was "one level-1 stretch", which was 60 and meant two and a half
+// days of starving to lose the top level. v3 moved level 2 to 200 and that
+// definition to 200 hours, so the number the design actually meant is now
+// written down as itself.
+const XPHeadroom = 60
+
+var XPCeiling = Levels[len(Levels)-1].XP + XPHeadroom
 
 // FeedCooldown is how long /feed makes you wait. The design canvas calls it
 // "un tiro al plato · una vez cada cuatro horas": a cooldown, not a daily
@@ -320,7 +327,7 @@ func CheckSecrets(s *State) {
 		}
 		var top [3]int
 		for i, t := range Temperaments {
-			top[i] = s.Counters[t] * (den / scaleOf(t))
+			top[i] = s.Stage(t) * (den / scaleOf(t))
 		}
 		// three values: sort by hand rather than pull in sort for this
 		for i := 0; i < 3; i++ {

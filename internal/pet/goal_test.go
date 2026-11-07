@@ -48,13 +48,10 @@ func TestGoalOfFindsTheNearestShapeACounterOpens(t *testing.T) {
 		}
 	})
 
-	t.Run("the title, once the mark is worn", func(t *testing.T) {
-		g := GoalOf(s, "bloodhound", "repro_before_fix")
-		if g.Form != "wolf" {
-			t.Errorf("nearest is %q, want wolf", g.Form)
-		}
-		if g.Threshold != 30 {
-			t.Errorf("wolf asks %d, want 30", g.Threshold)
+	t.Run("nothing, once the mark is worn", func(t *testing.T) {
+		// v3: the title comes with the XP, so a worn mark's habit leads nowhere.
+		if g := GoalOf(s, "bloodhound", "repro_before_fix"); g.Leads() {
+			t.Errorf("a worn mark's habit claims to lead to %q", g.Form)
 		}
 	})
 
@@ -71,8 +68,8 @@ func TestGoalOfFindsTheNearestShapeACounterOpens(t *testing.T) {
 			if g.Leads() {
 				t.Errorf("%s claims to lead to %q from a bughunter", counter, g.Form)
 			}
-			// It is still counted: the number survives, only the goal is gone.
-			if g.Done != s.Counters[counter] {
+			// It is still counted: this stage's number survives, only the goal is gone.
+			if g.Done != s.Stage(counter) {
 				t.Errorf("%s lost its count: %d", counter, g.Done)
 			}
 		}
