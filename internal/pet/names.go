@@ -71,7 +71,7 @@ var CounterNames = map[string]string{
 	// thing as counters, so they are not repeated here - Name falls through.
 
 	// What the level 3 fork reads.
-	"diffs":          "diffs limpios",
+	"diffs":          "commits",
 	"ctx_low":        "sesiones con contexto bajo",
 	"tests":          "suites en verde",
 	"plans":          "planes cerrados",
@@ -80,12 +80,17 @@ var CounterNames = map[string]string{
 	"ctx_maxed":      "sesiones al límite",
 
 	// What the fourteen marks ask for.
-	"diff_streak":       "días seguidos con diff limpio",
+	//
+	// diff_streak and test_streak used to say "días seguidos": neither counts
+	// days. One counts commits and breaks only on a blown context (the
+	// "sin un rechazo" of the canvas was never defined, and v3 drops it), the
+	// other green suites and breaks on a red.
+	"diff_streak":       "commits sin reventar el contexto",
 	"widest_commit":     "commit más ancho",
 	"sessions_under_40": "sesiones bajo el 40%",
 	"docs_days":         "días seguidos tocando docs",
 	"repro_before_fix":  "reproducir antes de arreglar",
-	"test_streak":       "días seguidos en verde",
+	"test_streak":       "suites verdes sin un rojo",
 	"longest_plan":      "plan más largo cerrado",
 	"plans_before_code": "planes antes de tocar código",
 	"sessions_15min":    "sesiones de menos de 15m",
