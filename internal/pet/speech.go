@@ -15,9 +15,9 @@ import (
 //
 //   - Primero el evento, luego la forma. The four shared lines belong to
 //     specific events and everyone says them; a form's own repertoire is its
-//     voice for a good meal. A form with no repertoire of its own - the three
-//     temperaments, the fourteen marks, the two secrets - only ever says the
-//     shared ones.
+//     voice for a good meal. A mark or a title borrows the voice of the trade
+//     it grew out of (see voiceOf); the three temperaments and the two
+//     secrets, which hang off no trade, only ever say the shared ones.
 //   - Sin repetir. The last SaidMemory phrases live in pet.json and do not come
 //     back until the repertoire is exhausted.
 //   - Silencio por defecto. At most one line every SpeechCooldown, and without
@@ -132,7 +132,7 @@ func Speak(s *State, e Event, form string, now time.Time, pick func(int) int) st
 
 	var options []string
 	if e == EventBigMeal {
-		options = Repertoire[form]
+		options = voiceOf(form)
 	} else if line := shared(e, LevelFor(s.XP), s.Streak, s.Hunger); line != "" {
 		options = []string{line}
 	}
@@ -169,6 +169,30 @@ func Speak(s *State, e Event, form string, now time.Time, pick func(int) int) st
 		pick = rand.Intn
 	}
 	return fresh[pick(len(fresh))]
+}
+
+// voiceOf is the repertoire a form speaks with after a good meal: its own, or
+// else that of the nearest trade it grew out of.
+//
+// The canvas gave lines to the root and the seven trades only, and read
+// literally that left the fourteen marks and the fourteen titles mute after a
+// good meal - for good, since a title is where every pet ends up. A `scalpel`
+// is still a `refactor`, so it talks like one. (v3, 7-nov-2026: the canvas is
+// no longer the authority on this; the people who keep the pet are.)
+//
+// The root is skipped on the way up: its lines are a newborn's, and a
+// temperament has outgrown them.
+func voiceOf(form string) []string {
+	if lines := Repertoire[form]; len(lines) > 0 {
+		return lines
+	}
+	path := Lineage(form)
+	for i := len(path) - 2; i >= 1; i-- {
+		if lines := Repertoire[path[i]]; len(lines) > 0 {
+			return lines
+		}
+	}
+	return nil
 }
 
 // Remember books a line as said and starts the cooldown. Called only once the

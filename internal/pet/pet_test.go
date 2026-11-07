@@ -931,15 +931,30 @@ func TestItDoesNotRepeatItself(t *testing.T) {
 	}
 }
 
-func TestAFormWithNoRepertoireOnlySaysTheSharedLines(t *testing.T) {
-	// The fourteen marks and the two secrets have no voice of their own.
+func TestAMarkSpeaksWithItsTradesVoice(t *testing.T) {
+	// The fourteen marks and fourteen titles have no lines of their own; they
+	// borrow their trade's. A temperament and a secret, off any trade, stay
+	// quiet after a meal.
 	if _, ok := Repertoire["surgeon"]; ok {
 		t.Fatal("surgeon was given a repertoire; this test needs one without")
 	}
-	s := New()
-	if line := Speak(s, EventBigMeal, "surgeon", t0, first); line != "" {
-		t.Errorf("invented a line for a form with no repertoire: %q", line)
+	for _, form := range []string{"surgeon", "scalpel"} {
+		s := New()
+		line := Speak(s, EventBigMeal, form, t0, first)
+		found := false
+		for _, l := range Repertoire["refactor"] {
+			found = found || l == line
+		}
+		if !found {
+			t.Errorf("%s after a big meal said %q, want a refactor line", form, line)
+		}
 	}
+	for _, form := range []string{"pattern", "phoenix", "chimera"} {
+		if line := Speak(New(), EventBigMeal, form, t0, first); line != "" {
+			t.Errorf("%s has no trade and still said %q", form, line)
+		}
+	}
+	s := New()
 	s = New()
 	s.XP = 400
 	if line := Speak(s, EventLevelUp, "surgeon", t0, first); line != "nivel 4. ya soy alguien." {

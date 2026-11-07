@@ -202,7 +202,7 @@ func TestTheColourSaysWhetherACounterLeadsAnywhere(t *testing.T) {
 		why   string
 	}{
 		{"reproducir antes de arreglar", theme.Ident, "threshold met"},
-		{"días seguidos en verde", theme.Number, "on its way"},
+		{"suites verdes sin un rojo", theme.Number, "on its way"},
 		{"turnos en bypass", theme.Emph, "leads nowhere from here"},
 	} {
 		line := ""

@@ -38,7 +38,7 @@ no sepas qué mascota es.
 spark
 ├─ pattern  compacta y commitea corto
 │  ├─ refactor  muchos diffs pequeños
-│  │  ├─ surgeon.......  20 diffs seguidos sin un rechazo
+│  │  ├─ surgeon.......  20 commits sin reventar el contexto
 │  │  └─ weaver........  un refactor que toca 10+ ficheros
 │  └─ tidy  jamás pasa del 60%
 │     ├─ monk..........  5 sesiones sin pasar del 40% de contexto
@@ -70,7 +70,7 @@ por título en vez de un multiplicador único: cada hábito se pesó por separad
 
 | marca | título | pide | | marca | título | pide |
 | --- | --- | --- | --- | --- | --- | --- |
-| `surgeon` 20 | `scalpel` | **50** diffs seguidos | | `cartographer` 10 | `atlas` | **20** tareas en un plan |
+| `surgeon` 20 | `scalpel` | **50** commits sin reventar | | `cartographer` 10 | `atlas` | **20** tareas en un plan |
 | `weaver` 10 | `loom` | **25** ficheros de un tirón | | `oracle` 5 | `sphinx` | **20** planes antes de código |
 | `monk` 5 | `abbot` | **15** sesiones bajo el 40% | | `bolt` 10 | `storm` | **30** sesiones de menos de 15 min |
 | `gardener` 2 | `forest` | **7** días de docs | | `sniper` 8 | `falcon` | **25** tareas de una herramienta |
