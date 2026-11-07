@@ -496,3 +496,75 @@ func TestHatchKeepsTheRecordAndResetsTheShape(t *testing.T) {
 		t.Errorf("the new life starts with stage methodical %d", s.Stage("methodical"))
 	}
 }
+
+func TestRescaleV2KeepsTheLevelAndThePlaceInIt(t *testing.T) {
+	for _, c := range []struct{ old, want int }{
+		{0, 0},
+		{30, 100},          // halfway through v2 level 1
+		{60, 200},          // v2 level 2 opens
+		{400, 700},         // v2 level 4 opens
+		{1200, 850},        // halfway through v2 level 4
+		{2000, 1000},       // v2 level 5
+		{4500, 1500},       // v2 level 6
+		{4560, 1560},       // the v2 ceiling onto the v3 one
+		{99999, XPCeiling}, // a hand-edited file stays under the ceiling
+	} {
+		if got := rescaleV2(c.old); got != c.want {
+			t.Errorf("rescaleV2(%d) = %d, want %d", c.old, got, c.want)
+		}
+	}
+}
+
+// The measured pet: v2 at the ceiling wearing scalpel. It becomes generation 1
+// at the v3 ceiling, still scalpel, with its lineage in the album and the
+// title's days starting.
+func TestAV2PetBecomesTheFirstGeneration(t *testing.T) {
+	path := t.TempDir() + "/pet.json"
+	if err := os.WriteFile(path, []byte(`{"xp":4560,"form_seen":"scalpel",`+
+		`"counters":{"methodical":1036,"diffs":971,"ctx_low":649},`+
+		`"branch":{"spark":"pattern","pattern":"tidy"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := Load(path)
+	if s.Generation != 1 || s.XP != 1560 {
+		t.Fatalf("generation %d, xp %d", s.Generation, s.XP)
+	}
+	if form, level := CurrentForm(s); form != "scalpel" || level != 6 {
+		t.Errorf("migrated as %s nivel %d, want scalpel nivel 6", form, level)
+	}
+	if len(s.Album) != 5 || s.Album[4].Form != "scalpel" || s.Album[4].Gen != 1 {
+		t.Errorf("album %v", s.Album)
+	}
+	if s.TitleDays != 1 || s.GenSeen != 1 {
+		t.Errorf("title_days %d, gen_seen %d", s.TitleDays, s.GenSeen)
+	}
+	// The next life starts from the stage, not from methodical 1036.
+	if s.Stage("methodical") != 0 {
+		t.Errorf("stage methodical %d after migrating", s.Stage("methodical"))
+	}
+	// And it survives a save: Load does not migrate a v3 file twice.
+	Save(s, path)
+	if back := Load(path); back.XP != 1560 || len(back.Album) != 5 {
+		t.Errorf("after a round trip xp %d album %v", back.XP, back.Album)
+	}
+}
+
+// A v2 pet whose level is past its recorded shape decides the missing fork
+// once, on the lifetime counters - what v2 would have shown - and the stage
+// starts after it.
+func TestAV2PetBehindItsLevelDecidesOnceOnTheLifetime(t *testing.T) {
+	path := t.TempDir() + "/pet.json"
+	if err := os.WriteFile(path, []byte(`{"xp":500,"form_seen":"probe",`+
+		`"counters":{"inquisitive":90,"tests":90,"plans":2}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := Load(path)
+	Save(s, path)
+	s = Load(path)
+	if form, _ := CurrentForm(s); form != "bughunter" {
+		t.Errorf("migrated as %s, want bughunter on the lifetime tests", form)
+	}
+	if s.Stage("tests") != 0 {
+		t.Errorf("the stage did not start after the fork: tests %d", s.Stage("tests"))
+	}
+}

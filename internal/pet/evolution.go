@@ -146,12 +146,20 @@ var BranchBy = map[string]string{
 // TestTheEmberBranchSurvivesANormalDayOfWork in internal/hook: it plays a
 // person who works at the limit AND commits, which is the case the raw race
 // could not see.
+//
+// v3 (7-nov-2026): tests and inquisitive went from 8 to 10. The 8 was the
+// hourly cooldown - eight suites in a day was the most that could count - and
+// v3 takes the cooldown off the habit (it still brakes the XP). Measured on
+// one user's transcripts, a day leaning on tests runs about 27 suites and a day
+// leaning on commits about 30 commits, so the two habits are the same size of
+// number and get the same scale. [hipotesis] One user's month is a thin base;
+// recalibrate with more.
 var BranchScale = map[string]int{
 	// Per event, off the 128 XP day.
 	"methodical":  10, // commits at 12 xp, plus the compacts
-	"inquisitive": 8,  // green suites at 15, where the hourly cooldown lands too
+	"inquisitive": 10, // green suites, plus closed tasks
 	"diffs":       10, // commits alone
-	"tests":       8,  // the same cooldown
+	"tests":       10, // green suites with an edit behind them
 	"plans":       21, // closed plan tasks at 6 xp
 
 	// Per session, capped by how many sessions fit in a day.

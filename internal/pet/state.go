@@ -469,7 +469,80 @@ func Load(path string) *State {
 			s.Log = s.Log[len(s.Log)-LogMax:]
 		}
 	}
+	if _, v3 := flat["generation"]; !v3 {
+		migrateV2(s)
+	}
 	return s
+}
+
+// v2Levels is the ladder before v3, kept only to translate XP across.
+var v2Levels = []int{0, 60, 180, 400, 2000, 4500}
+
+const v2Ceiling = 4500 + 60
+
+// rescaleV2 moves XP from the v2 ladder to this one, keeping the level and how
+// far into it the pet was. Above the last v2 threshold it maps the headroom
+// onto this ladder's headroom.
+func rescaleV2(xp int) int {
+	if xp <= 0 {
+		return 0
+	}
+	last := len(v2Levels) - 1
+	if xp >= v2Levels[last] {
+		over := xp - v2Levels[last]
+		if span := v2Ceiling - v2Levels[last]; over > span {
+			over = span
+		}
+		return Levels[last].XP + over*XPHeadroom/(v2Ceiling-v2Levels[last])
+	}
+	for i := last - 1; i >= 0; i-- {
+		if xp >= v2Levels[i] {
+			oldSpan := v2Levels[i+1] - v2Levels[i]
+			newSpan := Levels[i+1].XP - Levels[i].XP
+			return Levels[i].XP + (xp-v2Levels[i])*newSpan/oldSpan
+		}
+	}
+	return 0
+}
+
+// migrateV2 turns a v2 pet into the first generation of a v3 one.
+//
+// Nothing the pet has lived is lost. Its level is kept (the XP is rescaled to
+// the new ladder), its shape is kept (the path is rebuilt from form_seen, the
+// shape v2 was showing), and that shape's lineage becomes generation 1 of the
+// album. A pet already wearing a title starts counting its TitleStay days.
+//
+// The stage starts now, so the next fork is decided by what the pet does from
+// here on, not by v2's lifetime counters - unless the level has already
+// reached a fork the path does not cover (form_seen missing, or behind the
+// level): that one is decided once, on the lifetime counters, which is what v2
+// would have shown, and the stage starts after it. See Advance.
+func migrateV2(s *State) {
+	s.Generation = 1
+	s.GenSeen = 1 // a migration is not a hatching, and says nothing
+	s.XP = rescaleV2(s.XP)
+
+	if s.FormSeen != "" && !secretForm(s.FormSeen) {
+		path := Lineage(s.FormSeen)
+		s.Branch = map[string]string{}
+		for i := 1; i < len(path); i++ {
+			s.Branch[path[i-1]] = path[i]
+		}
+	}
+	// What v2 showed - the lineage, or the secret over whatever branch it kept -
+	// is generation 1 of the album. The time it arrived was never recorded.
+	for _, form := range Lineage(pathEnd(s)) {
+		s.Collect(form, 0)
+	}
+	if s.Secret != "" {
+		s.Collect(string(s.Secret), 0)
+	}
+	if AtTitle(s) {
+		s.TitleDays = 1
+	}
+	if Tier(pathEnd(s)) >= targetTier(LevelFor(s.XP)) {
+		s.NewStage()
+	}
 }
 
 // Save writes a state to disk atomically - temp file in the same directory,

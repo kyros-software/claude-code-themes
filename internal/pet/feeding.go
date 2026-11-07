@@ -67,11 +67,16 @@ var Foods = map[string]Food{
 	"commit":  {12, -3, 0, "commit", []string{"methodical", "diffs", "diff_streak"}},
 	"compact": {8, -3, 0, "compact", []string{"methodical"}},
 	// The same meal when the CLI compacts on its own. It still feeds - the XP
-	// budget was calibrated with compacts in it - but it is not a habit: a
-	// window that fills until the CLI steps in is the opposite of `methodical`,
-	// which is "compacta y commitea corto". Measured in one user's transcripts
-	// (7-nov-2026): 47 compacts, all 47 automatic, every one paid to `methodical`.
-	"autocompact": {8, -3, 0, "compact automático", nil},
+	// budget was calibrated with compacts in it - but not `methodical`: a
+	// window that fills until the CLI steps in is the opposite of "compacta y
+	// commitea corto". Measured in one user's transcripts (7-nov-2026): 47
+	// compacts, all 47 automatic, every one paid to `methodical`.
+	//
+	// v3: it pays `impulsive` instead, because it IS the ember gesture - "tira
+	// al límite sin frenar" - and the only other source, a session peak at 85%,
+	// came to 7 in some 650 sessions on that machine. The ember branch was a
+	// third of the tree that a pet working that way could not see.
+	"autocompact": {8, -3, 0, "compact automático", []string{"impulsive"}},
 	"task":        {6, -1, 0, "tarea del plan", []string{"inquisitive", "plans"}},
 	"feed":        {3, -2, FeedCooldown, "/feed", nil},
 	// The overflow feeds NO habit. It used to carry impulsive and ctx_maxed,
