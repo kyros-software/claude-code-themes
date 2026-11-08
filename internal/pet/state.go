@@ -470,10 +470,28 @@ func Load(path string) *State {
 		}
 	}
 	if _, v3 := flat["generation"]; !v3 {
-		migrateV2(s)
+		if gen, err := strconv.Atoi(s.DayMarks[GenMark]); err == nil && gen >= 1 {
+			// Not a v2 pet: a v3 one that a v2 binary saved over. See GenMark.
+			adopt(s, gen, false)
+		} else {
+			migrateV2(s)
+		}
 	}
 	return s
 }
+
+// GenMark is the day_marks key where Save copies the generation.
+//
+// CLAVE: it is there for the binaries that do not know v3. A v2 binary keeps
+// every key of day_marks and drops every field it does not know, generation
+// included. That happens on a real update: the sessions that were already
+// open keep their 2.2.0 hooks, and the first SessionStart in one of them
+// (a compact is enough) points the stable links back at 2.2.0. Measured on
+// 8-nov-2026: the pet came back with v3's XP (1560) and without generation,
+// and the next v3 load would have rescaled it a second time, down to level 4.
+// With the mark, Load knows the XP is already v3's and only rebuilds what the
+// v2 save dropped.
+const GenMark = "v3_gen"
 
 // v2Levels is the ladder before v3, kept only to translate XP across.
 var v2Levels = []int{0, 60, 180, 400, 2000, 4500}
@@ -517,10 +535,22 @@ func rescaleV2(xp int) int {
 // reached a fork the path does not cover (form_seen missing, or behind the
 // level): that one is decided once, on the lifetime counters, which is what v2
 // would have shown, and the stage starts after it. See Advance.
-func migrateV2(s *State) {
-	s.Generation = 1
-	s.GenSeen = 1 // a migration is not a hatching, and says nothing
-	s.XP = rescaleV2(s.XP)
+func migrateV2(s *State) { adopt(s, 1, true) }
+
+// adopt rebuilds the v3 fields of a pet that does not have them, as
+// generation gen. rescale says whether its XP is still on the v2 ladder: true
+// for a real v2 pet, false for a v3 one a v2 binary saved over (GenMark).
+//
+// After a v2 save the album of earlier generations, the stage and the title
+// days are gone, and nothing on disk says what they were. What is rebuilt is
+// what form_seen still shows: the lineage worn now, in this generation, and a
+// stage that starts here.
+func adopt(s *State, gen int, rescale bool) {
+	s.Generation = gen
+	s.GenSeen = gen // neither a migration nor a repair is a hatching
+	if rescale {
+		s.XP = rescaleV2(s.XP)
+	}
 
 	if s.FormSeen != "" && !secretForm(s.FormSeen) {
 		path := Lineage(s.FormSeen)
@@ -600,6 +630,7 @@ func Save(s *State, path string) bool {
 	if s.DayMarks == nil {
 		s.DayMarks = map[string]string{}
 	}
+	s.DayMarks[GenMark] = strconv.Itoa(s.Generation)
 	if s.Said == nil {
 		s.Said = []string{}
 	}

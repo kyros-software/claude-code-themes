@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"testing"
@@ -566,5 +567,78 @@ func TestAV2PetBehindItsLevelDecidesOnceOnTheLifetime(t *testing.T) {
 	}
 	if s.Stage("tests") != 0 {
 		t.Errorf("the stage did not start after the fork: tests %d", s.Stage("tests"))
+	}
+}
+
+// What a v2 binary does to a v3 file: keeps day_marks whole, drops the fields
+// it does not know. Measured on 8-nov-2026 with 2.2.0 after the update.
+func savedByV2(t *testing.T, path string) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"generation", "gen_seen", "album", "stage_base",
+		"stage_max", "title_days", "repo_runs"} {
+		delete(doc, k)
+	}
+	out, _ := json.Marshal(doc)
+	if err := os.WriteFile(path, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The pet of 8-nov-2026: migrated by 3.0.0, then saved by a 2.2.0 session that
+// was still open. Its XP is already v3's and must not be rescaled again.
+func TestAV3PetSavedByAV2BinaryIsNotMigratedTwice(t *testing.T) {
+	path := t.TempDir() + "/pet.json"
+	if err := os.WriteFile(path, []byte(`{"xp":4560,"form_seen":"scalpel",`+
+		`"counters":{"methodical":1036,"diffs":971,"ctx_low":649}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := Load(path)
+	Save(s, path)
+	savedByV2(t, path)
+
+	back := Load(path)
+	if back.XP != 1560 || back.Generation != 1 || back.GenSeen != 1 {
+		t.Fatalf("xp %d generation %d gen_seen %d, want 1560 1 1",
+			back.XP, back.Generation, back.GenSeen)
+	}
+	if form, level := CurrentForm(back); form != "scalpel" || level != 6 {
+		t.Errorf("came back as %s nivel %d, want scalpel nivel 6", form, level)
+	}
+	if len(back.Album) != 5 || back.TitleDays != 1 {
+		t.Errorf("album %v title_days %d", back.Album, back.TitleDays)
+	}
+}
+
+// The mark carries the generation, so a later life is not taken for the first.
+func TestTheGenerationMarkKeepsTheLife(t *testing.T) {
+	path := t.TempDir() + "/pet.json"
+	s := Load(path)
+	s.Generation, s.GenSeen, s.XP = 3, 3, 250
+	Save(s, path)
+	savedByV2(t, path)
+
+	back := Load(path)
+	if back.Generation != 3 || back.XP != 250 || back.GenSeen != 3 {
+		t.Errorf("generation %d xp %d gen_seen %d, want 3 250 3",
+			back.Generation, back.XP, back.GenSeen)
+	}
+}
+
+// Negative control: without the mark a file is a v2 pet, and is rescaled.
+func TestWithoutTheMarkAV2PetIsStillRescaled(t *testing.T) {
+	path := t.TempDir() + "/pet.json"
+	if err := os.WriteFile(path, []byte(`{"xp":1560,"day_marks":{"docs_days":"2026-11-07"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if s := Load(path); s.XP == 1560 || s.Generation != 1 {
+		t.Errorf("xp %d generation %d: a v2 pet was not rescaled", s.XP, s.Generation)
 	}
 }
