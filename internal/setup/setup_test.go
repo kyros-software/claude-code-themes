@@ -561,3 +561,71 @@ func TestAnEmptySettingsFileReadsAsAnEmptyDocument(t *testing.T) {
 		}
 	}
 }
+
+// versionRoot is runtimeRoot under a version name, inside parent: what the
+// plugin cache looks like.
+func versionRoot(t *testing.T, parent, version string) string {
+	t.Helper()
+	root := filepath.Join(parent, version)
+	if err := os.Rename(runtimeRoot(t), root); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// 8-nov-2026: a session opened on 2.2.0 compacted after the update to 3.0.0,
+// and its SessionStart pointed every link back at 2.2.0.
+func TestAnOldSessionDoesNotTakeTheLinksBackAVersion(t *testing.T) {
+	config := home(t)
+	cache := t.TempDir()
+	old := versionRoot(t, cache, "2.2.0")
+	fresh := versionRoot(t, cache, "3.0.0")
+	if _, err := Link(fresh); err != nil {
+		t.Skipf("no symlinks on this filesystem: %v", err)
+	}
+	if changed, err := Link(old); err != nil || changed {
+		t.Errorf("Link(2.2.0) over 3.0.0: changed %v, err %v", changed, err)
+	}
+	for _, name := range []string{"ccpet", "ccpet-run", "ccpet-statusline"} {
+		target, err := os.Readlink(filepath.Join(config, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(target, fresh) {
+			t.Errorf("%s -> %q, want it under %q", name, target, fresh)
+		}
+	}
+}
+
+// Negative control: the update itself still moves the links forward, and a
+// newer version that was removed from the cache does not hold them.
+func TestTheLinksStillMoveForwardAndOffAMissingVersion(t *testing.T) {
+	config := home(t)
+	cache := t.TempDir()
+	old := versionRoot(t, cache, "2.2.0")
+	fresh := versionRoot(t, cache, "3.0.0")
+	if _, err := Link(old); err != nil {
+		t.Skipf("no symlinks on this filesystem: %v", err)
+	}
+	if changed, _ := Link(fresh); !changed {
+		t.Error("2.2.0 -> 3.0.0 did not move the link")
+	}
+	if err := os.RemoveAll(fresh); err != nil {
+		t.Fatal(err)
+	}
+	if changed, _ := Link(old); !changed {
+		t.Error("a removed 3.0.0 still held the link")
+	}
+	if target, _ := os.Readlink(filepath.Join(config, "ccpet")); target != old {
+		t.Errorf("link -> %q, want %q", target, old)
+	}
+}
+
+func TestParseVersion(t *testing.T) {
+	for name, ok := range map[string]bool{"3.0.0": true, "10.2.33": true,
+		"3.0": false, "3.0.0-rc1": false, "latest": false, "a.b.c": false} {
+		if _, got := parseVersion(name); got != ok {
+			t.Errorf("parseVersion(%q) ok = %v, want %v", name, got, ok)
+		}
+	}
+}

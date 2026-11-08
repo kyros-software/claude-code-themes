@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 // Keeping ~/.claude/ccpet pointed at the plugin.
@@ -127,6 +129,12 @@ func Link(root string) (bool, error) {
 			linkRun(root)
 			return false, nil // the common case, and it costs one lstat
 		}
+		if newerInstall(target, root) {
+			// A session opened before the update still runs the old hooks,
+			// and its SessionStart must not take the pet back a version.
+			linkRun(target)
+			return false, nil
+		}
 	case LinkRealDir:
 		linkRun(link) // the legacy installer owns the directory; still point at it
 		return false, nil
@@ -148,6 +156,54 @@ func Link(root string) (bool, error) {
 	}
 	linkRun(root)
 	return true, nil
+}
+
+// newerInstall says whether current is a later install of the same plugin than
+// root: two version directories side by side in the plugin cache, current
+// with the higher version, and still there.
+//
+// CLAVE: SessionStart runs the link of whichever version the session loaded,
+// and a session stays on the version it was opened with. Before this, one
+// still-open session that compacted after an update pointed every stable link
+// back at its own version, and from then on every session ran the old binary
+// over a state the new one had already written (measured 8-nov-2026, 3.0.0
+// taken back to 2.2.0). Anything that does not look like that - a hand-made
+// link, a name that is not a version - is not refused, as before.
+func newerInstall(current, root string) bool {
+	if filepath.Dir(filepath.Clean(current)) != filepath.Dir(filepath.Clean(root)) {
+		return false
+	}
+	cur, ok1 := parseVersion(filepath.Base(current))
+	old, ok2 := parseVersion(filepath.Base(root))
+	if !ok1 || !ok2 {
+		return false
+	}
+	if info, err := os.Stat(filepath.Join(current, "bin")); err != nil || !info.IsDir() {
+		return false
+	}
+	for i := range cur {
+		if cur[i] != old[i] {
+			return cur[i] > old[i]
+		}
+	}
+	return false
+}
+
+// parseVersion reads "3.0.1" as three numbers. Anything else is not a version.
+func parseVersion(name string) ([3]int, bool) {
+	var v [3]int
+	parts := strings.Split(name, ".")
+	if len(parts) != 3 {
+		return v, false
+	}
+	for i, part := range parts {
+		n, err := strconv.Atoi(part)
+		if err != nil || n < 0 {
+			return v, false
+		}
+		v[i] = n
+	}
+	return v, true
 }
 
 // linkRunFor is linkRun, exported inside the package for setup.Command.
