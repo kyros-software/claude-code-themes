@@ -62,3 +62,18 @@ func TestThePanelSaysWhenTheEggComes(t *testing.T) {
 		t.Errorf("the panel does not point at the album:\n%s", got)
 	}
 }
+
+// What a session dressed as is seen, and is not a step of the life's path.
+func TestWornFormsAreSeenButNotPartOfTheLife(t *testing.T) {
+	s := pet.New()
+	s.Album = []pet.AlbumEntry{
+		{Form: "spark", Gen: 1}, {Form: "probe", Gen: 1, Worn: true}, {Form: "pattern", Gen: 1},
+		{Form: "bughunter", Gen: 1, Worn: true},
+	}
+	got := albumFor(t, s)
+	for _, want := range []string{"4/41 formas", "generación 1   chispa › pauta\n", "vestidas     sonda · cazabugs"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the album is missing %q:\n%s", want, got)
+		}
+	}
+}

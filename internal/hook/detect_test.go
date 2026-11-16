@@ -195,6 +195,19 @@ func TestCommitSummaryIsRead(t *testing.T) {
 	if ref := CommitRef(output); ref != "main" {
 		t.Errorf("CommitRef = %q", ref)
 	}
+	// Only git's own line: the first bracket of whatever else the command
+	// printed is not a branch, and it used to be booked as one.
+	for _, noise := range []string{
+		"array [$companyAdmin->id => 3]\n[feature/x 9f8e7d6] msg",
+		"\x1b[30;42mOK\x1b[0m\n[main (root-commit) abc1234] first",
+	} {
+		if ref := CommitRef(noise); ref != "feature/x" && ref != "main" {
+			t.Errorf("CommitRef(%q) = %q", noise, ref)
+		}
+	}
+	if ref := CommitRef("['tengo hambre']\nOK"); ref != "" {
+		t.Errorf("CommitRef read %q out of output with no commit line", ref)
+	}
 	if !SaidNothingCommitted("nothing to commit, working tree clean") {
 		t.Error("the empty commit was not recognised")
 	}

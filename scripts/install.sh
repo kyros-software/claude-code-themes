@@ -55,7 +55,8 @@ if [ "$REMOVE" = 1 ]; then
     || echo "  settings.json unreadable: carrying on and removing the files"
   rm -rf "$TARGET"
   rm -f "${LEGACY[@]}" "$CLAUDE/commands/pet.md" "$CLAUDE/commands/feed.md" \
-        "$CLAUDE/commands/pet-statusline.md"
+        "$CLAUDE/commands/pet-statusline.md" "$CLAUDE/commands/pet-voice.md" \
+        "$CLAUDE/pet-voice.json" "$CLAUDE/pet-voice.json.lock"
   rm -rf "$CLAUDE/__pycache__"
   echo "Done. ~/.claude/pet.json stays: delete it yourself to start from scratch."
   exit 0
@@ -91,7 +92,9 @@ echo "  ccpet/bin, ccpet/scripts"
 for command in "$SOURCE"/commands/*.md; do
   cp "$command" "$CLAUDE/commands/"
 done
-echo "  commands: /pet, /feed, /pet-statusline"
+echo "  commands: /pet, /feed, /pet-statusline, /pet-voice"
+echo "  forma por sesión: encendida, por reglas, sin modelo; /pet-voice shape off la apaga"
+echo "  voz con Haiku: opcional y apagada; /pet-voice on la enciende (usa tu sesión de claude)"
 
 if [ "$HOOKS" = 1 ]; then
   CLAUDE_CONFIG_DIR="$CLAUDE" "$CCPET" setup install-hooks "$TARGET"

@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -31,6 +32,11 @@ func TestNoLineIsSaidByTwoVoicesOrOverflowsTheBand(t *testing.T) {
 	for form, lines := range Repertoire {
 		for _, line := range lines {
 			check(form, line)
+		}
+	}
+	for form, lines := range Asides {
+		for _, line := range lines {
+			check(form+" (aside)", line)
 		}
 	}
 	for _, e := range allEvents {
@@ -144,5 +150,76 @@ func TestTheDayMarksOfSpeechSurviveTheRoundTrip(t *testing.T) {
 	}
 	if e := Ambient(Load(path), Moment{Now: t0, Meal: "commit"}); e == EventMorning {
 		t.Error("said good morning, saved, loaded, and said it again")
+	}
+}
+
+func TestTheBubbleIsNeverEmpty(t *testing.T) {
+	now := time.Date(2026, 11, 16, 11, 0, 0, 0, time.UTC)
+	s := New()
+	form := "loom"
+	voice := voiceOf(form)
+	if len(voice) == 0 {
+		t.Fatal("loom has no voice")
+	}
+
+	// A pet that has never spoken still has its idle line.
+	if got := Standing(s, form, now, ""); got == "" {
+		t.Error("a pet that has said nothing shows nothing")
+	}
+
+	// The last line holds for as long as the silence after it.
+	Remember(s, "ñam. vuelve en cuatro horas.", now)
+	for _, after := range []time.Duration{time.Second, SpeechCooldown - time.Second} {
+		if got := Standing(s, form, now.Add(after), ""); got != "ñam. vuelve en cuatro horas." {
+			t.Errorf("%v after speaking the bubble reads %q", after, got)
+		}
+	}
+
+	// Then the form's own voice, the same line for the whole turn and never
+	// the one it has just said.
+	Remember(s, voice[0], now)
+	seen := map[string]bool{}
+	for turn := 0; turn < 3*len(voice); turn++ {
+		start := now.Add(time.Duration(turn+1) * IdleTurn)
+		line := Standing(s, form, start, "")
+		if again := Standing(s, form, start.Add(IdleTurn-time.Second), ""); again != line {
+			t.Errorf("the idle line moved inside its turn: %q, then %q", line, again)
+		}
+		if line == voice[0] {
+			t.Errorf("idle repeated the line just said: %q", line)
+		}
+		seen[line] = true
+	}
+	if len(seen) < len(voice)-1 {
+		t.Errorf("idle used %d of %d lines", len(seen), len(voice))
+	}
+}
+
+func TestEveryFormHasSomethingToSayToYou(t *testing.T) {
+	forms := append([]string{}, Secrets[:]...)
+	for form := range Parent {
+		forms = append(forms, form)
+	}
+	forms = append(forms, Root)
+	if len(forms) != 41 {
+		t.Fatalf("counted %d forms, want 41", len(forms))
+	}
+	for _, form := range forms {
+		if got := len(Asides[form]); got != 5 {
+			t.Errorf("%s has %d asides, want 5", form, got)
+		}
+		for _, line := range Asides[form] {
+			if line != strings.ToLower(line) {
+				t.Errorf("%s: %q is not lower case like the rest of the voice", form, line)
+			}
+		}
+		// The voice is both halves, one after the other.
+		voice := Voice(form)
+		if len(voice) != len(Repertoire[form])+5 {
+			t.Errorf("%s speaks %d lines, want its repertoire and its five asides", form, len(voice))
+		}
+	}
+	if len(Asides) != 41 {
+		t.Errorf("there are asides for %d forms; some are for a form that does not exist", len(Asides))
 	}
 }

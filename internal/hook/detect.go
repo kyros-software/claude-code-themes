@@ -33,7 +33,12 @@ const NothingCommitted = `nothing to commit|nada que (?:hacer|confirmar)|no chan
 // FilesChanged and CommitHash read git's own summary line.
 const (
 	FilesChanged = `(\d+)\s+files?\s+changed`
-	CommitHash   = `\[([^\]\s]+)` // "[main a1b2c3] message"
+	// "[main a1b2c3] message", and nothing looser. It was any bracket
+	// anywhere in the output, and a commit in a chain with something else
+	// booked whatever that printed first: "[$companyAdmin->id", the tail of
+	// a colour escape. That goes into pet.json and onto the panel, so it is
+	// git's own line - at the start of one, a branch name, a hash - or "".
+	CommitHash = `(?m)^\[([\w./-]+)(?: \([^)]*\))? [0-9a-f]{4,40}\]`
 )
 
 // Runners is the list. Note that \w and \s here are ASCII, where the Python

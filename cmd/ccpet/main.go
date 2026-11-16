@@ -7,6 +7,7 @@
 //	ccpet               the pet's panel
 //	ccpet feed|tests|commit|compact|task|overflow      a meal
 //	ccpet count|day|record|session                     bookkeeping
+//	ccpet voice on|off|status|say      the idle line, written by a small model
 package main
 
 import (
@@ -22,6 +23,7 @@ import (
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/setup"
 	"github.com/kyros-software/claude-code-themes/internal/statusline"
+	"github.com/kyros-software/claude-code-themes/internal/voice"
 )
 
 // version is stamped at build time with -ldflags "-X main.version=...".
@@ -56,6 +58,8 @@ func run(argv []string, stdin io.Reader, stdout, stderr io.Writer, now time.Time
 			return hook.Run(stdin, pet.Path(), now)
 		case "setup":
 			return runSetup(args[1:], stdout, stderr)
+		case "voice":
+			return voice.Run(args[1:], stdout, pet.Path(), now)
 		case "link":
 			root := ""
 			if len(args) > 1 {

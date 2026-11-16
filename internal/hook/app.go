@@ -13,6 +13,7 @@ import (
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/session"
 	"github.com/kyros-software/claude-code-themes/internal/setup"
+	"github.com/kyros-software/claude-code-themes/internal/voice"
 )
 
 // One entry point for every event; the event arrives in the stdin JSON.
@@ -192,6 +193,11 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 	if json.Unmarshal(raw, &payload) != nil || payload == nil {
 		return 0
 	}
+	// The `claude` the voice asks for its line is a Claude Code too. Nothing
+	// it does is the person's work, and nothing here should count it.
+	if os.Getenv(voice.ChildEnv) != "" {
+		return 0
+	}
 
 	// A plugin update moves the plugin - the version is in its path - which
 	// leaves the stable runtime link dangling until the next SessionStart, and
@@ -233,7 +239,7 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 			// Everything this session left in $TMPDIR, including the lock
 			// beside the tool log and the statusline's git cache. Sweep would
 			// get them in a day; this gets them now.
-			for _, p := range []string{hookPath, toolsPath, session.PathFor(sessionID, "git")} {
+			for _, p := range []string{hookPath, toolsPath, session.PathFor(sessionID, "git"), session.PathFor(sessionID, "voice")} {
 				os.Remove(p)
 				os.Remove(lockfile.Path(p))
 			}
@@ -258,6 +264,14 @@ func Run(stdin io.Reader, statePath string, now time.Time) int {
 
 	if h != before {
 		saveHookState(hookPath, h)
+	}
+	// Last, and only on a tool call: the session's shape, and - if the voice
+	// is on and a turn is due - the process that asks the model, which this
+	// does not wait for.
+	if tool != "" {
+		c := voice.ContextFrom(payload, session.Load(session.PathFor(sessionID, "")))
+		c.Kind = kindOf(tool, payload)
+		voice.Nudge(statePath, c, now)
 	}
 	return 0
 }

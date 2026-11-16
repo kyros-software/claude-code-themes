@@ -139,6 +139,10 @@ type AlbumEntry struct {
 	Form string `json:"form"`
 	Gen  int    `json:"gen"`
 	At   int64  `json:"at"`
+	// Worn says a session wore the form as its dress and the pet never grew
+	// into it. The album shows it like any other; the forks do not weigh it -
+	// see novelty.
+	Worn bool `json:"worn,omitempty"`
 }
 
 // RepoRun is one repo's run of consecutive days with a session closed in it.
@@ -336,7 +340,7 @@ func Load(path string) *State {
 			if _, known := Sprites[form]; !known {
 				continue
 			}
-			s.Album = append(s.Album, AlbumEntry{Form: form, Gen: asInt(e["gen"]), At: int64(asInt(e["at"]))})
+			s.Album = append(s.Album, AlbumEntry{Form: form, Gen: asInt(e["gen"]), At: int64(asInt(e["at"])), Worn: e["worn"] == true})
 		}
 	}
 	s.LogDay = asString(flat["log_day"])
@@ -754,12 +758,29 @@ func (s *State) Collect(form string, at int64) {
 	if gen < 1 {
 		gen = 1
 	}
+	for i, e := range s.Album {
+		if e.Form == form && e.Gen == gen {
+			// Grown into, after a session had only worn it: now it is lived.
+			s.Album[i].Worn = false
+			return
+		}
+	}
+	s.Album = append(s.Album, AlbumEntry{Form: form, Gen: gen, At: at})
+}
+
+// CollectWorn books a form a session has dressed as, once a generation, and
+// leaves alone one the pet has already been.
+func (s *State) CollectWorn(form string, at int64) {
+	gen := s.Generation
+	if gen < 1 {
+		gen = 1
+	}
 	for _, e := range s.Album {
 		if e.Form == form && e.Gen == gen {
 			return
 		}
 	}
-	s.Album = append(s.Album, AlbumEntry{Form: form, Gen: gen, At: at})
+	s.Album = append(s.Album, AlbumEntry{Form: form, Gen: gen, At: at, Worn: true})
 }
 
 // MarkDay counts CONSECUTIVE DAYS, not occurrences: only the day change counts,

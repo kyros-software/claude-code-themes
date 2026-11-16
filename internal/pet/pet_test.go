@@ -940,12 +940,13 @@ func TestItDoesNotRepeatItself(t *testing.T) {
 func TestAFormWithNoLinesBorrowsItsTradesVoice(t *testing.T) {
 	// Every form has lines of its own now; the climb is the net under a form
 	// added without them. Take a mark's away and it talks like its trade.
-	own := Repertoire["surgeon"]
+	own, asides := Repertoire["surgeon"], Asides["surgeon"]
 	delete(Repertoire, "surgeon")
-	defer func() { Repertoire["surgeon"] = own }()
+	delete(Asides, "surgeon")
+	defer func() { Repertoire["surgeon"], Asides["surgeon"] = own, asides }()
 	line := Speak(New(), EventBigMeal, "surgeon", t0, first)
 	found := false
-	for _, l := range Repertoire["refactor"] {
+	for _, l := range Voice("refactor") {
 		found = found || l == line
 	}
 	if !found {

@@ -9,39 +9,12 @@ xp, hambre y racha.
 Plugin instalable. El runtime es un binario de Go sin dependencias: ni `python3`,
 ni `node`, ni `jq`. Cuesta 1,5 ms por refresco.
 
-```
-──────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Opus 5  ██████░░░░░░░░░░ 36% · 1M ctx │ xhigh │ 5h 41%  7d 13% │ 98% cache                           ▚╲   ╱▞
-claude-code-themes (main) │ +184/−37 │ $28.29 │ 1h 12m                                                ▗▟███▙▖
-criterio                                                                                             ▐█ > < █▌
-cazabugs nivel 4 │ vibrante                                                                           ▖▖▀▀▀▗▗
-```
+![Tres sesiones abiertas a la vez, cada una con su forma y su frase: bosque, lobo y diablo](assets/statusline.png)
 
-## Instalación
+Tres sesiones abiertas a la vez sobre el mismo repo: cada una lleva la forma que pide
+su trabajo y dice lo suyo. Con un tema claro en Claude Code, el pie le sigue:
 
-```
-/plugin marketplace add kyros-software/claude-code-themes
-/plugin install claude-code-themes
-/pet-statusline
-```
-
-Lo primero trae los temas, los comandos y los hooks que alimentan a la mascota. Lo
-tercero enciende la statusline — hace falta aparte porque `statusLine` no es un
-componente de plugin y la clave va en `~/.claude/settings.json`, con copia de
-seguridad y escritura atómica. Después, `/theme` → Terminal, o Terminal Light si tu
-terminal es claro.
-
-Sin plugin:
-
-```bash
-scripts/install.sh            # temas + statusline + mascota + /pet y /feed
-scripts/install.sh --hooks    # además engancha los hooks que le dan de comer
-scripts/install.sh --uninstall
-```
-
-Los **hooks van aparte a propósito**: viven en el `settings.json` global, así que
-corren en todos tus repos. Sin ellos la mascota existe y se ve, pero solo come con
-`/feed`.
+![Las mismas tres sesiones con el tema claro](assets/statusline-claro.png)
 
 ## Las cuatro bandas
 
@@ -161,17 +134,61 @@ mismos hábitos no sale la misma mascota para siempre: la rama fuerte se repite 
 vidas y luego le toca a la segunda. Y una etapa sin hábitos va a la forma que menos
 has visto, no siempre a la primera.
 
-**Habla, poco.** Cada una de las 41 formas tiene su voz —cinco frases tras un commit
-o una suite en verde— y hay una palabra para lo demás: un compact, una tarea cerrada,
+**Habla, poco.** Cada una de las 41 formas tiene su voz: cinco frases sobre lo suyo
+—«he borrado 40 líneas y nadie las va a echar de menos»— y otras cinco dichas a ti, con
+su carácter —el sabueso sospecha de ti, el gremlin te anima a tocar lo que no debes, el
+abad te manda cerrar esa pestaña—. Salen tras un commit o una suite en verde, y hay una palabra para lo demás: un compact, una tarea cerrada,
 el primer bocado del día, un commit de madrugada o de viernes por la tarde, tres horas
-seguidas, el contexto cargándose. Una frase cada cinco minutos como mucho, lo del
-momento una vez al día, y sin evento calla. Con menos de 100 columnas el bocadillo no
-cabe y no sale.
+seguidas, el contexto cargándose. Una frase nueva cada cinco minutos como mucho y lo
+del momento una vez al día. El bocadillo no se queda vacío: la última frase aguanta
+esos cinco minutos y después va rotando la voz de la forma, una cada diez. Con menos
+de 100 columnas el bocadillo no cabe y no sale.
+
+**Una forma por sesión.** El árbol da a la mascota una forma por vida; cada sesión
+abierta la viste con la rama que pide su trabajo. Tras ocho pasos, el hook mira qué
+ha hecho esa sesión —qué herramientas, cuántos ficheros, si hubo tests, docs, un plan,
+comandos de sistema— y elige una de las catorce ramas: una sesión de documentación es
+un jardinero, una de suites un exterminador, una que vio fallar el test antes de tocar
+nada un sabueso, un refactor ancho un tejedor. Cuatro ventanas con cuatro trabajos son
+cuatro bichos distintos, y dos con el mismo trabajo tampoco salen gemelas si el trabajo
+admite otra lectura: la rama que ya lleva otra ventana abierta pesa un poco menos. Y para que no sean siempre los mismos tres —el trabajo de cada
+uno se parece a sí mismo— cada rama pesa menos cuantas más veces se ha llevado: la que
+no ha salido nunca gana con poca señal, y una sesión sin señal de nada lleva la menos
+vista. Sobre tres semanas de sesiones reales de una máquina (182 sesiones, 68.000 pasos)
+las trece ramas que el trabajo puede dar salieron cada una en 23 sesiones o más; con
+umbrales fijos, dos no salían nunca y una se llevaba el 29 %. La decimocuarta, el
+kraken, es solo del contexto a punto de reventar. El nivel sigue siendo el de la mascota: la rama se lleva hasta
+donde ella ha crecido (a nivel 3 el oficio, a nivel 6 el título), y lo que se lleva
+puesto entra en el álbum, apuntado como vestido y no como vivido: se ve igual, pero no
+cuenta cuando el árbol elige la rama de la vida siguiente. Se revisa cada media hora y sigue al trabajo reciente. No usa
+ningún modelo ni sale de la máquina. Debajo la mascota es la misma: xp, nivel,
+generación y el camino que eligieron los hábitos siguen en `pet.json`, y `/pet` los
+enseña. `ccpet voice shape off` lo apaga y todas las sesiones vuelven a la del árbol.
+
+**Y con voz propia, si quieres.** `/pet-voice on` suma a Haiku, para lo que las reglas
+no dan. Cada media hora de trabajo escribe tres frases sobre lo que está pasando en esa
+sesión, en la voz de su forma, y el pie dice una cada diez minutos. Y desempata: cuando
+una sesión encaja en dos o tres ramas —mitad docs, mitad código— las reglas visten la
+primera y le preguntan cuál de esas; de lo que están seguras no se pregunta. Va por el
+`claude` que ya tienes instalado y con tu sesión: no hay clave que configurar. Gasta de
+tu cuota entre dos y tres preguntas por sesión y hora de trabajo, unos 4.000 tokens a la
+hora (medido en tres sesiones simuladas de dos horas: entre 3.000 y 5.000; unos 1.200 de
+entrada y 100 de salida por pregunta de frases, 890 y 4 el desempate, y una pregunta de
+cada cuatro se va a 600-1.200 de salida porque el modelo piensa de más), y nada en una
+sesión de menos de ocho pasos.
+Por eso es opcional y viene apagado. Al
+modelo le llega lo que ya enseña el pie —repo, estado del contexto, tiempo de sesión, lo
+comido hoy— y las últimas herramientas con el fichero que tocaron; ni la conversación ni
+la línea de un comando, solo el nombre del programa. Si `claude` no responde, siguen las
+reglas y habla el repertorio. `/pet-voice status` lista qué lleva y dice cada sesión;
+`/pet-voice say` pide tres frases ya.
 
 **Generaciones y álbum.** El título se lleva tres días de uso y luego sale un huevo:
 otra vida desde `chispa`, con la racha, el hambre y los contadores intactos. Cada
 forma que llevas queda en el álbum (`/pet album`), y las que faltan aparecen con el
 hábito que lleva hasta ellas.
+
+![El álbum: el camino de la vida actual, las formas vestidas por las sesiones y las que faltan](assets/album.png)
 
 **Y baja.** El hambre sube +1 por hora sin comer, con tope en 10; a partir de ahí
 cada hora cuesta 1 xp. La xp tiene techo —el último umbral más 60, `1500 + 60`—,
@@ -188,18 +205,7 @@ Enseña los **22 contadores que deciden el árbol**, no solo los cuatro de la
 statusline. El color significa una sola cosa: si ese contador te lleva a algún sitio
 al que todavía puedes llegar.
 
-```
-  cazabugs   nivel 3
-  inquisitivo › sonda › cazabugs
-
-  nivel  █████░░░░░░░░░░░  533/700 xp
-  hambre ██░░░░░░░░  2
-  racha  ███░░░░  3 días · mejor 3
-
-  la marca del nivel 5
-    ✓ sabueso        reproducir antes de arreglar  36/10
-      exterminador   días seguidos en verde         2/15
-```
+![El panel de /pet: forma, nivel, camino, hambre, racha, álbum y los contadores de hábitos](assets/pet.png)
 
 ## Los temas
 

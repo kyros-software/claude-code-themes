@@ -47,13 +47,20 @@ func showAlbum(out io.Writer, statePath string) int {
 	joiner := " " + theme.Fg(theme.Rule) + "›" + reset + dim + " "
 
 	seen := map[string]bool{}
-	lives := map[int][]string{}
+	// A life is the path the pet grew along, in order. What a session only
+	// dressed as is seen too, and is not a step of that path: drawn in the
+	// chain, a pet with one life read as having been thirty creatures.
+	lives, worn := map[int][]string{}, map[int][]string{}
 	var gens []int
 	for _, e := range s.Album {
-		if _, ok := lives[e.Gen]; !ok {
+		if _, ok := lives[e.Gen]; !ok && worn[e.Gen] == nil {
 			gens = append(gens, e.Gen)
 		}
-		lives[e.Gen] = append(lives[e.Gen], pet.Name(e.Form))
+		if e.Worn {
+			worn[e.Gen] = append(worn[e.Gen], pet.Name(e.Form))
+		} else {
+			lives[e.Gen] = append(lives[e.Gen], pet.Name(e.Form))
+		}
 		seen[e.Form] = true
 	}
 	sort.Ints(gens)
@@ -70,6 +77,22 @@ func showAlbum(out io.Writer, statePath string) int {
 	for _, g := range gens {
 		nl("  " + dim + theme.PadRight("generación "+strconv.Itoa(g), 15) + reset +
 			theme.Fg(theme.Number) + strings.Join(lives[g], reset+joiner+theme.Fg(theme.Number)) + reset)
+		if len(worn[g]) == 0 {
+			continue
+		}
+		line := "  " + dim + theme.PadRight("  vestidas", 15) + reset
+		for i, name := range worn[g] {
+			sep := ""
+			if i > 0 {
+				sep = dim + " · " + reset
+			}
+			if theme.Width(line+sep+name) > albumWidth && i > 0 {
+				nl(line)
+				line, sep = "  "+strings.Repeat(" ", 15), ""
+			}
+			line += sep + theme.Fg(theme.Number) + name + reset
+		}
+		nl(line)
 	}
 
 	// What is still to see, by rung, each with the habit that leads there.

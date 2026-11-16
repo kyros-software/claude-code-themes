@@ -375,7 +375,7 @@ func TestTheV3FieldsSurviveTheRoundTrip(t *testing.T) {
 	if back.StageBase["tests"] != 9 || back.StageMax["widest_commit"] != 7 {
 		t.Errorf("stage_base %v, stage_max %v", back.StageBase, back.StageMax)
 	}
-	if len(back.Album) == 0 || back.Album[0] != (AlbumEntry{"pattern", 3, 42}) {
+	if len(back.Album) == 0 || back.Album[0] != (AlbumEntry{Form: "pattern", Gen: 3, At: 42}) {
 		t.Errorf("album %v", back.Album)
 	}
 }
@@ -402,7 +402,7 @@ func TestACloneSharesNothingWithItsOriginal(t *testing.T) {
 	s.Branch = map[string]string{Root: "pattern"}
 	s.StageBase = map[string]int{"tests": 1}
 	s.StageMax = map[string]int{"widest_commit": 1}
-	s.Album = []AlbumEntry{{"pattern", 1, 1}}
+	s.Album = []AlbumEntry{{Form: "pattern", Gen: 1, At: 1}}
 
 	c := s.Clone()
 	c.Counters["tests"] = 999
@@ -490,7 +490,7 @@ func TestHatchKeepsTheRecordAndResetsTheShape(t *testing.T) {
 	if s.Counters["methodical"] != 500 || s.Streak != 9 || s.BestStreak != 12 || s.Hunger != 3 {
 		t.Errorf("record lost: %v streak %d/%d hunger %d", s.Counters, s.Streak, s.BestStreak, s.Hunger)
 	}
-	if len(s.Album) != album+1 || s.Album[len(s.Album)-1] != (AlbumEntry{Root, 2, 2}) {
+	if len(s.Album) != album+1 || s.Album[len(s.Album)-1] != (AlbumEntry{Form: Root, Gen: 2, At: 2}) {
 		t.Errorf("album %v", s.Album)
 	}
 	if s.Stage("methodical") != 0 {
@@ -640,5 +640,26 @@ func TestWithoutTheMarkAV2PetIsStillRescaled(t *testing.T) {
 	}
 	if s := Load(path); s.XP == 1560 || s.Generation != 1 {
 		t.Errorf("xp %d generation %d: a v2 pet was not rescaled", s.XP, s.Generation)
+	}
+}
+
+// A form a session only dressed as is in the album and is not held against
+// the branch when the next life chooses; grown into, it counts like any other.
+func TestAWornFormDoesNotWeighOnTheForks(t *testing.T) {
+	s := &State{Generation: 2}
+	s.Album = []AlbumEntry{{Form: "probe", Gen: 1, At: 1, Worn: true}}
+	if got := novelty(s, "probe"); got != 1 {
+		t.Errorf("a form only worn weighs %v, want 1", got)
+	}
+	s.Generation = 1
+	s.Collect("probe", 2)
+	s.Generation = 2
+	if got := novelty(s, "probe"); got != SeenWeight {
+		t.Errorf("a form grown into after being worn weighs %v, want %v", got, SeenWeight)
+	}
+	s.CollectWorn("ember", 3)
+	s.CollectWorn("ember", 4)
+	if n := len(s.Album); n != 2 {
+		t.Errorf("album has %d entries, want 2", n)
 	}
 }

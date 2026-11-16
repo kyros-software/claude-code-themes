@@ -6,6 +6,7 @@ import (
 	"github.com/kyros-software/claude-code-themes/internal/pet"
 	"github.com/kyros-software/claude-code-themes/internal/session"
 	"github.com/kyros-software/claude-code-themes/internal/theme"
+	"github.com/kyros-software/claude-code-themes/internal/voice"
 )
 
 // The card on the right: two layers that never mix.
@@ -23,7 +24,10 @@ import (
 type Card struct {
 	Rows   [4]string
 	Bubble string
-	Facts  *session.Facts
+	// Standing says the bubble is not a new line: it is the last one held on
+	// screen, or the idle one. Nothing about it is booked.
+	Standing bool
+	Facts    *session.Facts
 
 	// Form and Mark are what a person READS - the canvas's Spanish, not the
 	// English ids pet.json stores. Vital comes along for what is not text.
@@ -164,7 +168,12 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 
 	s := pet.Load(statePath)
 	pet.DecayHunger(s, now)
-	form, level := pet.CurrentForm(s)
+	natural, level := pet.CurrentForm(s)
+	// With the voice on, this session may wear another line of the tree than
+	// the one the habits chose - at the same depth, so the level still reads
+	// true. See the voice package. Off, mind is empty and form is natural.
+	mind := voice.Read(statePath, p.SessionID, now)
+	form := pet.Guise(natural, mind.Mark)
 	// A level-up is spotted against the last level announced, which lives in
 	// pet.json itself.
 	levelledUp := level > s.LevelSeen
@@ -225,7 +234,10 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 	out.Jumped = jumped
 
 	out.Form, out.Level, out.Vital = pet.Name(form), level, vital
-	out.id = form
+	// The rung booked is the pet's own, not the session's dress: RememberShape
+	// compares it with what pet.json derives, and a guise never matches that -
+	// it would be a write every refresh.
+	out.id = natural
 	// The creature's own torso colour, taken the same way render.go takes it:
 	// the branch owns the hue, the state picks the step.
 	out.Body = pet.RampOf(form).Body[vital.Rank]
@@ -239,10 +251,13 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 	}
 	// The bar, which is a different question: XP while there is a level left
 	// to open, and the habit that opens the next shape once there is not.
-	mark, heading := pet.NextMark(s, form)
+	mark, heading := pet.NextMark(s, natural)
 	if done, span, ok := pet.LevelProgress(s.XP); ok {
 		out.Done, out.Span = done, span
-	} else if heading {
+	} else if heading && form == natural {
+		// Not on a session dressed as another line: the mark being filled is
+		// the pet's own, and beside a borrowed shape it names a creature that
+		// is not the one drawn.
 		out.Done, out.Span, out.Mark = mark.Done, mark.Threshold, pet.Name(mark.Form)
 	}
 
@@ -267,6 +282,12 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 		// and burned the phrase, on a line nobody saw. The caller calls Spoke
 		// once it is actually on screen.
 		out.Bubble = pet.Speak(s, event, form, now, nil)
+		if out.Bubble == "" {
+			// Nothing new: the bubble keeps the last line, or the form's idle
+			// one. Standing marks it so Spoke books none of what follows.
+			out.Bubble, out.Standing = pet.Standing(s, form, now, mind.Line(form)), true
+			return out, s
+		}
 		out.Event = event
 		out.LevelledUp = levelledUp
 		out.StreakSaid = event == pet.EventStreak
@@ -310,7 +331,7 @@ func RememberShape(c Card, s *pet.State, statePath string) {
 // It re-reads the file rather than saving the copy the render worked from: a
 // hook may have fed the pet in between, and this must not roll that back.
 func Spoke(c Card, s *pet.State, statePath string, now time.Time) {
-	if c.Bubble == "" {
+	if c.Bubble == "" || c.Standing {
 		return
 	}
 	pet.Remember(s, c.Bubble, now)

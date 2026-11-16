@@ -378,6 +378,9 @@ const SeenWeight = 0.5
 
 // novelty is SeenWeight to the power of the earlier lives that wore the form.
 // The current life does not count: its forms are behind the pet, not ahead.
+// Nor does a form a session only dressed as: a dozen sessions a week put on a
+// dozen shapes, and counted here they would halve every branch alike within
+// days - a weight that weighs everything weighs nothing.
 func novelty(s *State, form string) float64 {
 	gen := s.Generation
 	if gen < 1 {
@@ -385,7 +388,7 @@ func novelty(s *State, form string) float64 {
 	}
 	weight := 1.0
 	for _, e := range s.Album {
-		if e.Form == form && e.Gen < gen {
+		if e.Form == form && e.Gen < gen && !e.Worn {
 			weight *= SeenWeight
 		}
 	}
@@ -648,6 +651,25 @@ func Lineage(form string) []string {
 		}
 		path = append([]string{parent}, path...)
 	}
+}
+
+// Guise is the shape a session wears when something other than the habits has
+// chosen its line: the form of that mark's branch at the depth the pet has
+// actually grown to. The level is still the pet's own - a level 3 pet on the
+// sabueso line is a cazabugs, and at 6 it is a lobo.
+//
+// It hands back the natural form when there is no such mark, and for a secret:
+// those are not on the tree, and nothing on it is a fair trade for one.
+func Guise(natural, mark string) string {
+	title, ok := Titles[mark]
+	if !ok || secretForm(natural) {
+		return natural
+	}
+	path, depth := Lineage(title), len(Lineage(natural))
+	if depth < 1 || depth > len(path) {
+		return natural
+	}
+	return path[depth-1]
 }
 
 // titleForms is Titles inverted: the fourteen forms with nothing beyond them.

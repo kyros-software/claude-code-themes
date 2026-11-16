@@ -27,6 +27,9 @@ import (
 // than one way of being said, and there are more things worth a word: the
 // small meals, the first one of the day, the hour, the length of the session,
 // the context filling up. The three rules stand.
+//
+// Same day, later: they stand for a NEW line. The bubble itself is never empty
+// any more - see Standing.
 
 // SaidMemory is how many phrases back the pet remembers not to repeat. One
 // less than a form's repertoire, so a form never repeats inside its own round.
@@ -608,6 +611,49 @@ func Speak(s *State, e Event, form string, now time.Time, pick func(int) int) st
 	return fresh[pick(len(fresh))]
 }
 
+// IdleTurn is how long one idle line stays up before the next takes its place.
+const IdleTurn = 10 * time.Minute
+
+// Standing is what the bubble shows when there is nothing new to say: the last
+// line for as long as the silence after it lasts, and after that the form's
+// own voice, one line per IdleTurn.
+//
+// 16-nov-2026: a line used to be on screen for exactly one refresh. Speak hands
+// it over, the caller books it, and the next refresh - a second later - is
+// already inside the cooldown and draws nothing. A /feed answered with "ñam."
+// that nobody saw, and a pet that reads as mute. The rules about NEW lines
+// stand; what changed is that the bubble is never empty.
+//
+// Nothing here is booked and nothing is random: every refresh is a new process,
+// so the idle line is picked off the clock and stays put for its turn without
+// a write to pet.json.
+func Standing(s *State, form string, now time.Time, voiced string) string {
+	last := ""
+	if n := len(s.Said); n > 0 {
+		last = s.Said[n-1]
+	}
+	if last != "" && s.SaidAt != 0 && now.Sub(time.Unix(s.SaidAt, 0)) < SpeechCooldown {
+		return last
+	}
+	// A line written for this moment beats five written for any. See the
+	// voice package; it is "" unless that is switched on.
+	if voiced != "" && voiced != last {
+		return voiced
+	}
+	// Without the line it has just said, so that one never comes straight back
+	// and two turns in a row never read the same.
+	var lines []string
+	for _, line := range voiceOf(form) {
+		if line != last {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return last
+	}
+	return lines[int(now.Unix()/int64(IdleTurn/time.Second))%len(lines)]
+}
+
 // voiceOf is the repertoire a form speaks with after a good meal: its own, or
 // else that of the nearest form it grew out of.
 //
@@ -615,17 +661,37 @@ func Speak(s *State, e Event, form string, now time.Time, pick func(int) int) st
 // without them: it borrows its trade's voice rather than going mute.
 //
 // The root is skipped on the way up: its lines are a newborn's.
-func voiceOf(form string) []string {
-	if lines := Repertoire[form]; len(lines) > 0 {
+func voiceOf(form string) []string { return Voice(form) }
+
+// Voice is voiceOf for the packages outside this one.
+func Voice(form string) []string {
+	if lines := own(form); len(lines) > 0 {
 		return lines
 	}
 	path := Lineage(form)
 	for i := len(path) - 2; i >= 1; i-- {
-		if lines := Repertoire[path[i]]; len(lines) > 0 {
+		if lines := own(path[i]); len(lines) > 0 {
 			return lines
 		}
 	}
 	return nil
+}
+
+// own is everything a form says for itself: what it says about its work, and
+// what it says to the person - see Asides. Interleaved, so that whoever takes
+// them in order hears one and then the other.
+func own(form string) []string {
+	about, to := Repertoire[form], Asides[form]
+	out := make([]string, 0, len(about)+len(to))
+	for i := 0; i < len(about) || i < len(to); i++ {
+		if i < len(about) {
+			out = append(out, about[i])
+		}
+		if i < len(to) {
+			out = append(out, to[i])
+		}
+	}
+	return out
 }
 
 // Remember books a line as said and starts the cooldown. Called only once the
