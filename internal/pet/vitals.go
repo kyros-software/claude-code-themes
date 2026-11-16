@@ -23,14 +23,33 @@ type Vital struct {
 }
 
 // Vitals in order. The first whose Cap the usage does not exceed wins.
+//
+// The colours are not written here: paint (ramps_light.go) fills them in from
+// stateColours, because the palette they come out of is only chosen at
+// start-up - dark or light - and a literal would freeze whichever was current
+// when the package initialised.
 var Vitals = []Vital{
-	{0, 22, "fresh", theme.Ident, theme.PaleGreen, theme.DarkGreen, [2]rune{'>', '<'}, true, true, true},
-	{1, 45, "lively", theme.Ident, theme.PaleGreen, theme.DarkGreen, [2]rune{'>', '<'}, true, true, false},
-	{2, 63, "easy", theme.Path, theme.PaleTeal, theme.DarkTeal, [2]rune{'o', 'o'}, true, true, false},
-	{3, 78, "sluggish", theme.Quota, theme.PaleBlue, theme.DarkBlue, [2]rune{'▬', '▬'}, true, false, false},
-	{4, 89, "tired", theme.Quota, theme.PaleBlue, theme.DarkBlue, [2]rune{'_', '_'}, false, false, false},
-	{5, 99.999, "drowning", theme.Drowned, theme.PaleIndigo, theme.DarkIndigo, [2]rune{'x', 'x'}, false, false, false},
-	{6, 100, "k.o.", theme.Grey, theme.PaleGrey, theme.DarkGrey, [2]rune{'x', 'x'}, false, false, false},
+	{Rank: 0, Cap: 22, Label: "fresh", Eyes: [2]rune{'>', '<'}, HeadUp: true, Walks: true, Sparkle: true},
+	{Rank: 1, Cap: 45, Label: "lively", Eyes: [2]rune{'>', '<'}, HeadUp: true, Walks: true},
+	{Rank: 2, Cap: 63, Label: "easy", Eyes: [2]rune{'o', 'o'}, HeadUp: true, Walks: true},
+	{Rank: 3, Cap: 78, Label: "sluggish", Eyes: [2]rune{'▬', '▬'}, HeadUp: true},
+	{Rank: 4, Cap: 89, Label: "tired", Eyes: [2]rune{'_', '_'}},
+	{Rank: 5, Cap: 99.999, Label: "drowning", Eyes: [2]rune{'x', 'x'}},
+	{Rank: 6, Cap: 100, Label: "k.o.", Eyes: [2]rune{'x', 'x'}},
+}
+
+// stateColours is each state's Colour, PaleEye and DarkEye, in Vitals order,
+// read from the palette in use at the moment it is called.
+func stateColours() [7][3]theme.Colour {
+	return [7][3]theme.Colour{
+		{theme.Ident, theme.PaleGreen, theme.DarkGreen},
+		{theme.Ident, theme.PaleGreen, theme.DarkGreen},
+		{theme.Path, theme.PaleTeal, theme.DarkTeal},
+		{theme.Quota, theme.PaleBlue, theme.DarkBlue},
+		{theme.Quota, theme.PaleBlue, theme.DarkBlue},
+		{theme.Drowned, theme.PaleIndigo, theme.DarkIndigo},
+		{theme.Grey, theme.PaleGrey, theme.DarkGrey},
+	}
 }
 
 // KO is the last state, and the only one with a door of its own.

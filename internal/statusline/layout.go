@@ -17,6 +17,15 @@ var (
 	sepX = " " + sep + " "
 )
 
+// The separator is painted once, at start-up; when the palette is swapped
+// afterwards (the tests do) it has to be painted again in the new Rule.
+func init() {
+	theme.OnChange(func() {
+		sep = theme.Fg(theme.Rule) + "│" + theme.Reset
+		sepX = " " + sep + " "
+	})
+}
+
 const (
 	// BubbleMin is the design's floor: below this many columns the speech
 	// bubble drops itself. Measured against the terminal's columns, not the

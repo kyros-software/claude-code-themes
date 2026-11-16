@@ -111,6 +111,7 @@ var (
 	Mode     = c("#b07cf0", 141) // modes and CLI settings
 	Bad      = c("#f2777a", 210) // deletions, errors, risk
 	Emph     = c("#eceff4", 255) // emphasis
+	Paper    = c("#eceff4", 255) // the light ink On() offers: Emph in the dark, white in the light
 	Dim      = c("#6b7683", 243) // arrows, separators, units
 	Rule     = c("#2c343c", 236) // the vertical separator
 	Dir      = c("#8d99a6", 246) // the directory, one grey above Dim
@@ -193,8 +194,9 @@ func Fg(col Colour) string { return seq(38, col) }
 func Bgc(col Colour) string { return seq(48, col) }
 
 // On is a foreground that stays legible sitting on top of col: whichever of
-// the two inks the palette has - black, or Emph's near-white - contrasts with
-// it more.
+// the two inks the palette has - black, or Paper's near-white - contrasts with
+// it more. Paper and not Emph: in the light palette Emph is the near-black of
+// the text, and comparing black against black is no choice at all.
 //
 // The model pill used to be black on one fixed green, so black was safe by
 // construction. It is painted the creature's colour now, and the ramps run
@@ -207,10 +209,10 @@ func Bgc(col Colour) string { return seq(48, col) }
 // black on it contrasts 5.7 against the light ink's 3.7. Comparing the two
 // contrasts has no such band, and it cannot be tuned wrong.
 func On(col Colour) string {
-	if ContrastRatio(Black8, col) >= ContrastRatio(Emph, col) {
+	if ContrastRatio(Black8, col) >= ContrastRatio(Paper, col) {
 		return Black
 	}
-	return Fg(Emph)
+	return Fg(Paper)
 }
 
 // Black8 is the colour Black paints in, as a Colour: xterm 16 is #000000.
