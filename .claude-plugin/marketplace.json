@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "claude-code-themes",
-      "description": "Three colour themes plus a four-band statusline with a pet that evolves with how you work.",
+      "description": "Four colour themes, one light, plus a four-band statusline with a pet that evolves with how you work.",
       "source": "./",
       "category": "productivity"
     }

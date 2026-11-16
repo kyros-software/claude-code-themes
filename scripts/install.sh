@@ -100,5 +100,5 @@ else
 fi
 
 echo
-echo "Done. Now pick the theme: /theme -> Terminal"
+echo "Done. Now pick the theme: /theme -> Terminal (Terminal Light on a light terminal)"
 echo "Open a NEW terminal so COLORTERM reaches it; without that you see it quantised."

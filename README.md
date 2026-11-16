@@ -1,6 +1,6 @@
 # claude-code-themes
 
-Tres temas de color para [Claude Code](https://claude.com/claude-code) y una
+Cuatro temas de color para [Claude Code](https://claude.com/claude-code) —uno claro— y una
 **statusline** que ocupa el pie de la ventana: cuatro bandas de datos a la
 izquierda y una mascota a la derecha que refleja el estado de la sesión y
 **evoluciona según cómo trabajas** — 41 formas en un árbol de seis niveles, con
@@ -28,7 +28,8 @@ cazabugs nivel 4 │ vibrante                                                   
 Lo primero trae los temas, los comandos y los hooks que alimentan a la mascota. Lo
 tercero enciende la statusline — hace falta aparte porque `statusLine` no es un
 componente de plugin y la clave va en `~/.claude/settings.json`, con copia de
-seguridad y escritura atómica. Después, `/theme` → Terminal.
+seguridad y escritura atómica. Después, `/theme` → Terminal, o Terminal Light si tu
+terminal es claro.
 
 Sin plugin:
 
@@ -194,6 +195,7 @@ al que todavía puedes llegar.
 | **Terminal** | `#4dd6c1` turquesa | un color por tipo de dato |
 | **Blood Red** | `#ff5c47` coral | cálido: coral, terracota, vino |
 | **Electric Blue** | `#2e8bff` azul | frío: cian, azure, azul profundo |
+| **Terminal Light** | `#037a6c` turquesa oscuro | Terminal para un terminal claro |
 
 ![Electric Blue a la izquierda y Blood Red a la derecha](assets/preview.png)
 
@@ -214,7 +216,17 @@ mismo color, así no hay que leer para saber qué estás mirando.
 | Énfasis en prosa | `#ECEFF4` | casi blanco |
 | Separadores, unidades | `#6B7683` | gris |
 
-Los tres cubren los **72 tokens** que reconoce Claude Code, no solo la docena que se
+**Terminal Light** es el mismo reparto sobre fondo claro. Los pasteles de Terminal se leen
+sobre negro y desaparecen sobre blanco (`#4dd6c1` da 1,79:1), así que cada rol conserva su
+tono y baja a una sola luminosidad, OKLCH L 0.52: todos pasan 4,5:1 sobre el fondo
+`#f3f3f3`. Tu mensaje va en una tarjeta `#fbfbfb`, no en una franja negra.
+
+**La statusline sigue al tema.** Con Terminal Light, o con cualquier tema de base clara
+(`light`, `light-daltonized`, un `custom:` cuyo `base` sea claro), el pie y la mascota pasan
+a su paleta clara al arrancar: el pie es `#f3f3f3`, el mismo fondo, y no una banda de otro
+blanco. `STATUSLINE_THEME=light|dark` lo fuerza.
+
+Los cuatro cubren los **72 tokens** que reconoce Claude Code, no solo la docena que se
 ve de un vistazo.
 
 ## Ajustes
@@ -226,6 +238,7 @@ ve de un vistazo.
 | `STATUSLINE_BACKGROUND=0` | quita el fondo del pie |
 | `STATUSLINE_RULE=0` | quita la raya de arriba y ahorra una fila |
 | `STATUSLINE_RIGHT_PAD` | margen derecho, por defecto `6` |
+| `STATUSLINE_THEME=light\|dark` | fuerza la paleta clara u oscura; sin ella, sigue al tema de Claude Code |
 | `PET_TEST_RUNNERS` | regex extra para reconocer tu runner de tests |
 | `CLAUDE_CONFIG_DIR` | mueve `~/.claude`; la mascota y la statusline lo respetan |
 
