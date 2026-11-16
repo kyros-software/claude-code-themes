@@ -353,11 +353,54 @@ func ripestMark(s *State, kids []string, met bool) (string, bool) {
 		}
 		// Uncapped on purpose: capping at 1 would tie every earned sibling and
 		// hand the branch back to list order, which is the bug this replaces.
-		if ripeness := float64(done) / float64(u.Threshold); !found || ripeness > bestRipeness {
+		// Weighed by novelty, so a mark worn in an earlier life has to be
+		// pushed harder to be worn again - see novelty.
+		ripeness := float64(done) / float64(u.Threshold) * novelty(s, kid)
+		if !found || beats(s, kid, ripeness, best, bestRipeness) {
 			best, bestRipeness, found = kid, ripeness, true
 		}
 	}
 	return best, found
+}
+
+// SeenWeight is what a fork's habit is worth for a form already worn in an
+// earlier life, once per life it was worn: half, a quarter, an eighth.
+//
+// v3 gave the pet a next life and left the forks to the habits alone, and
+// habits are the one thing that does not change between lives: this machine's
+// pet read methodical 524, inquisitive 83, impulsive 2, so every generation was
+// going to be pauta -> refactor again and the album would have stayed at five
+// or six of forty-one for good. With the weight the habits still decide - the
+// strongest one wins the first lives outright - and each repeat costs it half,
+// until the second habit gets its turn: on those numbers, three lives of pauta
+// and then a sonda.
+const SeenWeight = 0.5
+
+// novelty is SeenWeight to the power of the earlier lives that wore the form.
+// The current life does not count: its forms are behind the pet, not ahead.
+func novelty(s *State, form string) float64 {
+	gen := s.Generation
+	if gen < 1 {
+		gen = 1
+	}
+	weight := 1.0
+	for _, e := range s.Album {
+		if e.Form == form && e.Gen < gen {
+			weight *= SeenWeight
+		}
+	}
+	return weight
+}
+
+// beats says kid, at score, takes the fork from best. A higher score wins; on
+// a tie the one worn fewer times does, and only then the design's order - so a
+// stage with no habit at all, which used to take the first child every life,
+// walks the tree instead of repeating its first branch.
+func beats(s *State, kid string, score float64, best string, bestScore float64) bool {
+	if score != bestScore {
+		return score > bestScore
+	}
+	return novelty(s, kid) > novelty(s, best)
 }
 
 // Tier is the rung a FORM sits on: 1 for the root, 2 for a temperament, 3 for
@@ -447,36 +490,30 @@ func stageShare(s *State, form string) float64 {
 // is written: it is the same answer whether the pet is crossing for real or
 // the panel is asking what the next level would look like.
 //
-// Every fork has a route by default, the first child in design order, which is
-// where a stage with no habit at all goes - the Digimon fallback. A pet is
-// never stuck on a rung for want of a habit.
+// Every fork has a route by default, which is where a stage with no habit at
+// all goes - the Digimon fallback: the child worn in the fewest earlier lives,
+// and the first in design order among those. A pet is never stuck on a rung
+// for want of a habit.
+//
+// The habits are weighed by novelty: see SeenWeight.
 func pick(s *State, parent string) string {
 	kids := Tree[parent]
 	if len(kids) == 1 {
 		return kids[0] // a mark's title
 	}
 	if _, isMarkFork := Unlocks[kids[0]]; isMarkFork {
-		if kid, ok := ripestMark(s, kids, false); ok && stageDone(s, kid) > 0 {
+		if kid, ok := ripestMark(s, kids, false); ok {
 			return kid
 		}
 		return kids[0]
 	}
-	best, bestShare := kids[0], stageShare(s, kids[0])
+	best, bestShare := kids[0], stageShare(s, kids[0])*novelty(s, kids[0])
 	for _, kid := range kids[1:] {
-		if share := stageShare(s, kid); share > bestShare {
+		if share := stageShare(s, kid) * novelty(s, kid); beats(s, kid, share, best, bestShare) {
 			best, bestShare = kid, share
 		}
 	}
 	return best
-}
-
-// stageDone is a mark's habit this stage.
-func stageDone(s *State, mark string) int {
-	u, ok := Unlocks[mark]
-	if !ok {
-		return 0
-	}
-	return s.Stage(u.Counter)
 }
 
 // pathEnd follows the decisions already taken. A link that is not a real edge

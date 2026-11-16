@@ -76,6 +76,16 @@ uso, y ninguna parece evolucionar según los hábitos. No he leído su código.
 - La marca del nivel 5 se decide igual: al cruzar, con el hábito más maduro de la etapa.
 - Si una etapa termina sin hábitos (todo a cero), se sigue la **ruta por defecto**, el
   primer hijo en el orden del árbol, como hoy en los empates.
+- **El álbum pesa en la bifurcación** (16-nov-2026, `SeenWeight`). Lo anterior dejaba la
+  decisión solo a los hábitos, y los hábitos son lo que no cambia de una vida a otra.
+  [medido] El `pet.json` de esta máquina: metódico 524, inquisitivo 83, impulsivo 2; en
+  días de hábito (`BranchScale`), 52 contra 8 contra 0,7. Cada generación iba a ser
+  pauta → refactor, y el álbum se quedaba en cinco o seis de 41. Ahora la parte de un
+  hijo se multiplica por 0,5 por cada vida anterior que lo llevó: con esos números,
+  pauta tres vidas y a la cuarta, sonda. El empate —incluida la etapa sin hábitos— va al
+  hijo menos visto, y solo después al orden del árbol. `NextMark` lee la misma cuenta,
+  así que la barra no promete una marca que el paso vaya a negar.
+  [hipotesis] 0,5 sale de un solo usuario; con brasa a 0,7 días harían falta siete vidas.
 
 Los contadores de vida se quedan. Los usan el panel, las estadísticas y las condiciones
 de las marcas que piden cantidad («20 diffs», «5 sesiones»).

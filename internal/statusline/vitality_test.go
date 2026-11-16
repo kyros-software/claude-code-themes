@@ -393,3 +393,37 @@ func TestANewGenerationIsAnnouncedOnce(t *testing.T) {
 		t.Error("the same generation was announced twice")
 	}
 }
+
+// The moment is laid over the old order without disturbing it: the pet's own
+// news first, then the once-a-day remark, then the meal, big or small.
+func TestWhatThePetTalksAboutFirst(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "pet.json")
+	friday := time.Date(2026, 11, 20, 17, 0, 0, 0, time.Local)
+	meal := pet.Moment{Now: friday, Meal: "commit"}
+
+	s := pet.New()
+	s.Log = []pet.LogEntry{{Event: "commit", XP: 12}, {Event: "commit", XP: 12}}
+	if e := cueFor(s, "fresh", true, true, meal); e != pet.EventLevelUp {
+		t.Errorf("a level-up on a Friday afternoon: %q, want the level", e)
+	}
+	if e := cueFor(s, "fresh", false, true, meal); e != pet.EventFriday {
+		t.Fatalf("a commit on a Friday afternoon: %q, want friday", e)
+	}
+	// Said, it gives way to the meal for the rest of the day.
+	if err := os.WriteFile(statePath, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	Spoke(Card{Bubble: "viernes tarde. yo no he visto nada.", Event: pet.EventFriday}, s, statePath, friday)
+	back := pet.Load(statePath)
+	back.Log = s.Log
+	if e := cueFor(back, "fresh", false, true, meal); e != pet.EventBigMeal {
+		t.Errorf("Friday already said: %q, want the meal", e)
+	}
+	// A small meal has a word of its own, and no meal has none.
+	if e := cueFor(back, "fresh", false, false, pet.Moment{Now: friday, Meal: "compact"}); e != pet.EventCompact {
+		t.Errorf("a compact: %q, want compact", e)
+	}
+	if e := cueFor(back, "fresh", false, false, pet.Moment{Now: friday}); e != pet.EventNothing {
+		t.Errorf("nothing happened: %q, want silence", e)
+	}
+}

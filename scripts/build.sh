@@ -10,6 +10,13 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 cd "$ROOT"
 command -v go >/dev/null || { echo "go is required" >&2; exit 1; }
 
+# The toolchain go.mod names, not whichever Go is installed. CI rebuilds bin/
+# with that one (go-version-file) and compares bytes, so a build from go1.26.8
+# against go 1.26.1 differs in every binary and goes red as "bin/ is stale".
+# Go downloads the pinned toolchain the first time.
+GO_PIN=$(sed -n 's/^go \([0-9][0-9.]*\)$/\1/p' go.mod)
+export GOTOOLCHAIN="go${GO_PIN:?go.mod has no go line}"
+
 VERSION=$(python3 -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])' 2>/dev/null || echo dev)
 # -trimpath keeps build paths out of the binary; -s -w drop the symbol table and
 # DWARF, which is about a third of the size and nothing anyone needs at runtime.

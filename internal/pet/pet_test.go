@@ -937,31 +937,21 @@ func TestItDoesNotRepeatItself(t *testing.T) {
 	}
 }
 
-func TestAMarkSpeaksWithItsTradesVoice(t *testing.T) {
-	// The fourteen marks and fourteen titles have no lines of their own; they
-	// borrow their trade's. A temperament and a secret, off any trade, stay
-	// quiet after a meal.
-	if _, ok := Repertoire["surgeon"]; ok {
-		t.Fatal("surgeon was given a repertoire; this test needs one without")
+func TestAFormWithNoLinesBorrowsItsTradesVoice(t *testing.T) {
+	// Every form has lines of its own now; the climb is the net under a form
+	// added without them. Take a mark's away and it talks like its trade.
+	own := Repertoire["surgeon"]
+	delete(Repertoire, "surgeon")
+	defer func() { Repertoire["surgeon"] = own }()
+	line := Speak(New(), EventBigMeal, "surgeon", t0, first)
+	found := false
+	for _, l := range Repertoire["refactor"] {
+		found = found || l == line
 	}
-	for _, form := range []string{"surgeon", "scalpel"} {
-		s := New()
-		line := Speak(s, EventBigMeal, form, t0, first)
-		found := false
-		for _, l := range Repertoire["refactor"] {
-			found = found || l == line
-		}
-		if !found {
-			t.Errorf("%s after a big meal said %q, want a refactor line", form, line)
-		}
-	}
-	for _, form := range []string{"pattern", "phoenix", "chimera"} {
-		if line := Speak(New(), EventBigMeal, form, t0, first); line != "" {
-			t.Errorf("%s has no trade and still said %q", form, line)
-		}
+	if !found {
+		t.Errorf("surgeon without lines said %q, want a refactor line", line)
 	}
 	s := New()
-	s = New()
 	s.XP = xpFor(4)
 	if line := Speak(s, EventLevelUp, "surgeon", t0, first); line != "nivel 4. ya soy alguien." {
 		t.Errorf("level-up line = %q", line)
@@ -981,11 +971,16 @@ func TestTheSharedLinesCarryTheirNumber(t *testing.T) {
 	}
 }
 
-func TestEveryFormWithARepertoireHasThreeLines(t *testing.T) {
-	for name, lines := range Repertoire {
-		if len(lines) != 3 {
-			t.Errorf("%s has %d lines, the canvas gives 3", name, len(lines))
+func TestEveryFormHasAVoiceOfItsOwn(t *testing.T) {
+	// A title is where every pet ends up, and it used to live on its trade's
+	// three lines for good. One more line than SaidMemory, so a form never
+	// repeats inside its own round.
+	for name := range Sprites {
+		if got := len(Repertoire[name]); got != SaidMemory+1 {
+			t.Errorf("%s has %d lines, want %d", name, got, SaidMemory+1)
 		}
+	}
+	for name := range Repertoire {
 		if _, ok := Sprites[name]; !ok {
 			t.Errorf("%s has a repertoire but no sprite", name)
 		}

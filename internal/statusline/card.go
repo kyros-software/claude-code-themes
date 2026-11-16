@@ -79,6 +79,10 @@ type Card struct {
 	// HatchSaid says the bubble is the new generation's announcement.
 	HatchSaid bool
 
+	// Event is what the bubble is about, so Spoke can book the once-a-day
+	// ones as said today.
+	Event pet.Event
+
 	// State is the vitality's name - "a gusto", "ahogada". It used to crown the
 	// card; it sits in band 4 beside the level now, and the row it vacated went
 	// back to the creature's crest. Jumped is true for the one refresh after it
@@ -128,6 +132,27 @@ func eventFor(s *pet.State, label string, levelledUp, bigMeal bool) pet.Event {
 		return pet.EventStreak
 	}
 	return pet.EventNothing
+}
+
+// cueFor is eventFor with the moment laid over it. The pet's own news keeps
+// its place - a hatching, a level, a blown context, hunger - then comes the
+// once-a-day remark the moment calls for, then the meal itself, big or small,
+// and the streak last, as before.
+func cueFor(s *pet.State, label string, levelledUp, bigMeal bool, m pet.Moment) pet.Event {
+	switch e := eventFor(s, label, levelledUp, false); e {
+	case pet.EventHatch, pet.EventLevelUp, pet.EventCtxBlown, pet.EventHungry:
+		return e
+	}
+	if e := pet.Ambient(s, m); e != pet.EventNothing {
+		return e
+	}
+	if bigMeal {
+		return pet.EventBigMeal
+	}
+	if e := pet.SnackEvent(m.Meal); e != pet.EventNothing {
+		return e
+	}
+	return eventFor(s, label, levelledUp, false)
 }
 
 // RenderCard builds the right-hand column and whatever the pet has to say.
@@ -224,19 +249,25 @@ func RenderCard(p *Payload, facts session.Facts, rate rateFacts, newTurn, bubble
 	if bubbleAllowed {
 		// A big meal is one the hook just fed it; the statusline sees it as a
 		// log entry still inside the window.
-		bigMeal := false
+		bigMeal, meal := false, ""
 		if n := len(s.Log); n > 0 {
 			last := s.Log[n-1]
 			since := now.Sub(time.Unix(last.At, 0))
-			bigMeal = pet.BigMeal(last.Event) && since >= 0 && since < pet.BigMealWindow
+			if last.XP > 0 && since >= 0 && since < pet.BigMealWindow {
+				meal, bigMeal = last.Event, pet.BigMeal(last.Event)
+			}
 		}
-		event := eventFor(s, label, levelledUp, bigMeal)
+		event := cueFor(s, label, levelledUp, bigMeal, pet.Moment{
+			Now: now, Meal: meal, Label: label,
+			Active: time.Duration(facts.Active) * time.Second,
+		})
 		// Nothing is booked here. The line has still to get past the band's
 		// layout, and band 4 drops the bubble before anything else when it
 		// runs out of room - booking it here spent the five-minute cooldown,
 		// and burned the phrase, on a line nobody saw. The caller calls Spoke
 		// once it is actually on screen.
 		out.Bubble = pet.Speak(s, event, form, now, nil)
+		out.Event = event
 		out.LevelledUp = levelledUp
 		out.StreakSaid = event == pet.EventStreak
 		out.HatchSaid = event == pet.EventHatch
@@ -285,6 +316,7 @@ func Spoke(c Card, s *pet.State, statePath string, now time.Time) {
 	pet.Remember(s, c.Bubble, now)
 	pet.Update(statePath, func(fresh *pet.State) bool {
 		fresh.Said, fresh.SaidAt = s.Said, s.SaidAt
+		pet.RememberEvent(fresh, c.Event, now)
 		if c.LevelledUp {
 			fresh.LevelSeen = c.Level
 		}

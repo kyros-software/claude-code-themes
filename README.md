@@ -155,6 +155,19 @@ Una semana de tests te vuelve cazabugs aunque lleves meses commiteando. Una etap
 sin hábitos sigue la ruta por defecto, así que nunca se atasca. Una vez elegida, la
 rama no cambia en el resto de la vida: la forma no se cae.
 
+**El álbum pesa.** Una forma que ya llevaste en otra vida vale la mitad en la
+bifurcación, por cada vida que la llevó. Tus hábitos siguen mandando, pero con los
+mismos hábitos no sale la misma mascota para siempre: la rama fuerte se repite unas
+vidas y luego le toca a la segunda. Y una etapa sin hábitos va a la forma que menos
+has visto, no siempre a la primera.
+
+**Habla, poco.** Cada una de las 41 formas tiene su voz —cinco frases tras un commit
+o una suite en verde— y hay una palabra para lo demás: un compact, una tarea cerrada,
+el primer bocado del día, un commit de madrugada o de viernes por la tarde, tres horas
+seguidas, el contexto cargándose. Una frase cada cinco minutos como mucho, lo del
+momento una vez al día, y sin evento calla. Con menos de 100 columnas el bocadillo no
+cabe y no sale.
+
 **Generaciones y álbum.** El título se lleva tres días de uso y luego sale un huevo:
 otra vida desde `chispa`, con la racha, el hambre y los contadores intactos. Cada
 forma que llevas queda en el álbum (`/pet album`), y las que faltan aparecen con el
