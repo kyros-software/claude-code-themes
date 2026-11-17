@@ -2,7 +2,6 @@ package panel
 
 import (
 	"fmt"
-	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -266,6 +265,3 @@ func larder(b *strings.Builder, s *pet.State, now time.Time) {
 	}
 	_ = emph
 }
-
-// writeTo is here so the sections can be tested without a whole panel.
-func writeTo(out io.Writer, b *strings.Builder) { io.WriteString(out, b.String()) }

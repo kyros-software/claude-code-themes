@@ -90,7 +90,7 @@ func TestAMultiRuneEmojiIsOneGlyph(t *testing.T) {
 		{"three emoji joined by ZWJ", "👨‍👩‍👧", 2},
 		{"two joined by ZWJ", "👩‍💻", 2},
 		{"a skin tone modifier", "👍\U0001F3FD", 2},
-		{"a skin tone inside a ZWJ group", "👋\U0001F3FD‍♀️", 2},
+		{"a skin tone inside a ZWJ group", "👋\U0001F3FD\u200d♀️", 2},
 		{"a flag is two regional indicators", "🇪🇸", 2},
 		{"a narrow flag joined to a wide rainbow", "🏳️‍🌈", 2},
 		{"a black flag joined to a skull", "🏴‍☠️", 2},
