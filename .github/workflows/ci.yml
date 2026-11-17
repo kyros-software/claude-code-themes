@@ -24,6 +24,13 @@ jobs:
             echo "not gofmt'd:"; echo "$unformatted"; exit 1
           fi
       - run: go vet ./...
+      # Pinned, like the toolchain: a linter that moves on its own turns a
+      # green tree red with nobody having touched it.
+      - run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+      # The standard library is the only dependency there is, so this is a
+      # check on the Go version in go.mod: it goes red when a vulnerability
+      # the code can actually reach is fixed in a later patch release.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - run: go test -race ./...
       - name: shell syntax
         run: for f in bin/ccpet scripts/*.sh; do bash -n "$f"; done

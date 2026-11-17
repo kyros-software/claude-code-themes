@@ -12,7 +12,7 @@ command -v go >/dev/null || { echo "go is required" >&2; exit 1; }
 
 # The toolchain go.mod names, not whichever Go is installed. CI rebuilds bin/
 # with that one (go-version-file) and compares bytes, so a build from go1.26.8
-# against go 1.26.1 differs in every binary and goes red as "bin/ is stale".
+# against go 1.26.11 differs in every binary and goes red as "bin/ is stale".
 # Go downloads the pinned toolchain the first time.
 GO_PIN=$(sed -n 's/^go \([0-9][0-9.]*\)$/\1/p' go.mod)
 export GOTOOLCHAIN="go${GO_PIN:?go.mod has no go line}"
