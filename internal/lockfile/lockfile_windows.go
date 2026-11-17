@@ -9,6 +9,10 @@ import (
 	"unsafe"
 )
 
+// NoFollow is nothing here: there is no O_NOFOLLOW to ask for, and making a
+// symlink on Windows takes a privilege a stranger on the box does not have.
+const NoFollow = 0
+
 // LockFileEx is reached through kernel32 rather than through the syscall
 // package: it is not in the standard library's Windows syscall surface, and the
 // only other way to it is golang.org/x/sys, which is a dependency this module

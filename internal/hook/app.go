@@ -150,7 +150,7 @@ func logTool(path, name string) {
 	release, _ := lockfile.Take(path)
 	defer release()
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|lockfile.NoFollow, 0o600)
 	if err != nil {
 		return
 	}
